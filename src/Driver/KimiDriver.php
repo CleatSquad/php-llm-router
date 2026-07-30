@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LlmRouter\Driver;
 
 use LlmRouter\Contract\Driver\LLMDriverInterface;
+use LlmRouter\Driver\Concern\ParsesOpenAiCompatibleSse;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
@@ -21,6 +22,8 @@ use RuntimeException;
  */
 class KimiDriver implements LLMDriverInterface
 {
+    use ParsesOpenAiCompatibleSse;
+
     private string $moonshotUrl;
     private string $moonshotApiKey;
 
@@ -116,9 +119,9 @@ class KimiDriver implements LLMDriverInterface
         ];
     }
 
-    public function chat(LLMRequest $request): LLMResponse
+    private function resolveModel(?string $requestedModel): string
     {
-        $model = $request->model ?? 'moonshot-v1-8k';
+        $model = $requestedModel ?? 'moonshot-v1-8k';
 
         // Strip provider prefix if present
         if (str_contains($model, '/')) {
@@ -130,6 +133,13 @@ class KimiDriver implements LLMDriverInterface
         if (!in_array($model, $validModels, true)) {
             $model = 'moonshot-v1-8k';
         }
+
+        return $model;
+    }
+
+    public function chat(LLMRequest $request): LLMResponse
+    {
+        $model = $this->resolveModel($request->model);
 
         $payload = [
             'model' => $model,
@@ -199,10 +209,45 @@ class KimiDriver implements LLMDriverInterface
         );
     }
 
+    /**
+     * @return Generator<int, string, mixed, void>
+     */
     public function stream(LLMRequest $request): Generator
     {
-        yield '';
-        throw new RuntimeException('Streaming not implemented yet in KimiDriver.');
+        $model = $this->resolveModel($request->model);
+
+        $payload = [
+            'model' => $model,
+            'messages' => $request->messages,
+            'stream' => true,
+        ];
+
+        if ($request->temperature !== null) {
+            $payload['temperature'] = $request->temperature;
+        }
+
+        if ($request->maxTokens !== null) {
+            $payload['max_tokens'] = $request->maxTokens;
+        }
+
+        if ($request->tools !== null) {
+            $payload['tools'] = $request->tools;
+        }
+
+        $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
+
+        try {
+            $response = $this->httpClient->getClient()->post($this->moonshotUrl . '/chat/completions', [
+                'json' => $payload,
+                'headers' => $this->getHeaders(),
+                'timeout' => $timeout,
+                'stream' => true,
+            ]);
+        } catch (\Exception $e) {
+            throw new RuntimeException('Kimi stream request failed: ' . $e->getMessage(), 0, $e);
+        }
+
+        yield from self::readOpenAiCompatibleSse($response->getBody());
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LlmRouter\Driver;
 
 use LlmRouter\Contract\Driver\LLMDriverInterface;
+use LlmRouter\Driver\Concern\ParsesOpenAiCompatibleSse;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
@@ -21,6 +22,8 @@ use RuntimeException;
  */
 class LiteLLMDriver implements LLMDriverInterface
 {
+    use ParsesOpenAiCompatibleSse;
+
     private string $liteLlmUrl;
     private string $liteLlmKey;
 
@@ -115,71 +118,84 @@ class LiteLLMDriver implements LLMDriverInterface
         ];
     }
 
-    public function chat(LLMRequest $request): LLMResponse
+    /**
+     * Resolve a requested model id against the models actually registered
+     * in LiteLLM's own config, fuzzy-matching when there's no exact hit.
+     * Shared by chat() and stream() so both pick the same model for the
+     * same request.
+     */
+    private function resolveModel(?string $requestedModel, bool $preferQuality): string
     {
         // preferQuality signals the caller specifically wants a paid/capable
         // model instead of a local one — defaulting to 'llama3' here when no
         // explicit model is given would defeat that. Adjust the two default
         // model ids below to match your own litellm/config.yaml routes.
-        $model = $request->model ?? ($request->preferQuality ? 'groq' : 'llama3');
+        $model = $requestedModel ?? ($preferQuality ? 'groq' : 'llama3');
 
         // Normalize model name (remove provider prefix if present)
         $modelClean = str_contains($model, '/') ? explode('/', $model)[1] : $model;
 
         // Resilience: fallback or smart match with models registered in LiteLLM
         $registeredModels = $this->getModels();
-        if (!empty($registeredModels)) {
-            if (in_array($model, $registeredModels, true)) {
-                // Keep exact model as requested if it matches
-            } elseif (in_array($modelClean, $registeredModels, true)) {
-                $model = $modelClean;
-            } else {
-                $matchedModel = null;
-                // 1. Try to find a registered model that contains the requested clean model name (excluding embedding models), case-insensitive
-                foreach ($registeredModels as $regModel) {
-                    if (str_contains($regModel, 'embed') || str_contains($regModel, 'nomic')) {
-                        continue;
-                    }
-                    if (str_contains(strtolower($regModel), strtolower($modelClean))) {
-                        $matchedModel = $regModel;
-                        break;
-                    }
-                }
+        if (empty($registeredModels)) {
+            return $model;
+        }
 
-                // 2. If not found, try to find any llama or lama model if the requested model contains "llama" or "lama"
-                if ($matchedModel === null && (str_contains(strtolower($modelClean), 'llama') || str_contains(strtolower($modelClean), 'lama'))) {
-                    foreach ($registeredModels as $regModel) {
-                        $regLower = strtolower($regModel);
-                        if (str_contains($regLower, 'llama') || str_contains($regLower, 'lama')) {
-                            $matchedModel = $regModel;
+        if (in_array($model, $registeredModels, true)) {
+            return $model;
+        }
+
+        if (in_array($modelClean, $registeredModels, true)) {
+            return $modelClean;
+        }
+
+        $matchedModel = null;
+        // 1. Try to find a registered model that contains the requested clean model name (excluding embedding models), case-insensitive
+        foreach ($registeredModels as $regModel) {
+            if (str_contains($regModel, 'embed') || str_contains($regModel, 'nomic')) {
+                continue;
+            }
+            if (str_contains(strtolower($regModel), strtolower($modelClean))) {
+                $matchedModel = $regModel;
+                break;
+            }
+        }
+
+        // 2. If not found, try to find any llama or lama model if the requested model contains "llama" or "lama"
+        if ($matchedModel === null && (str_contains(strtolower($modelClean), 'llama') || str_contains(strtolower($modelClean), 'lama'))) {
+            foreach ($registeredModels as $regModel) {
+                $regLower = strtolower($regModel);
+                if (str_contains($regLower, 'llama') || str_contains($regLower, 'lama')) {
+                    $matchedModel = $regModel;
+                    break;
+                }
+            }
+        }
+
+        // 3. If still not found, fallback to the default model if registered, or the first non-embedding model
+        if ($matchedModel === null) {
+            $defaultModel = $preferQuality ? 'groq' : 'llama3';
+            if (in_array($defaultModel, $registeredModels, true)) {
+                $matchedModel = $defaultModel;
+            } else {
+                foreach ($registeredModels as $regModel) {
+                    if (!str_contains($regModel, 'embed') && !str_contains($regModel, 'nomic')) {
+                        $matchedModel = $regModel;
+                        // Prefer a local-like model first if possible
+                        if (str_contains($regModel, 'llama') || str_contains($regModel, 'gemma') || str_contains($regModel, 'deepseek')) {
                             break;
                         }
                     }
                 }
-
-                // 3. If still not found, fallback to the default model if registered, or the first non-embedding model
-                if ($matchedModel === null) {
-                    $defaultModel = $request->preferQuality ? 'groq' : 'llama3';
-                    if (in_array($defaultModel, $registeredModels, true)) {
-                        $matchedModel = $defaultModel;
-                    } else {
-                        foreach ($registeredModels as $regModel) {
-                            if (!str_contains($regModel, 'embed') && !str_contains($regModel, 'nomic')) {
-                                $matchedModel = $regModel;
-                                // Prefer a local-like model first if possible
-                                if (str_contains($regModel, 'llama') || str_contains($regModel, 'gemma') || str_contains($regModel, 'deepseek')) {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if ($matchedModel !== null) {
-                    $model = $matchedModel;
-                }
             }
         }
+
+        return $matchedModel ?? $model;
+    }
+
+    public function chat(LLMRequest $request): LLMResponse
+    {
+        $model = $this->resolveModel($request->model, $request->preferQuality);
 
         $payload = [
             'model' => $model,
@@ -240,10 +256,45 @@ class LiteLLMDriver implements LLMDriverInterface
         );
     }
 
+    /**
+     * @return Generator<int, string, mixed, void>
+     */
     public function stream(LLMRequest $request): Generator
     {
-        yield '';
-        throw new RuntimeException('Streaming not implemented yet in LiteLLMDriver.');
+        $model = $this->resolveModel($request->model, $request->preferQuality);
+
+        $payload = [
+            'model' => $model,
+            'messages' => $request->messages,
+            'stream' => true,
+        ];
+
+        if ($request->temperature !== null) {
+            $payload['temperature'] = $request->temperature;
+        }
+
+        if ($request->maxTokens !== null) {
+            $payload['max_tokens'] = $request->maxTokens;
+        }
+
+        if ($request->tools !== null) {
+            $payload['tools'] = $request->tools;
+        }
+
+        $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
+
+        try {
+            $response = $this->httpClient->getClient()->post($this->liteLlmUrl . '/v1/chat/completions', [
+                'json' => $payload,
+                'headers' => $this->getHeaders(),
+                'timeout' => $timeout,
+                'stream' => true,
+            ]);
+        } catch (\Exception $e) {
+            throw new RuntimeException('LiteLLM stream request failed: ' . $e->getMessage(), 0, $e);
+        }
+
+        yield from self::readOpenAiCompatibleSse($response->getBody());
     }
 
     /**

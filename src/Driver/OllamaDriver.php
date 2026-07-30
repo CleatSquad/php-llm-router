@@ -111,9 +111,14 @@ class OllamaDriver implements LLMDriverInterface
         ];
     }
 
-    public function chat(LLMRequest $request): LLMResponse
+    /**
+     * Resolve a requested model id against the models actually pulled
+     * locally, fuzzy-matching when there's no exact hit. Shared by chat()
+     * and stream() so both pick the same model for the same request.
+     */
+    private function resolveModel(?string $requestedModel): string
     {
-        $model = $request->model ?? $this->ollamaModel;
+        $model = $requestedModel ?? $this->ollamaModel;
 
         // Normalize model name (remove provider prefix if present)
         $modelClean = str_contains($model, '/') ? explode('/', $model)[1] : $model;
@@ -122,58 +127,65 @@ class OllamaDriver implements LLMDriverInterface
         $localModels = $this->getModels();
         if (!empty($localModels)) {
             if (in_array($modelClean, $localModels, true)) {
-                $model = $modelClean;
-            } else {
-                $matchedModel = null;
+                return $modelClean;
+            }
 
-                // 0. Prioritize the default local model if it matches the request (case-insensitive)
-                $defaultModel = $this->ollamaModel;
-                $defaultModelClean = str_contains($defaultModel, '/') ? explode('/', $defaultModel)[1] : $defaultModel;
-                if (in_array($defaultModelClean, $localModels, true) &&
-                    (str_contains(strtolower($defaultModelClean), strtolower($modelClean)) ||
-                     str_contains(strtolower($modelClean), strtolower($defaultModelClean)))) {
-                    $matchedModel = $defaultModelClean;
-                }
+            $matchedModel = null;
 
-                // 1. Try to find a local model that contains the requested clean model name (excluding embedding models), case-insensitive
-                if ($matchedModel === null) {
-                    foreach ($localModels as $localModel) {
-                        if (str_contains($localModel, 'embed') || str_contains($localModel, 'nomic')) {
-                            continue;
-                        }
-                        if (str_contains(strtolower($localModel), strtolower($modelClean))) {
-                            $matchedModel = $localModel;
-                            break;
-                        }
+            // 0. Prioritize the default local model if it matches the request (case-insensitive)
+            $defaultModel = $this->ollamaModel;
+            $defaultModelClean = str_contains($defaultModel, '/') ? explode('/', $defaultModel)[1] : $defaultModel;
+            if (in_array($defaultModelClean, $localModels, true) &&
+                (str_contains(strtolower($defaultModelClean), strtolower($modelClean)) ||
+                 str_contains(strtolower($modelClean), strtolower($defaultModelClean)))) {
+                $matchedModel = $defaultModelClean;
+            }
+
+            // 1. Try to find a local model that contains the requested clean model name (excluding embedding models), case-insensitive
+            if ($matchedModel === null) {
+                foreach ($localModels as $localModel) {
+                    if (str_contains($localModel, 'embed') || str_contains($localModel, 'nomic')) {
+                        continue;
                     }
-                }
-
-                // 2. If not found, try to find any llama or lama model if the requested model contains "llama" or "lama"
-                if ($matchedModel === null && (str_contains(strtolower($modelClean), 'llama') || str_contains(strtolower($modelClean), 'lama'))) {
-                    foreach ($localModels as $localModel) {
-                        $localLower = strtolower($localModel);
-                        if (str_contains($localLower, 'llama') || str_contains($localLower, 'lama')) {
-                            $matchedModel = $localModel;
-                            break;
-                        }
+                    if (str_contains(strtolower($localModel), strtolower($modelClean))) {
+                        $matchedModel = $localModel;
+                        break;
                     }
-                }
-
-                // 3. If still not found, fallback to the first non-embedding model
-                if ($matchedModel === null) {
-                    foreach ($localModels as $localModel) {
-                        if (!str_contains($localModel, 'embed') && !str_contains($localModel, 'nomic')) {
-                            $matchedModel = $localModel;
-                            break;
-                        }
-                    }
-                }
-
-                if ($matchedModel !== null) {
-                    $model = $matchedModel;
                 }
             }
+
+            // 2. If not found, try to find any llama or lama model if the requested model contains "llama" or "lama"
+            if ($matchedModel === null && (str_contains(strtolower($modelClean), 'llama') || str_contains(strtolower($modelClean), 'lama'))) {
+                foreach ($localModels as $localModel) {
+                    $localLower = strtolower($localModel);
+                    if (str_contains($localLower, 'llama') || str_contains($localLower, 'lama')) {
+                        $matchedModel = $localModel;
+                        break;
+                    }
+                }
+            }
+
+            // 3. If still not found, fallback to the first non-embedding model
+            if ($matchedModel === null) {
+                foreach ($localModels as $localModel) {
+                    if (!str_contains($localModel, 'embed') && !str_contains($localModel, 'nomic')) {
+                        $matchedModel = $localModel;
+                        break;
+                    }
+                }
+            }
+
+            if ($matchedModel !== null) {
+                return $matchedModel;
+            }
         }
+
+        return $model;
+    }
+
+    public function chat(LLMRequest $request): LLMResponse
+    {
+        $model = $this->resolveModel($request->model);
 
         $payload = [
             'model' => $model,
@@ -232,10 +244,69 @@ class OllamaDriver implements LLMDriverInterface
         );
     }
 
+    /**
+     * @return Generator<int, string, mixed, void>
+     */
     public function stream(LLMRequest $request): Generator
     {
-        yield '';
-        throw new RuntimeException('Streaming not implemented yet in OllamaDriver.');
+        $model = $this->resolveModel($request->model);
+
+        $payload = [
+            'model' => $model,
+            'messages' => $request->messages,
+            'stream' => true,
+        ];
+
+        if ($request->temperature !== null) {
+            $payload['options']['temperature'] = $request->temperature;
+        }
+
+        if ($request->maxTokens !== null) {
+            $payload['options']['num_predict'] = $request->maxTokens;
+        }
+
+        $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
+
+        try {
+            $response = $this->httpClient->getClient()->post($this->ollamaUrl . '/api/chat', [
+                'json' => $payload,
+                'timeout' => $timeout,
+                'stream' => true,
+            ]);
+        } catch (\Exception $e) {
+            throw new RuntimeException('Ollama stream request failed: ' . $e->getMessage(), 0, $e);
+        }
+
+        // Ollama streams newline-delimited JSON objects (not SSE), one per
+        // chunk: {"message":{"content":"..."},"done":false} ... ending with
+        // a final {"done":true, ...stats} line.
+        $body = $response->getBody();
+        $buffer = '';
+        while (!$body->eof()) {
+            $buffer .= $body->read(8192);
+            while (($newlinePos = strpos($buffer, "\n")) !== false) {
+                $line = trim(substr($buffer, 0, $newlinePos));
+                $buffer = substr($buffer, $newlinePos + 1);
+
+                if ($line === '') {
+                    continue;
+                }
+
+                $data = json_decode($line, true);
+                if (!is_array($data)) {
+                    continue;
+                }
+
+                $chunk = $data['message']['content'] ?? '';
+                if ($chunk !== '') {
+                    yield $chunk;
+                }
+
+                if (($data['done'] ?? false) === true) {
+                    return;
+                }
+            }
+        }
     }
 
     /**

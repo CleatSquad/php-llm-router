@@ -210,10 +210,81 @@ class ClaudeDriver implements LLMDriverInterface
         );
     }
 
+    /**
+     * @return Generator<int, string, mixed, void>
+     */
     public function stream(LLMRequest $request): Generator
     {
-        yield '';
-        throw new RuntimeException('Streaming not implemented yet in ClaudeDriver.');
+        $model = $this->resolveModel($request->model);
+        [$system, $messages] = $this->splitSystemMessages($request->messages);
+
+        $payload = [
+            'model' => $model,
+            'messages' => $messages,
+            'max_tokens' => $request->maxTokens ?? 4096,
+            'stream' => true,
+        ];
+
+        if ($system !== '') {
+            $payload['system'] = $system;
+        }
+
+        if ($request->temperature !== null) {
+            $payload['temperature'] = $request->temperature;
+        }
+
+        if ($request->tools !== null) {
+            $payload['tools'] = $request->tools;
+        }
+
+        $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
+
+        try {
+            $response = $this->httpClient->getClient()->post($this->anthropicUrl . '/messages', [
+                'json' => $payload,
+                'headers' => $this->getHeaders(),
+                'timeout' => $timeout,
+                'stream' => true,
+            ]);
+        } catch (\Exception $e) {
+            throw new RuntimeException('Claude stream request failed: ' . $e->getMessage(), 0, $e);
+        }
+
+        // Anthropic's SSE framing differs from the OpenAI-compatible one:
+        // each event is an "event: <type>" line followed by a "data: {json}"
+        // line. Text deltas arrive as content_block_delta events with
+        // delta.type === "text_delta"; message_stop ends the stream.
+        $body = $response->getBody();
+        $buffer = '';
+        while (!$body->eof()) {
+            $buffer .= $body->read(8192);
+            while (($newlinePos = strpos($buffer, "\n")) !== false) {
+                $line = trim(substr($buffer, 0, $newlinePos));
+                $buffer = substr($buffer, $newlinePos + 1);
+
+                if ($line === '' || !str_starts_with($line, 'data:')) {
+                    continue;
+                }
+
+                $data = json_decode(trim(substr($line, 5)), true);
+                if (!is_array($data)) {
+                    continue;
+                }
+
+                $eventType = $data['type'] ?? '';
+
+                if ($eventType === 'content_block_delta') {
+                    $text = $data['delta']['text'] ?? '';
+                    if ($text !== '') {
+                        yield $text;
+                    }
+                }
+
+                if ($eventType === 'message_stop') {
+                    return;
+                }
+            }
+        }
     }
 
     /**

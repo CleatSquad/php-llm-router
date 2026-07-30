@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LlmRouter\Driver;
 
 use LlmRouter\Contract\Driver\LLMDriverInterface;
+use LlmRouter\Driver\Concern\ParsesOpenAiCompatibleSse;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
@@ -25,6 +26,8 @@ class OpenAiDriver implements LLMDriverInterface
         'gpt-4o' => ['input' => 0.0025, 'output' => 0.01],
         'gpt-4o-mini' => ['input' => 0.00015, 'output' => 0.0006],
     ];
+
+    use ParsesOpenAiCompatibleSse;
 
     private string $openAiUrl;
     private string $openAiApiKey;
@@ -191,10 +194,45 @@ class OpenAiDriver implements LLMDriverInterface
         );
     }
 
+    /**
+     * @return Generator<int, string, mixed, void>
+     */
     public function stream(LLMRequest $request): Generator
     {
-        yield '';
-        throw new RuntimeException('Streaming not implemented yet in OpenAiDriver.');
+        $model = $this->resolveModel($request->model);
+
+        $payload = [
+            'model' => $model,
+            'messages' => $request->messages,
+            'stream' => true,
+        ];
+
+        if ($request->temperature !== null) {
+            $payload['temperature'] = $request->temperature;
+        }
+
+        if ($request->maxTokens !== null) {
+            $payload['max_tokens'] = $request->maxTokens;
+        }
+
+        if ($request->tools !== null) {
+            $payload['tools'] = $request->tools;
+        }
+
+        $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
+
+        try {
+            $response = $this->httpClient->getClient()->post($this->openAiUrl . '/chat/completions', [
+                'json' => $payload,
+                'headers' => $this->getHeaders(),
+                'timeout' => $timeout,
+                'stream' => true,
+            ]);
+        } catch (\Exception $e) {
+            throw new RuntimeException('OpenAI stream request failed: ' . $e->getMessage(), 0, $e);
+        }
+
+        yield from self::readOpenAiCompatibleSse($response->getBody());
     }
 
     /**
