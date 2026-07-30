@@ -28,7 +28,8 @@ final class ControllableDriver implements LLMDriverInterface
      */
     public function __construct(
         private readonly string $id,
-        private readonly array $outcomes = []
+        private readonly array $outcomes = [],
+        private readonly int $completionTokens = 0
     ) {}
 
     public function getId(): string
@@ -79,8 +80,8 @@ final class ControllableDriver implements LLMDriverInterface
             content: 'ok',
             model: 'fake-model',
             promptTokens: 0,
-            completionTokens: 0,
-            totalTokens: 0,
+            completionTokens: $this->completionTokens,
+            totalTokens: $this->completionTokens,
             costUsd: 0.0,
             latencyMs: 0,
             toolCalls: null,

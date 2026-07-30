@@ -1,8 +1,11 @@
 # mohaelmrabet/php-llm-router
 
-Provider-agnostic LLM client for PHP. One interface, five drivers (Claude, OpenAI,
-Ollama, LiteLLM, Kimi/Moonshot), and a pluggable routing strategy for
-priority/fallback selection — the PHP equivalent of what LiteLLM does for Python.
+Provider-agnostic LLM client for PHP. One interface, nine drivers (Claude,
+OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, LiteLLM, Kimi/Moonshot),
+pluggable routing strategies (priority/fallback and round-robin load
+balancing), and decorators for retries, caching, circuit breaking and rate
+limiting — the PHP equivalent of what LiteLLM's SDK does for Python, kept to
+client-library scope (see "What this package does *not* do" below).
 
 Extracted from a production chat/agent platform where it routes every LLM call
 across local (Ollama) and cloud (Claude, OpenAI, Kimi, LiteLLM-proxied) models,
@@ -67,6 +70,10 @@ $replyDriver = $strategy->select(new LLMRequest(messages: $msgs, preferQuality: 
 |---|---|---|
 | `ClaudeDriver` | Anthropic Messages API | tools, vision, extended reasoning |
 | `OpenAiDriver` | OpenAI Chat Completions | tools, vision |
+| `GeminiDriver` | Google Gemini (generateContent) | tools, vision — own wire format, not OpenAI-compatible |
+| `MistralDriver` | Mistral AI | tools |
+| `GroqDriver` | Groq (direct, no proxy) | tools |
+| `DeepSeekDriver` | DeepSeek | tools, reasoning (`deepseek-reasoner`) |
 | `OllamaDriver` | Local Ollama | free, fuzzy-matches the closest locally-pulled model |
 | `LiteLLMDriver` | A LiteLLM proxy | fronts whatever LiteLLM itself routes to |
 | `KimiDriver` | Moonshot AI | tools |
@@ -88,10 +95,12 @@ foreach ($driver->stream($request) as $textChunk) {
 ```
 
 Ollama streams newline-delimited JSON; Claude uses Anthropic's own
-event-typed SSE framing (`content_block_delta` / `message_stop`); LiteLLM,
-OpenAI and Kimi share the OpenAI-compatible `data: {json}` SSE framing via
-`Driver\Concern\ParsesChatCompletionSse` (named after the wire format, not
-the vendor — LiteLLM, Kimi, Groq and others all speak it too).
+event-typed SSE framing (`content_block_delta` / `message_stop`); Gemini
+streams its own partial-response-per-chunk SSE format; LiteLLM, OpenAI,
+Kimi, Mistral, Groq and DeepSeek all share the OpenAI-compatible
+`data: {json}` SSE framing via `Driver\Concern\ParsesChatCompletionSse`
+(named after the wire format, not the vendor — any OpenAI-compatible API
+speaks it).
 
 ### Tool calls while streaming
 
@@ -147,6 +156,89 @@ State is delegated to a `CircuitBreakerStoreInterface` (defaults to
 `InMemoryCircuitBreakerStore`, scoped to the current process). Implement
 that interface against Redis/DB to share breaker state across requests or
 worker processes — the package itself stays storage-agnostic.
+
+### Retries with backoff
+
+`RetryingDriver` wraps any driver and retries transient failures —
+connection errors, timeouts, HTTP 429, HTTP 5xx — with exponential
+backoff, up to `$maxAttempts`. Non-transient errors (401, 400, ...)
+propagate immediately since retrying them just fails the same way again.
+
+```php
+use LlmRouter\Driver\RetryingDriver;
+
+$driver = new RetryingDriver(
+    new OpenAiDriver($http, openAiApiKey: $key),
+    maxAttempts: 3,
+    baseDelaySeconds: 0.5, // doubles each attempt, capped at maxDelaySeconds
+);
+
+$response = $driver->chat($request);
+```
+
+For `stream()`, only a failure *before any chunk reached the caller* is
+retried — once content has started flowing, a fresh attempt could
+duplicate or corrupt what the caller already received, so it propagates
+immediately instead, regardless of attempts remaining.
+
+### Response caching
+
+`CachingDriver` wraps any driver and caches `chat()` responses: an
+identical request (same messages/model/temperature/maxTokens/tools) within
+the TTL window returns the previous `LLMResponse` instead of paying for
+another call. `stream()` always bypasses the cache — buffering a whole
+response before the first byte reaches the caller would defeat the point
+of streaming.
+
+```php
+use LlmRouter\Driver\CachingDriver;
+
+$driver = new CachingDriver(new ClaudeDriver($http, anthropicApiKey: $key), ttlSeconds: 300);
+```
+
+State is delegated to a `CacheStoreInterface` (defaults to
+`InMemoryCacheStore`); implement it against Redis/DB to share the cache
+across requests or processes.
+
+### Rate limiting (RPM / TPM)
+
+`RateLimitedDriver` wraps any driver with a requests-per-minute and/or
+tokens-per-minute budget. A call that would exceed either limit blocks
+(polling) until capacity frees up or `$maxWaitSeconds` runs out, instead
+of firing straight into the provider's own 429.
+
+```php
+use LlmRouter\Driver\RateLimitedDriver;
+
+$driver = new RateLimitedDriver(
+    new GroqDriver($http, groqApiKey: $key),
+    maxRequestsPerMinute: 30,
+    maxTokensPerMinute: 6000,
+);
+```
+
+Token usage for `stream()` is only an estimate (input tokens only — these
+drivers' `stream()` has no usage block to read from, since providers don't
+send one over SSE). State is delegated to a `RateLimitStoreInterface`
+(defaults to `InMemoryRateLimitStore`); implement it against Redis/DB to
+share a quota across requests or processes — or pass the same store
+instance to two `RateLimitedDriver`s wrapping the same underlying driver
+to have them share one quota.
+
+### Load balancing across equivalent deployments
+
+`PriorityStrategy` answers "which provider first when they differ in
+quality/cost". `RoundRobinStrategy` answers a different question: how do
+you spread load across *interchangeable* deployments of the same model —
+e.g. three OpenAI API keys behind three `OpenAiDriver` instances — instead
+of always hitting the first one.
+
+```php
+use LlmRouter\Routing\RoundRobinStrategy;
+
+$strategy = new RoundRobinStrategy(weights: ['key-a' => 2, 'key-b' => 1]); // key-a offered twice as often
+$driver = $strategy->select($request, $drivers); // cycles, skipping unavailable ones
+```
 
 ## What this package does *not* do
 
