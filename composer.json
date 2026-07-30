@@ -1,5 +1,5 @@
 {
-    "name": "concio/llm-router",
+    "name": "mohaelmrabet/php-llm-router",
     "description": "Provider-agnostic LLM client for PHP — a uniform interface over Claude, OpenAI, Ollama, LiteLLM and Kimi, with pluggable priority/fallback routing.",
     "type": "library",
     "license": "MIT",

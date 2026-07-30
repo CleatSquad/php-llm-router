@@ -1,4 +1,4 @@
-# concio/llm-router
+# mohaelmrabet/php-llm-router
 
 Provider-agnostic LLM client for PHP. One interface, five drivers (Claude, OpenAI,
 Ollama, LiteLLM, Kimi/Moonshot), and a pluggable routing strategy for
@@ -12,7 +12,7 @@ credit.
 ## Install
 
 ```bash
-composer require concio/llm-router
+composer require mohaelmrabet/php-llm-router
 ```
 
 ## Usage
