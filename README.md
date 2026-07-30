@@ -122,15 +122,38 @@ never supports tool calls at all (Ollama's `stream()` always returns
 function-calling support across Ollama models is too inconsistent to rely
 on).
 
+### Circuit breaker
+
+`PriorityStrategy` only checks `isAvailable()` synchronously, per call — it
+has no memory across requests, so a dead provider gets retried by every
+caller until it's fixed. `CircuitBreakerDriver` wraps any driver and adds
+that memory: after `$failureThreshold` consecutive `chat()`/`stream()`
+failures it reports unavailable and fails fast — no network call — for
+`$openSeconds`, resetting on the next success.
+
+```php
+use LlmRouter\Driver\CircuitBreakerDriver;
+
+$drivers = [
+    new CircuitBreakerDriver(new ClaudeDriver($http, anthropicApiKey: $key), failureThreshold: 5, openSeconds: 60),
+    new CircuitBreakerDriver(new OllamaDriver($http)),
+];
+
+$driver = $strategy->select($request, $drivers);
+$response = $driver->chat($request); // throws immediately, no HTTP call, while the breaker is open
+```
+
+State is delegated to a `CircuitBreakerStoreInterface` (defaults to
+`InMemoryCircuitBreakerStore`, scoped to the current process). Implement
+that interface against Redis/DB to share breaker state across requests or
+worker processes — the package itself stays storage-agnostic.
+
 ## What this package does *not* do
 
-- **No circuit breaker / health-based auto-disable / DB-backed usage
-  tracking.** `PriorityStrategy` only checks `isAvailable()` synchronously,
-  per call — it has no memory across requests. If you need "stop trying a
-  provider for N minutes after M consecutive failures" or persisted
-  cost/usage accounting, build that as a decorator around a driver or
-  strategy in your own app; this package intentionally stays framework- and
-  storage-agnostic.
+- **No DB-backed usage/cost tracking.** `LLMResponse::$costUsd` and
+  `CostEstimate` give you the numbers per call; persisting and aggregating
+  them is an application concern (schema, retention, reporting all vary too
+  much to standardize here).
 - **No prompt templating, no agent/tool-execution loop.** This is a thin,
   uniform transport layer over each provider's chat endpoint — orchestration
   belongs one layer up.
