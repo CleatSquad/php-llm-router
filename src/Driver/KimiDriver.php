@@ -31,7 +31,8 @@ class KimiDriver implements LLMDriverInterface
         private readonly HttpClient $httpClient,
         string $moonshotUrl = 'https://api.moonshot.cn/v1',
         string $moonshotApiKey = '',
-        private readonly float $localLlmTimeout = 30.0
+        private readonly float $localLlmTimeout = 30.0,
+        private readonly string $moonshotModel = 'moonshot-v1-8k'
     ) {
         $this->moonshotUrl = rtrim($moonshotUrl, '/');
         $this->moonshotApiKey = $moonshotApiKey;
@@ -132,7 +133,7 @@ class KimiDriver implements LLMDriverInterface
      */
     private function resolveModel(?string $requestedModel): string
     {
-        $model = $requestedModel ?? 'moonshot-v1-8k';
+        $model = $requestedModel ?? $this->moonshotModel;
 
         // Strip provider prefix if present
         if (str_contains($model, '/')) {
