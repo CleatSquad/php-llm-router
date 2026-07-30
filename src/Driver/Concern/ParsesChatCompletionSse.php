@@ -13,12 +13,12 @@ use Psr\Http\Message\StreamInterface;
  * "data: {json}\n\n", each carrying a choices[0].delta.content fragment,
  * terminated by a literal "data: [DONE]" line.
  */
-trait ParsesOpenAiCompatibleSse
+trait ParsesChatCompletionSse
 {
     /**
      * @return Generator<int, string, mixed, void>
      */
-    private static function readOpenAiCompatibleSse(StreamInterface $body): Generator
+    private static function readChatCompletionSse(StreamInterface $body): Generator
     {
         $buffer = '';
         while (!$body->eof()) {

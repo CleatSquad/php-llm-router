@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace LlmRouter\Driver;
 
 use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\Driver\Concern\ParsesOpenAiCompatibleSse;
+use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
@@ -27,7 +27,7 @@ class OpenAiDriver implements LLMDriverInterface
         'gpt-4o-mini' => ['input' => 0.00015, 'output' => 0.0006],
     ];
 
-    use ParsesOpenAiCompatibleSse;
+    use ParsesChatCompletionSse;
 
     private string $openAiUrl;
     private string $openAiApiKey;
@@ -232,7 +232,7 @@ class OpenAiDriver implements LLMDriverInterface
             throw new RuntimeException('OpenAI stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        yield from self::readOpenAiCompatibleSse($response->getBody());
+        yield from self::readChatCompletionSse($response->getBody());
     }
 
     /**

@@ -72,19 +72,38 @@ $replyDriver = $strategy->select(new LLMRequest(messages: $msgs, preferQuality: 
 | `KimiDriver` | Moonshot AI | tools |
 
 Every driver implements `LlmRouter\Contract\Driver\LLMDriverInterface`:
-`chat()`, `stream()` (not yet implemented by the bundled drivers — see below),
-`getModels()`, `isAvailable()`, `healthCheck()`, `estimateCost()`, and
-`supportsStreaming()/Tools()/Vision()/Reasoning()` capability flags.
+`chat()`, `stream()`, `getModels()`, `isAvailable()`, `healthCheck()`,
+`estimateCost()`, and `supportsStreaming()/Tools()/Vision()/Reasoning()`
+capability flags.
 
 Write your own driver for another provider by implementing the same
 interface — nothing else in this package needs to know about it.
 
+### Streaming
+
+```php
+foreach ($driver->stream($request) as $textChunk) {
+    echo $textChunk;
+}
+```
+
+Ollama streams newline-delimited JSON; Claude uses Anthropic's own
+event-typed SSE framing (`content_block_delta` / `message_stop`); LiteLLM,
+OpenAI and Kimi share the OpenAI-compatible `data: {json}` SSE framing via
+`Driver\Concern\ParsesChatCompletionSse` (named after the wire format, not
+the vendor — LiteLLM, Kimi, Groq and others all speak it too).
+
+`stream()` currently yields **text content only** — it does not accumulate
+`tool_calls` deltas, which every provider sends as incremental fragments
+during a streamed response just like text. If your caller needs to detect
+a tool call while streaming, don't use `stream()` for that turn yet; call
+`chat()` instead (or contribute `tool_calls` accumulation — the per-provider
+delta shapes are already being parsed in each driver's `stream()`, this is
+additive work, not a rewrite).
+
 ## What this package does *not* do
 
-- **No streaming yet.** `stream()` exists on the interface but every bundled
-  driver currently throws — implemented as a stub deliberately, to be filled
-  in by SSE-parsing logic per provider without breaking the interface
-  contract in a future release.
+- **No `tool_calls` accumulation during streaming** — see above.
 - **No circuit breaker / health-based auto-disable / DB-backed usage
   tracking.** `PriorityStrategy` only checks `isAvailable()` synchronously,
   per call — it has no memory across requests. If you need "stop trying a

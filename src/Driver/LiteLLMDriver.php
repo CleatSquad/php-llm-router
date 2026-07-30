@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace LlmRouter\Driver;
 
 use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\Driver\Concern\ParsesOpenAiCompatibleSse;
+use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
@@ -22,7 +22,7 @@ use RuntimeException;
  */
 class LiteLLMDriver implements LLMDriverInterface
 {
-    use ParsesOpenAiCompatibleSse;
+    use ParsesChatCompletionSse;
 
     private string $liteLlmUrl;
     private string $liteLlmKey;
@@ -294,7 +294,7 @@ class LiteLLMDriver implements LLMDriverInterface
             throw new RuntimeException('LiteLLM stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        yield from self::readOpenAiCompatibleSse($response->getBody());
+        yield from self::readChatCompletionSse($response->getBody());
     }
 
     /**
