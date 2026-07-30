@@ -31,6 +31,7 @@ class GeminiDriver implements LLMDriverInterface
         'gemini-2.5-flash' => ['input' => 0.0003, 'output' => 0.0025],
         'gemini-2.0-flash' => ['input' => 0.0001, 'output' => 0.0004],
         'gemini-1.5-flash' => ['input' => 0.000075, 'output' => 0.0003],
+        'gemini-flash-lite-latest' => ['input' => 0.000075, 'output' => 0.0003],
     ];
 
     private string $geminiUrl;
@@ -168,7 +169,7 @@ class GeminiDriver implements LLMDriverInterface
         $completionTokens = (int) ($data['usageMetadata']['candidatesTokenCount'] ?? 0);
         $totalTokens = (int) ($data['usageMetadata']['totalTokenCount'] ?? ($promptTokens + $completionTokens));
 
-        $pricing = self::PRICING[$model] ?? self::PRICING['gemini-2.0-flash'];
+        $pricing = self::PRICING[$model] ?? self::PRICING['gemini-flash-lite-latest'];
         $costUsd = (($promptTokens * $pricing['input']) + ($completionTokens * $pricing['output'])) / 1000;
 
         return new LLMResponse(
@@ -280,7 +281,7 @@ class GeminiDriver implements LLMDriverInterface
     {
         $model = $this->resolveModel($request->model);
         $inputTokens = $request->estimateInputTokens();
-        $pricing = self::PRICING[$model] ?? self::PRICING['gemini-2.0-flash'];
+        $pricing = self::PRICING[$model] ?? self::PRICING['gemini-flash-lite-latest'];
 
         $estimatedOutputTokens = $request->maxTokens ?? 200;
         $estimatedTokens = $inputTokens + $estimatedOutputTokens;
@@ -291,13 +292,13 @@ class GeminiDriver implements LLMDriverInterface
 
     private function resolveModel(?string $model): string
     {
-        $model = $model ?? 'gemini-2.0-flash';
+        $model = $model ?? 'gemini-flash-lite-latest';
 
         if (str_contains($model, '/')) {
             $model = explode('/', $model)[1];
         }
 
-        return isset(self::PRICING[$model]) ? $model : 'gemini-2.0-flash';
+        return isset(self::PRICING[$model]) ? $model : 'gemini-flash-lite-latest';
     }
 
     /**
