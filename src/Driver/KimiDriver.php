@@ -119,6 +119,17 @@ class KimiDriver implements LLMDriverInterface
         ];
     }
 
+    /**
+     * Moonshot ships two separate platforms with disjoint model catalogs
+     * (api.moonshot.cn: moonshot-v1-8k/32k/128k; api.moonshot.ai: kimi-k3,
+     * kimi-k2.6, ...) and the catalog on either one can change server-side
+     * without this package knowing about it. So an explicitly-requested
+     * model is trusted as-is instead of being validated against a static
+     * whitelist here — silently discarding it in favor of a hardcoded
+     * default would make it impossible to ever use a model this package
+     * doesn't already know about. Only a null request falls back to the
+     * default.
+     */
     private function resolveModel(?string $requestedModel): string
     {
         $model = $requestedModel ?? 'moonshot-v1-8k';
@@ -126,12 +137,6 @@ class KimiDriver implements LLMDriverInterface
         // Strip provider prefix if present
         if (str_contains($model, '/')) {
             $model = explode('/', $model)[1];
-        }
-
-        // Standard Kimi models mapping fallback
-        $validModels = ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'];
-        if (!in_array($model, $validModels, true)) {
-            $model = 'moonshot-v1-8k';
         }
 
         return $model;
