@@ -15,9 +15,15 @@ class HttpClient
 {
     private Client $client;
 
-    public function __construct()
+    /**
+     * Accepts an existing Guzzle client so a host application can supply
+     * its own (already-configured, or a test double) instead of always
+     * getting a fresh default one — e.g. wiring this package's drivers
+     * through your app's own HTTP client wrapper for testability.
+     */
+    public function __construct(?Client $client = null)
     {
-        $this->client = new Client([
+        $this->client = $client ?? new Client([
             'timeout' => 5.0,
         ]);
     }
