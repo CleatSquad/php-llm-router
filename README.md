@@ -93,17 +93,37 @@ OpenAI and Kimi share the OpenAI-compatible `data: {json}` SSE framing via
 `Driver\Concern\ParsesChatCompletionSse` (named after the wire format, not
 the vendor — LiteLLM, Kimi, Groq and others all speak it too).
 
-`stream()` currently yields **text content only** — it does not accumulate
-`tool_calls` deltas, which every provider sends as incremental fragments
-during a streamed response just like text. If your caller needs to detect
-a tool call while streaming, don't use `stream()` for that turn yet; call
-`chat()` instead (or contribute `tool_calls` accumulation — the per-provider
-delta shapes are already being parsed in each driver's `stream()`, this is
-additive work, not a rewrite).
+### Tool calls while streaming
+
+Every provider sends a streamed tool call as incremental fragments — an
+`id`/`name` in one delta, then the JSON `arguments` string arriving
+character-by-character-ish across several more — instead of the single
+complete object `chat()` gets back in one shot. `stream()` accumulates
+these under the hood and hands them back once the generator is done, via
+`Generator::getReturn()`:
+
+```php
+$content = '';
+$gen = $driver->stream($request);
+foreach ($gen as $textChunk) {
+    $content .= $textChunk;
+    echo $textChunk;
+}
+
+$toolCalls = $gen->getReturn(); // same shape as LLMResponse::$toolCalls, or null
+if ($toolCalls !== null) {
+    // ... dispatch each call, same as you would from a non-streamed chat() response
+}
+```
+
+`null` either means the model didn't call a tool this turn, or the driver
+never supports tool calls at all (Ollama's `stream()` always returns
+`null` — its own `chat()` never parses tool calls either, native
+function-calling support across Ollama models is too inconsistent to rely
+on).
 
 ## What this package does *not* do
 
-- **No `tool_calls` accumulation during streaming** — see above.
 - **No circuit breaker / health-based auto-disable / DB-backed usage
   tracking.** `PriorityStrategy` only checks `isAvailable()` synchronously,
   per call — it has no memory across requests. If you need "stop trying a

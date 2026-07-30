@@ -211,7 +211,7 @@ class ClaudeDriver implements LLMDriverInterface
     }
 
     /**
-     * @return Generator<int, string, mixed, void>
+     * @return Generator<int, string, mixed, ?array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>>
      */
     public function stream(LLMRequest $request): Generator
     {
@@ -254,8 +254,22 @@ class ClaudeDriver implements LLMDriverInterface
         // each event is an "event: <type>" line followed by a "data: {json}"
         // line. Text deltas arrive as content_block_delta events with
         // delta.type === "text_delta"; message_stop ends the stream.
+        //
+        // A streamed tool call arrives as three events instead of one JSON
+        // blob: content_block_start (type: "tool_use", carries id + name,
+        // empty input) at some $data['index'], then one or more
+        // content_block_delta events at that same index with
+        // delta.type === "input_json_delta" carrying delta.partial_json
+        // fragments (the arguments JSON string arrives incrementally, same
+        // idea as OpenAI's tool_calls[].function.arguments deltas — just a
+        // different envelope). Re-shaped into the same
+        // {id, type: "function", function: {name, arguments}} array chat()
+        // already returns for tool calls, so callers don't need two
+        // different tool-call shapes depending on stream() vs chat().
         $body = $response->getBody();
         $buffer = '';
+        $toolCalls = [];
+
         while (!$body->eof()) {
             $buffer .= $body->read(8192);
             while (($newlinePos = strpos($buffer, "\n")) !== false) {
@@ -272,19 +286,39 @@ class ClaudeDriver implements LLMDriverInterface
                 }
 
                 $eventType = $data['type'] ?? '';
+                $index = $data['index'] ?? 0;
+
+                if ($eventType === 'content_block_start') {
+                    $block = $data['content_block'] ?? [];
+                    if (($block['type'] ?? '') === 'tool_use') {
+                        $toolCalls[$index] = [
+                            'id' => $block['id'] ?? '',
+                            'type' => 'function',
+                            'function' => ['name' => $block['name'] ?? '', 'arguments' => ''],
+                        ];
+                    }
+                }
 
                 if ($eventType === 'content_block_delta') {
-                    $text = $data['delta']['text'] ?? '';
-                    if ($text !== '') {
-                        yield $text;
+                    $deltaType = $data['delta']['type'] ?? '';
+
+                    if ($deltaType === 'text_delta') {
+                        $text = $data['delta']['text'] ?? '';
+                        if ($text !== '') {
+                            yield $text;
+                        }
+                    } elseif ($deltaType === 'input_json_delta' && isset($toolCalls[$index])) {
+                        $toolCalls[$index]['function']['arguments'] .= $data['delta']['partial_json'] ?? '';
                     }
                 }
 
                 if ($eventType === 'message_stop') {
-                    return;
+                    return $toolCalls === [] ? null : array_values($toolCalls);
                 }
             }
         }
+
+        return $toolCalls === [] ? null : array_values($toolCalls);
     }
 
     /**

@@ -247,7 +247,7 @@ class KimiDriver implements LLMDriverInterface
             throw new RuntimeException('Kimi stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        yield from self::readChatCompletionSse($response->getBody());
+        return yield from self::readChatCompletionSse($response->getBody());
     }
 
     /**

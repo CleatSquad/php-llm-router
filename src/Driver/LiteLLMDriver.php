@@ -294,7 +294,7 @@ class LiteLLMDriver implements LLMDriverInterface
             throw new RuntimeException('LiteLLM stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        yield from self::readChatCompletionSse($response->getBody());
+        return yield from self::readChatCompletionSse($response->getBody());
     }
 
     /**
