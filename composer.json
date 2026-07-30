@@ -1,0 +1,28 @@
+{
+    "name": "concio/llm-router",
+    "description": "Provider-agnostic LLM client for PHP — a uniform interface over Claude, OpenAI, Ollama, LiteLLM and Kimi, with pluggable priority/fallback routing.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["llm", "ai", "claude", "openai", "ollama", "litellm", "router", "fallback"],
+    "require": {
+        "php": ">=8.2",
+        "guzzlehttp/guzzle": "^7.8"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Concio\\LlmRouter\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Concio\\LlmRouter\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "minimum-stability": "stable"
+}
