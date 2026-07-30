@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\Contract\Driver;
+namespace LlmRouter\Contract\Driver;
 
-use Concio\LlmRouter\DTO\CostEstimate;
-use Concio\LlmRouter\DTO\LLMRequest;
-use Concio\LlmRouter\DTO\LLMResponse;
+use LlmRouter\DTO\CostEstimate;
+use LlmRouter\DTO\LLMRequest;
+use LlmRouter\DTO\LLMResponse;
 use Generator;
 
 interface LLMDriverInterface extends DriverInterface

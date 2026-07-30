@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\Http;
+namespace LlmRouter\Http;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;

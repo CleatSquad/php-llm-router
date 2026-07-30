@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\Enum;
+namespace LlmRouter\Enum;
 
 enum DriverType: string
 {

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\Contract\Driver;
+namespace LlmRouter\Contract\Driver;
 
-use Concio\LlmRouter\DTO\HealthStatus;
-use Concio\LlmRouter\Enum\DriverType;
+use LlmRouter\DTO\HealthStatus;
+use LlmRouter\Enum\DriverType;
 
 interface DriverInterface
 {

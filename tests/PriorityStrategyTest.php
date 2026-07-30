@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\Tests;
+namespace LlmRouter\Tests;
 
-use Concio\LlmRouter\DTO\LLMRequest;
-use Concio\LlmRouter\Routing\PriorityStrategy;
-use Concio\LlmRouter\Tests\Fixtures\FakeDriver;
+use LlmRouter\DTO\LLMRequest;
+use LlmRouter\Routing\PriorityStrategy;
+use LlmRouter\Tests\Fixtures\FakeDriver;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

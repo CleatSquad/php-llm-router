@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\DTO;
+namespace LlmRouter\DTO;
 
 /**
  * Health state enumeration for drivers.

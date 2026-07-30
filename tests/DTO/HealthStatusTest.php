@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\Tests\DTO;
+namespace LlmRouter\Tests\DTO;
 
-use Concio\LlmRouter\DTO\HealthState;
-use Concio\LlmRouter\DTO\HealthStatus;
+use LlmRouter\DTO\HealthState;
+use LlmRouter\DTO\HealthStatus;
 use PHPUnit\Framework\TestCase;
 
 final class HealthStatusTest extends TestCase

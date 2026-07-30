@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\Tests\Fixtures;
+namespace LlmRouter\Tests\Fixtures;
 
-use Concio\LlmRouter\Contract\Driver\LLMDriverInterface;
-use Concio\LlmRouter\DTO\CostEstimate;
-use Concio\LlmRouter\DTO\HealthStatus;
-use Concio\LlmRouter\DTO\LLMRequest;
-use Concio\LlmRouter\DTO\LLMResponse;
-use Concio\LlmRouter\Enum\DriverType;
+use LlmRouter\Contract\Driver\LLMDriverInterface;
+use LlmRouter\DTO\CostEstimate;
+use LlmRouter\DTO\HealthStatus;
+use LlmRouter\DTO\LLMRequest;
+use LlmRouter\DTO\LLMResponse;
+use LlmRouter\Enum\DriverType;
 use Generator;
 
 /**

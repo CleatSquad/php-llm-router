@@ -18,11 +18,11 @@ composer require mohaelmrabet/php-llm-router
 ## Usage
 
 ```php
-use Concio\LlmRouter\Driver\ClaudeDriver;
-use Concio\LlmRouter\Driver\OllamaDriver;
-use Concio\LlmRouter\DTO\LLMRequest;
-use Concio\LlmRouter\Http\HttpClient;
-use Concio\LlmRouter\Routing\PriorityStrategy;
+use LlmRouter\Driver\ClaudeDriver;
+use LlmRouter\Driver\OllamaDriver;
+use LlmRouter\DTO\LLMRequest;
+use LlmRouter\Http\HttpClient;
+use LlmRouter\Routing\PriorityStrategy;
 
 $http = new HttpClient();
 
@@ -71,7 +71,7 @@ $replyDriver = $strategy->select(new LLMRequest(messages: $msgs, preferQuality: 
 | `LiteLLMDriver` | A LiteLLM proxy | fronts whatever LiteLLM itself routes to |
 | `KimiDriver` | Moonshot AI | tools |
 
-Every driver implements `Concio\LlmRouter\Contract\Driver\LLMDriverInterface`:
+Every driver implements `LlmRouter\Contract\Driver\LLMDriverInterface`:
 `chat()`, `stream()` (not yet implemented by the bundled drivers — see below),
 `getModels()`, `isAvailable()`, `healthCheck()`, `estimateCost()`, and
 `supportsStreaming()/Tools()/Vision()/Reasoning()` capability flags.

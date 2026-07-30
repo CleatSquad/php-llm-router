@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\Tests\DTO;
+namespace LlmRouter\Tests\DTO;
 
-use Concio\LlmRouter\DTO\LLMRequest;
+use LlmRouter\DTO\LLMRequest;
 use PHPUnit\Framework\TestCase;
 
 final class LLMRequestTest extends TestCase

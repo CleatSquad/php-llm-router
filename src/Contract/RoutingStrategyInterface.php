@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\Contract;
+namespace LlmRouter\Contract;
 
-use Concio\LlmRouter\Contract\Driver\LLMDriverInterface;
-use Concio\LlmRouter\DTO\LLMRequest;
+use LlmRouter\Contract\Driver\LLMDriverInterface;
+use LlmRouter\DTO\LLMRequest;
 
 interface RoutingStrategyInterface
 {

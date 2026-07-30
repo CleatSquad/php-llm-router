@@ -13,12 +13,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Concio\\LlmRouter\\": "src/"
+            "LlmRouter\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Concio\\LlmRouter\\Tests\\": "tests/"
+            "LlmRouter\\Tests\\": "tests/"
         }
     },
     "scripts": {

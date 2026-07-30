@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\DTO;
+namespace LlmRouter\DTO;
 
 /**
  * Represents the response from an LLM driver.

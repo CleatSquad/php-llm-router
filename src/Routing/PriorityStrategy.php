@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Concio\LlmRouter\Routing;
+namespace LlmRouter\Routing;
 
-use Concio\LlmRouter\Contract\Driver\LLMDriverInterface;
-use Concio\LlmRouter\Contract\RoutingStrategyInterface;
-use Concio\LlmRouter\DTO\LLMRequest;
+use LlmRouter\Contract\Driver\LLMDriverInterface;
+use LlmRouter\Contract\RoutingStrategyInterface;
+use LlmRouter\DTO\LLMRequest;
 use RuntimeException;
 
 class PriorityStrategy implements RoutingStrategyInterface
