@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LlmRouter\Driver;
 
 use LlmRouter\Contract\Driver\LLMDriverInterface;
+use LlmRouter\Driver\Concern\NormalizesVisionContent;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
@@ -21,6 +22,8 @@ use RuntimeException;
  */
 class ClaudeDriver implements LLMDriverInterface
 {
+    use NormalizesVisionContent;
+
     private const ANTHROPIC_VERSION = '2023-06-01';
 
     /** @var array<string, array{input: float, output: float}> Cost per 1k tokens in USD */
@@ -377,6 +380,13 @@ class ClaudeDriver implements LLMDriverInterface
     /**
      * Split OpenAI-style messages (which may include a "system" role) into
      * Anthropic's separate system prompt + user/assistant message list.
+     * Non-system message content is also translated to Anthropic's own
+     * block shape via convertContentForClaude() — real bug fixed
+     * 2026-08-01: this used to pass $message['content'] straight through,
+     * so a multi-part vision message (OpenAI's {type: image_url, ...}
+     * shape) was sent to Anthropic's API verbatim, which doesn't
+     * understand that shape at all — every vision request to Claude
+     * failed, despite supportsVision() claiming otherwise.
      *
      * @param array<int, array{role: string, content: mixed}> $messages
      * @return array{0: string, 1: array<int, array{role: string, content: mixed}>}
@@ -388,13 +398,54 @@ class ClaudeDriver implements LLMDriverInterface
 
         foreach ($messages as $message) {
             if (($message['role'] ?? null) === 'system') {
-                $system[] = $message['content'] ?? '';
+                $content = $message['content'] ?? '';
+                $system[] = is_string($content) ? $content : $this->extractVisionParts($content)[0];
             } else {
-                $rest[] = $message;
+                $rest[] = [
+                    'role' => $message['role'],
+                    'content' => $this->convertContentForClaude($message['content'] ?? ''),
+                ];
             }
         }
 
         return [implode("\n\n", $system), $rest];
+    }
+
+    /**
+     * A plain string passes through unchanged — the shape every non-vision
+     * message already used correctly. A multi-part (text + image_url)
+     * array is translated into Anthropic's native content-block array:
+     * {type: text, text} and {type: image, source: {type: base64,
+     * media_type, data}} — see NormalizesVisionContent::extractVisionParts()
+     * for the shared OpenAI-shape parsing.
+     *
+     * @return string|array<int, array<string, mixed>>
+     */
+    private function convertContentForClaude(mixed $content): string|array
+    {
+        if (is_string($content)) {
+            return $content;
+        }
+
+        [$text, $images] = $this->extractVisionParts($content);
+        $blocks = [];
+
+        if ($text !== '') {
+            $blocks[] = ['type' => 'text', 'text' => $text];
+        }
+
+        foreach ($images as $image) {
+            $blocks[] = [
+                'type' => 'image',
+                'source' => [
+                    'type' => 'base64',
+                    'media_type' => $image['mediaType'],
+                    'data' => $image['data'],
+                ],
+            ];
+        }
+
+        return $blocks;
     }
 
     /**

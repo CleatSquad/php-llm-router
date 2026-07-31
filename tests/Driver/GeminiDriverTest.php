@@ -7,6 +7,7 @@ namespace LlmRouter\Tests\Driver;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
 use LlmRouter\Driver\GeminiDriver;
 use LlmRouter\DTO\LLMRequest;
@@ -17,10 +18,12 @@ final class GeminiDriverTest extends TestCase
 {
     /**
      * @param Response[] $responses
+     * @param array<int, array<string, mixed>> $history
      */
-    private function driverWithMockedResponses(array $responses): GeminiDriver
+    private function driverWithMockedResponses(array $responses, array &$history = []): GeminiDriver
     {
         $handlerStack = HandlerStack::create(new MockHandler($responses));
+        $handlerStack->push(Middleware::history($history));
         $client = new Client(['handler' => $handlerStack]);
 
         return new GeminiDriver(new HttpClient($client), geminiApiKey: 'test-key');
@@ -131,5 +134,56 @@ final class GeminiDriverTest extends TestCase
         $this->assertCount(1, $toolCalls);
         $this->assertSame('get_weather', $toolCalls[0]['function']['name']);
         $this->assertSame('{"city":"Paris"}', $toolCalls[0]['function']['arguments']);
+    }
+
+    /**
+     * Real bug fixed 2026-08-01: splitSystemAndConvert() used to do
+     * `(string) ($message['content'] ?? '')`, which silently casts a
+     * multi-part vision array to the literal string "Array", dropping the
+     * image entirely, despite supportsVision() claiming otherwise. Asserts
+     * the actual outgoing request body uses Gemini's native
+     * {inlineData: {mimeType, data}} part instead.
+     */
+    public function testChatTranslatesVisionContentToGeminiInlineDataParts(): void
+    {
+        $history = [];
+        $driver = $this->driverWithMockedResponses([
+            new Response(200, [], json_encode([
+                'candidates' => [['content' => ['parts' => [['text' => 'Je vois une photo.']]]]],
+                'usageMetadata' => ['promptTokenCount' => 10, 'candidatesTokenCount' => 5, 'totalTokenCount' => 15],
+            ], JSON_THROW_ON_ERROR)),
+        ], $history);
+
+        $driver->chat(new LLMRequest(messages: [
+            ['role' => 'user', 'content' => [
+                ['type' => 'text', 'text' => 'Que vois-tu ?'],
+                ['type' => 'image_url', 'image_url' => ['url' => 'data:image/jpeg;base64,ZmFrZWRhdGE=']],
+            ]],
+        ], model: 'gemini-2.0-flash'));
+
+        $sentBody = json_decode((string) $history[0]['request']->getBody(), true);
+        $parts = $sentBody['contents'][0]['parts'];
+
+        $this->assertSame('Que vois-tu ?', $parts[0]['text']);
+        $this->assertSame('image/jpeg', $parts[1]['inlineData']['mimeType']);
+        $this->assertSame('ZmFrZWRhdGE=', $parts[1]['inlineData']['data']);
+    }
+
+    public function testChatKeepsPlainTextContentUnchanged(): void
+    {
+        $history = [];
+        $driver = $this->driverWithMockedResponses([
+            new Response(200, [], json_encode([
+                'candidates' => [['content' => ['parts' => [['text' => 'ok']]]]],
+                'usageMetadata' => ['promptTokenCount' => 1, 'candidatesTokenCount' => 1, 'totalTokenCount' => 2],
+            ], JSON_THROW_ON_ERROR)),
+        ], $history);
+
+        $driver->chat(new LLMRequest(messages: [
+            ['role' => 'user', 'content' => 'Un message texte normal'],
+        ], model: 'gemini-2.0-flash'));
+
+        $sentBody = json_decode((string) $history[0]['request']->getBody(), true);
+        $this->assertSame('Un message texte normal', $sentBody['contents'][0]['parts'][0]['text']);
     }
 }

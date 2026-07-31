@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LlmRouter\Driver;
 
 use LlmRouter\Contract\Driver\LLMDriverInterface;
+use LlmRouter\Driver\Concern\NormalizesVisionContent;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
@@ -26,6 +27,8 @@ use RuntimeException;
  */
 class GeminiDriver implements LLMDriverInterface
 {
+    use NormalizesVisionContent;
+
     private const PRICING = [
         'gemini-2.5-pro' => ['input' => 0.00125, 'output' => 0.01],
         'gemini-2.5-flash' => ['input' => 0.0003, 'output' => 0.0025],
@@ -336,10 +339,14 @@ class GeminiDriver implements LLMDriverInterface
     /**
      * Splits OpenAI-style messages (role: system/user/assistant) into
      * Gemini's separate system instruction + "contents" list (role:
-     * user/model).
+     * user/model). Non-system content is translated to Gemini's own
+     * "parts" shape via convertContentForGemini() — real bug fixed
+     * 2026-08-01: `(string) ($message['content'] ?? '')` silently cast a
+     * multi-part vision array to the literal string "Array", dropping
+     * every image, despite supportsVision() claiming otherwise.
      *
      * @param array<int, array{role: string, content: mixed}> $messages
-     * @return array{0: string, 1: array<int, array{role: string, parts: array<int, array{text: string}>}>}
+     * @return array{0: string, 1: array<int, array{role: string, parts: array<int, array<string, mixed>>}>}
      */
     private function splitSystemAndConvert(array $messages): array
     {
@@ -348,20 +355,52 @@ class GeminiDriver implements LLMDriverInterface
 
         foreach ($messages as $message) {
             $role = $message['role'] ?? 'user';
-            $content = (string) ($message['content'] ?? '');
+            $rawContent = $message['content'] ?? '';
 
             if ($role === 'system') {
-                $system[] = $content;
+                $system[] = is_string($rawContent) ? $rawContent : $this->extractVisionParts($rawContent)[0];
                 continue;
             }
 
             $contents[] = [
                 'role' => $role === 'assistant' ? 'model' : 'user',
-                'parts' => [['text' => $content]],
+                'parts' => $this->convertContentForGemini($rawContent),
             ];
         }
 
         return [implode("\n\n", $system), $contents];
+    }
+
+    /**
+     * A plain string becomes a single {text} part — the shape every
+     * non-vision message already used correctly. A multi-part (text +
+     * image_url) array is translated into Gemini's "parts" shape: {text}
+     * and {inlineData: {mimeType, data}} — camelCase to match this
+     * driver's existing REST payload conventions (generationConfig,
+     * systemInstruction). See NormalizesVisionContent::extractVisionParts()
+     * for the shared OpenAI-shape parsing. Always returns at least one
+     * part — Gemini's API rejects an empty parts array.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function convertContentForGemini(mixed $content): array
+    {
+        if (is_string($content)) {
+            return [['text' => $content]];
+        }
+
+        [$text, $images] = $this->extractVisionParts($content);
+        $parts = [];
+
+        if ($text !== '') {
+            $parts[] = ['text' => $text];
+        }
+
+        foreach ($images as $image) {
+            $parts[] = ['inlineData' => ['mimeType' => $image['mediaType'], 'data' => $image['data']]];
+        }
+
+        return $parts !== [] ? $parts : [['text' => '']];
     }
 
     /**
