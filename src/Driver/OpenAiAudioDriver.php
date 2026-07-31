@@ -132,6 +132,21 @@ class OpenAiAudioDriver implements AudioDriverInterface
         $pricePerMinute = self::PRICING_PER_MINUTE[$model] ?? self::PRICING_PER_MINUTE['whisper-1'];
         $costUsd = $duration !== null ? ($duration / 60) * $pricePerMinute : 0.0;
 
+        // response_format=verbose_json (requested above) returns a
+        // segments[] array with per-segment avg_logprob/no_speech_prob —
+        // average across segments for an overall confidence signal (a
+        // single garbled segment in an otherwise clear clip shouldn't
+        // dominate the verdict, so this deliberately isn't a worst-case min/max).
+        $segments = $data['segments'] ?? [];
+        $avgLogprob = null;
+        $noSpeechProb = null;
+        if (is_array($segments) && $segments !== []) {
+            $logprobs = array_column($segments, 'avg_logprob');
+            $noSpeechProbs = array_column($segments, 'no_speech_prob');
+            $avgLogprob = array_sum($logprobs) / count($logprobs);
+            $noSpeechProb = array_sum($noSpeechProbs) / count($noSpeechProbs);
+        }
+
         return new AudioTranscriptionResponse(
             text: (string) ($data['text'] ?? ''),
             model: $model,
@@ -139,6 +154,8 @@ class OpenAiAudioDriver implements AudioDriverInterface
             durationSeconds: $duration,
             costUsd: $costUsd,
             latencyMs: $latencyMs,
+            avgLogprob: $avgLogprob,
+            noSpeechProb: $noSpeechProb,
         );
     }
 

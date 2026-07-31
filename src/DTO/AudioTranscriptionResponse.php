@@ -17,6 +17,13 @@ final readonly class AudioTranscriptionResponse
      * @param float       $costUsd
      * @param int         $latencyMs
      * @param array<string, mixed> $metadata Driver-specific metadata.
+     * @param float|null  $avgLogprob      Whisper's average log-probability across segments —
+     *                                     closer to 0 is confident, more negative (below ~-1)
+     *                                     signals a garbled/uncertain transcription. Null when
+     *                                     the provider doesn't report per-segment confidence.
+     * @param float|null  $noSpeechProb    Whisper's probability that a segment was actually
+     *                                     silence/noise rather than speech (0-1, worst segment).
+     *                                     Null when the provider doesn't report it.
      */
     public function __construct(
         public string $text,
@@ -26,5 +33,24 @@ final readonly class AudioTranscriptionResponse
         public float $costUsd,
         public int $latencyMs,
         public array $metadata = [],
+        public ?float $avgLogprob = null,
+        public ?float $noSpeechProb = null,
     ) {}
+
+    /**
+     * Heuristic used to flag a transcription as too unreliable to act on —
+     * both signals must be reported (a provider that doesn't report
+     * confidence never trips this) and both must independently look bad,
+     * since either alone can be a false positive (a short but confidently
+     * spoken word has a legitimately more negative avg_logprob; background
+     * noise alone can inflate no_speech_prob on an otherwise clear clip).
+     */
+    public function isLowConfidence(): bool
+    {
+        if ($this->avgLogprob === null || $this->noSpeechProb === null) {
+            return false;
+        }
+
+        return $this->avgLogprob < -1.0 && $this->noSpeechProb > 0.6;
+    }
 }

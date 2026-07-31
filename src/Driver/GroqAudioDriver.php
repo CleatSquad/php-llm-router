@@ -132,6 +132,20 @@ class GroqAudioDriver implements AudioDriverInterface
         $pricePerMinute = self::PRICING_PER_MINUTE[$model] ?? self::PRICING_PER_MINUTE['whisper-large-v3'];
         $costUsd = $duration !== null ? ($duration / 60) * $pricePerMinute : 0.0;
 
+        // Groq's Whisper endpoint is OpenAI-compatible: response_format=
+        // verbose_json (requested above) returns the same segments[] shape
+        // with per-segment avg_logprob/no_speech_prob — see OpenAiAudioDriver
+        // for why this is averaged across segments rather than worst-case.
+        $segments = $data['segments'] ?? [];
+        $avgLogprob = null;
+        $noSpeechProb = null;
+        if (is_array($segments) && $segments !== []) {
+            $logprobs = array_column($segments, 'avg_logprob');
+            $noSpeechProbs = array_column($segments, 'no_speech_prob');
+            $avgLogprob = array_sum($logprobs) / count($logprobs);
+            $noSpeechProb = array_sum($noSpeechProbs) / count($noSpeechProbs);
+        }
+
         return new AudioTranscriptionResponse(
             text: (string) ($data['text'] ?? ''),
             model: $model,
@@ -139,6 +153,8 @@ class GroqAudioDriver implements AudioDriverInterface
             durationSeconds: $duration,
             costUsd: $costUsd,
             latencyMs: $latencyMs,
+            avgLogprob: $avgLogprob,
+            noSpeechProb: $noSpeechProb,
         );
     }
 

@@ -53,6 +53,42 @@ final class OpenAiAudioDriverTest extends TestCase
         $this->assertGreaterThan(0.0, $response->costUsd);
     }
 
+    public function testTranscribeExtractsConfidenceFromVerboseJsonSegments(): void
+    {
+        $driver = $this->driverWithMockedResponses([
+            new Response(200, [], json_encode([
+                'text' => 'insurtement',
+                'duration' => 1.1,
+                'segments' => [
+                    ['avg_logprob' => -1.4, 'no_speech_prob' => 0.7],
+                    ['avg_logprob' => -1.8, 'no_speech_prob' => 0.9],
+                ],
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+
+        $response = $driver->transcribe(AudioTranscriptionRequest::fromFile(__FILE__));
+
+        $this->assertSame(-1.6, $response->avgLogprob);
+        $this->assertSame(0.8, $response->noSpeechProb);
+        $this->assertTrue($response->isLowConfidence());
+    }
+
+    public function testTranscribeWithoutSegmentsLeavesConfidenceNull(): void
+    {
+        $driver = $this->driverWithMockedResponses([
+            new Response(200, [], json_encode([
+                'text' => 'Bonjour',
+                'duration' => 1.0,
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+
+        $response = $driver->transcribe(AudioTranscriptionRequest::fromFile(__FILE__));
+
+        $this->assertNull($response->avgLogprob);
+        $this->assertNull($response->noSpeechProb);
+        $this->assertFalse($response->isLowConfidence());
+    }
+
     public function testTranscribeSendsAMultipartRequestWithFileModelAndLanguage(): void
     {
         $history = [];
