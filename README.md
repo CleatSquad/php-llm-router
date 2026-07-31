@@ -160,9 +160,17 @@ $response = $driver->chat($request); // throws immediately, no HTTP call, while 
 ```
 
 State is delegated to a `CircuitBreakerStoreInterface` (defaults to
-`InMemoryCircuitBreakerStore`, scoped to the current process). Implement
-that interface against Redis/DB to share breaker state across requests or
+`InMemoryCircuitBreakerStore`, scoped to the current process). Use the
+included `RedisCircuitBreakerStore` (needs `ext-redis`), or implement the
+interface against your own DB, to share breaker state across requests or
 worker processes — the package itself stays storage-agnostic.
+
+```php
+use LlmRouter\CircuitBreaker\RedisCircuitBreakerStore;
+
+$store = new RedisCircuitBreakerStore(new Redis()); // connect() it yourself first
+$driver = new CircuitBreakerDriver(new ClaudeDriver($http, anthropicApiKey: $key), $store);
+```
 
 ### Retries with backoff
 
@@ -204,8 +212,16 @@ $driver = new CachingDriver(new ClaudeDriver($http, anthropicApiKey: $key), ttlS
 ```
 
 State is delegated to a `CacheStoreInterface` (defaults to
-`InMemoryCacheStore`); implement it against Redis/DB to share the cache
-across requests or processes.
+`InMemoryCacheStore`). Use the included `RedisCacheStore` (needs
+`ext-redis`), or implement the interface against your own DB, to share
+the cache across requests or processes.
+
+```php
+use LlmRouter\Cache\RedisCacheStore;
+
+$store = new RedisCacheStore(new Redis()); // connect() it yourself first
+$driver = new CachingDriver(new ClaudeDriver($http, anthropicApiKey: $key), $store, ttlSeconds: 300);
+```
 
 ### Rate limiting (RPM / TPM)
 
@@ -227,10 +243,18 @@ $driver = new RateLimitedDriver(
 Token usage for `stream()` is only an estimate (input tokens only — these
 drivers' `stream()` has no usage block to read from, since providers don't
 send one over SSE). State is delegated to a `RateLimitStoreInterface`
-(defaults to `InMemoryRateLimitStore`); implement it against Redis/DB to
-share a quota across requests or processes — or pass the same store
-instance to two `RateLimitedDriver`s wrapping the same underlying driver
-to have them share one quota.
+(defaults to `InMemoryRateLimitStore`). Use the included
+`RedisRateLimitStore` (needs `ext-redis`), or implement the interface
+against your own DB, to share a quota across requests or processes — or
+pass the same store instance to two `RateLimitedDriver`s wrapping the
+same underlying driver to have them share one quota.
+
+```php
+use LlmRouter\RateLimit\RedisRateLimitStore;
+
+$store = new RedisRateLimitStore(new Redis()); // connect() it yourself first
+$driver = new RateLimitedDriver(new GroqDriver($http, groqApiKey: $key), $store, maxRequestsPerMinute: 30);
+```
 
 ### Load balancing across equivalent deployments
 
@@ -371,6 +395,7 @@ priority order, falls through on failure/unavailability.
 - PHP >= 8.2
 - `guzzlehttp/guzzle` ^7.8
 - `mcp/sdk` ^0.7 (for `McpClientDriver`)
+- `ext-redis` (optional — only for `RedisCacheStore`/`RedisCircuitBreakerStore`/`RedisRateLimitStore`)
 
 ## License
 

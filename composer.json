@@ -13,6 +13,9 @@
         "phpunit/phpunit": "^11.0",
         "phpstan/phpstan": "^2.0"
     },
+    "suggest": {
+        "ext-redis": "Needed for RedisCacheStore/RedisCircuitBreakerStore/RedisRateLimitStore, so cache/breaker/rate-limit state is shared across requests and worker processes instead of just one process."
+    },
     "autoload": {
         "psr-4": {
             "LlmRouter\\": "src/"
@@ -21,7 +24,10 @@
     "autoload-dev": {
         "psr-4": {
             "LlmRouter\\Tests\\": "tests/"
-        }
+        },
+        "files": [
+            "tests/Fixtures/FakeRedis.php"
+        ]
     },
     "scripts": {
         "test": "phpunit",
