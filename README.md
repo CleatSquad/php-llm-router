@@ -9,8 +9,9 @@ OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, LiteLLM, Kimi/Moonshot),
 pluggable routing strategies (priority/fallback and round-robin load
 balancing), decorators for retries, caching, circuit breaking and rate
 limiting, plus MCP and A2A client drivers for talking to tools and remote
-agents — the PHP equivalent of what LiteLLM's SDK does for Python, kept to
-client-library scope (see "What this package does *not* do" below).
+agents, and embedding drivers for OpenAI/Gemini/Mistral/Ollama — the PHP
+equivalent of what LiteLLM's SDK does for Python, kept to client-library
+scope (see "What this package does *not* do" below).
 
 Extracted from a production chat/agent platform where it routes every LLM call
 across local (Ollama) and cloud (Claude, OpenAI, Kimi, LiteLLM-proxied) models,
@@ -299,6 +300,29 @@ implements `A2ADriverInterface`, which itself extends the protocol-agnostic
 `AgentDriverInterface` (`execute()`, `getCapabilities()`,
 `supportsStreaming()`). Write your own driver for another MCP transport or
 agent protocol the same way you would for an LLM provider.
+
+## Embeddings
+
+Four drivers implement `EmbeddingDriverInterface` (`embed()`, `getModels()`,
+`estimateCost()`) for the providers that actually offer an embeddings
+endpoint — `OpenAiEmbeddingDriver`, `GeminiEmbeddingDriver`,
+`MistralEmbeddingDriver`, `OllamaEmbeddingDriver` (Claude/Groq/DeepSeek/Kimi
+don't have one; LiteLLM proxies whichever of these you point it at).
+
+```php
+use LlmRouter\Driver\OpenAiEmbeddingDriver;
+use LlmRouter\DTO\EmbeddingRequest;
+use LlmRouter\Http\HttpClient;
+
+$driver = new OpenAiEmbeddingDriver(new HttpClient(), openAiApiKey: getenv('OPENAI_API_KEY'));
+
+$response = $driver->embed(EmbeddingRequest::forText('Hello, world'));
+$vector = $response->first(); // array<float>
+
+// Batch — one vector per input, same order:
+$response = $driver->embed(new EmbeddingRequest(['doc one', 'doc two', 'doc three']));
+$vectors = $response->embeddings;
+```
 
 ## What this package does *not* do
 
