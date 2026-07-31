@@ -143,6 +143,24 @@ class KimiDriver implements LLMDriverInterface
         return $model;
     }
 
+    /**
+     * Moonshot's K2 reasoning models (kimi-k2, kimi-k2.6, ...) reject any
+     * temperature other than exactly 1 with a 400 "invalid temperature: only
+     * 1 is allowed for this model" error — unlike the older moonshot-v1-*
+     * chat models, which accept the usual 0-1 range. Since callers set a
+     * generic default (e.g. 0.70) with no knowledge of which Kimi model
+     * they're hitting, this driver overrides it rather than surfacing the
+     * error to every single request.
+     */
+    private function resolveTemperature(string $model, float $temperature): float
+    {
+        if (str_starts_with($model, 'kimi-k2')) {
+            return 1.0;
+        }
+
+        return $temperature;
+    }
+
     public function chat(LLMRequest $request): LLMResponse
     {
         $model = $this->resolveModel($request->model);
@@ -154,7 +172,7 @@ class KimiDriver implements LLMDriverInterface
         ];
 
         if ($request->temperature !== null) {
-            $payload['temperature'] = $request->temperature;
+            $payload['temperature'] = $this->resolveTemperature($model, $request->temperature);
         }
 
         if ($request->maxTokens !== null) {
@@ -229,7 +247,7 @@ class KimiDriver implements LLMDriverInterface
         ];
 
         if ($request->temperature !== null) {
-            $payload['temperature'] = $request->temperature;
+            $payload['temperature'] = $this->resolveTemperature($model, $request->temperature);
         }
 
         if ($request->maxTokens !== null) {
