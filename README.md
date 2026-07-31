@@ -1,5 +1,9 @@
 # mohaelmrabet/php-llm-router
 
+[![CI](https://github.com/mohaelmrabet/php-llm-router/actions/workflows/ci.yml/badge.svg)](https://github.com/mohaelmrabet/php-llm-router/actions/workflows/ci.yml)
+[![PHP Version](https://img.shields.io/badge/php-%3E%3D8.2-777bb4)](composer.json)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Provider-agnostic LLM client for PHP. One interface, nine drivers (Claude,
 OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, LiteLLM, Kimi/Moonshot),
 pluggable routing strategies (priority/fallback and round-robin load

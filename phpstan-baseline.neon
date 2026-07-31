@@ -1,0 +1,85 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Call to function is_array\(\) with string will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: src/DTO/LLMRequest.php
+
+		-
+			message: '#^Offset ''content'' on array\{role\: string, content\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/DTO/LLMRequest.php
+
+		-
+			message: '#^Offset ''text'' on \*NEVER\* on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/DTO/LLMRequest.php
+
+		-
+			message: '#^Offset ''type'' on \*NEVER\* in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 2
+			path: src/DTO/LLMRequest.php
+
+		-
+			message: '#^Offset ''role'' on array\{role\: string, content\: mixed\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Driver/ClaudeDriver.php
+
+		-
+			message: '#^Offset ''role'' on array\{role\: string, content\: mixed\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Driver/GeminiDriver.php
+
+		-
+			message: '#^Method LlmRouter\\Driver\\KimiDriver\:\:stream\(\) with return type void returns array\<int, array\<string, array\<string, string\>\|string\>\>\|null but should not return anything\.$#'
+			identifier: return.void
+			count: 1
+			path: src/Driver/KimiDriver.php
+
+		-
+			message: '#^Return type \(Generator\<int, string, mixed, void\>\) of method LlmRouter\\Driver\\KimiDriver\:\:stream\(\) should be compatible with return type \(Generator\<int, string, mixed, array\<int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\>\|null\>\) of method LlmRouter\\Contract\\Driver\\LLMDriverInterface\:\:stream\(\)$#'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Driver/KimiDriver.php
+
+		-
+			message: '#^Method LlmRouter\\Driver\\LiteLLMDriver\:\:stream\(\) with return type void returns array\<int, array\<string, array\<string, string\>\|string\>\>\|null but should not return anything\.$#'
+			identifier: return.void
+			count: 1
+			path: src/Driver/LiteLLMDriver.php
+
+		-
+			message: '#^Return type \(Generator\<int, string, mixed, void\>\) of method LlmRouter\\Driver\\LiteLLMDriver\:\:stream\(\) should be compatible with return type \(Generator\<int, string, mixed, array\<int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\>\|null\>\) of method LlmRouter\\Contract\\Driver\\LLMDriverInterface\:\:stream\(\)$#'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Driver/LiteLLMDriver.php
+
+		-
+			message: '#^Method LlmRouter\\Driver\\OllamaDriver\:\:stream\(\) should return null but empty return statement found\.$#'
+			identifier: return.empty
+			count: 1
+			path: src/Driver/OllamaDriver.php
+
+		-
+			message: '#^Method LlmRouter\\Driver\\OllamaDriver\:\:stream\(\) should return null but return statement is missing\.$#'
+			identifier: return.missing
+			count: 1
+			path: src/Driver/OllamaDriver.php
+
+		-
+			message: '#^Method LlmRouter\\Driver\\OpenAiDriver\:\:stream\(\) with return type void returns array\<int, array\<string, array\<string, string\>\|string\>\>\|null but should not return anything\.$#'
+			identifier: return.void
+			count: 1
+			path: src/Driver/OpenAiDriver.php
+
+		-
+			message: '#^Return type \(Generator\<int, string, mixed, void\>\) of method LlmRouter\\Driver\\OpenAiDriver\:\:stream\(\) should be compatible with return type \(Generator\<int, string, mixed, array\<int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\>\|null\>\) of method LlmRouter\\Contract\\Driver\\LLMDriverInterface\:\:stream\(\)$#'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Driver/OpenAiDriver.php
