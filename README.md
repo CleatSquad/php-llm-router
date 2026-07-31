@@ -9,7 +9,8 @@ OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, LiteLLM, Kimi/Moonshot),
 pluggable routing strategies (priority/fallback and round-robin load
 balancing), decorators for retries, caching, circuit breaking and rate
 limiting, plus MCP and A2A client drivers for talking to tools and remote
-agents, and embedding drivers for OpenAI/Gemini/Mistral/Ollama — the PHP
+agents, embedding drivers (with priority/fallback) for OpenAI/Gemini/
+Mistral/Ollama, and audio transcription drivers for OpenAI/Groq — the PHP
 equivalent of what LiteLLM's SDK does for Python, kept to client-library
 scope (see "What this package does *not* do" below).
 
@@ -333,6 +334,23 @@ use LlmRouter\Driver\FallbackEmbeddingDriver;
 
 $driver = new FallbackEmbeddingDriver([$ollama, $openai, $mistral]); // priority order, highest first
 $response = $driver->embed(EmbeddingRequest::forText('Hello, world')); // tries $ollama, falls back on failure
+```
+
+## Audio transcription
+
+`OpenAiAudioDriver` and `GroqAudioDriver` implement `AudioDriverInterface`
+(`transcribe()`, `getModels()`, `estimateCost()`) — the only two providers
+here with a real speech-to-text endpoint:
+
+```php
+use LlmRouter\Driver\OpenAiAudioDriver;
+use LlmRouter\DTO\AudioTranscriptionRequest;
+use LlmRouter\Http\HttpClient;
+
+$driver = new OpenAiAudioDriver(new HttpClient(), openAiApiKey: getenv('OPENAI_API_KEY'));
+
+$response = $driver->transcribe(AudioTranscriptionRequest::fromFile('/path/to/voice-note.ogg'));
+echo $response->text;
 ```
 
 ## What this package does *not* do

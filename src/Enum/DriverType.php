@@ -10,5 +10,6 @@ enum DriverType: string
     case AGENT = 'agent';
     case MCP = 'mcp';
     case EMBEDDING = 'embedding';
+    case AUDIO = 'audio';
     case STORAGE = 'storage';
 }
