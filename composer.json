@@ -1,12 +1,13 @@
 {
     "name": "mohaelmrabet/php-llm-router",
-    "description": "Provider-agnostic LLM client for PHP — a uniform interface over Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, LiteLLM and Kimi, with pluggable routing, retries, caching, circuit breaking and rate limiting.",
+    "description": "Provider-agnostic LLM client for PHP — a uniform interface over Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, LiteLLM and Kimi, with pluggable routing, retries, caching, circuit breaking, rate limiting, plus MCP and A2A client drivers.",
     "type": "library",
     "license": "MIT",
-    "keywords": ["llm", "ai", "claude", "openai", "gemini", "mistral", "groq", "deepseek", "ollama", "litellm", "router", "fallback", "circuit-breaker", "rate-limit"],
+    "keywords": ["llm", "ai", "claude", "openai", "gemini", "mistral", "groq", "deepseek", "ollama", "litellm", "router", "fallback", "circuit-breaker", "rate-limit", "mcp", "model-context-protocol", "a2a", "agent2agent", "agent"],
     "require": {
         "php": ">=8.2",
-        "guzzlehttp/guzzle": "^7.8"
+        "guzzlehttp/guzzle": "^7.8",
+        "mcp/sdk": "^0.7.0"
     },
     "require-dev": {
         "phpunit/phpunit": "^11.0",

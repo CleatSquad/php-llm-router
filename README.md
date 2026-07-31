@@ -4,11 +4,12 @@
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.2-777bb4)](composer.json)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Provider-agnostic LLM client for PHP. One interface, nine drivers (Claude,
+Provider-agnostic LLM client for PHP. One interface, nine LLM drivers (Claude,
 OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, LiteLLM, Kimi/Moonshot),
 pluggable routing strategies (priority/fallback and round-robin load
-balancing), and decorators for retries, caching, circuit breaking and rate
-limiting — the PHP equivalent of what LiteLLM's SDK does for Python, kept to
+balancing), decorators for retries, caching, circuit breaking and rate
+limiting, plus MCP and A2A client drivers for talking to tools and remote
+agents — the PHP equivalent of what LiteLLM's SDK does for Python, kept to
 client-library scope (see "What this package does *not* do" below).
 
 Extracted from a production chat/agent platform where it routes every LLM call
@@ -244,6 +245,61 @@ $strategy = new RoundRobinStrategy(weights: ['key-a' => 2, 'key-b' => 1]); // ke
 $driver = $strategy->select($request, $drivers); // cycles, skipping unavailable ones
 ```
 
+## MCP and A2A drivers
+
+Two more driver families beyond LLM chat, following the same
+`getId()/getType()/isAvailable()/healthCheck()/getMetadata()` base
+contract (`LlmRouter\Contract\Driver\DriverInterface`), so they compose
+with the rest of the package (health checks, driver registries, etc.)
+without the router needing to know about them specifically.
+
+**`McpClientDriver`** — a [Model Context Protocol](https://modelcontextprotocol.io)
+client, backed by the official `mcp/sdk`. Connects to an MCP server over
+stdio (spawns a local process) or HTTP, lists its tools/prompts/resources,
+and calls tools:
+
+```php
+use LlmRouter\Driver\McpClientDriver;
+
+$mcp = new McpClientDriver([
+    'id' => 'filesystem',
+    'transport' => 'stdio',
+    'command' => 'npx',
+    'args' => ['-y', '@modelcontextprotocol/server-filesystem', '/tmp'],
+]);
+
+$mcp->connect();
+$tools = $mcp->listTools();
+$result = $mcp->callTool('read_file', ['path' => '/tmp/notes.txt']);
+$mcp->disconnect();
+```
+
+**`A2AClientDriver`** — an [A2A (Agent2Agent)](https://a2a-protocol.org)
+client: discovers a remote agent's Agent Card, then talks to it over the
+protocol's JSON-RPC 2.0 wire format (`message/send`, `message/stream`,
+`tasks/get`, `tasks/cancel`):
+
+```php
+use LlmRouter\Driver\A2AClientDriver;
+use LlmRouter\Http\HttpClient;
+
+$agent = new A2AClientDriver(new HttpClient(), 'https://agent.example.com');
+
+$response = $agent->execute('Book a table for 4 at 8pm');
+echo $response->output; // text extracted from the resulting task/message
+// $response->metadata carries taskId/contextId/state for follow-up calls
+
+foreach ($agent->stream('Summarize this thread') as $chunk) {
+    echo $chunk;
+}
+```
+
+`McpClientDriver` implements `MCPDriverInterface`; `A2AClientDriver`
+implements `A2ADriverInterface`, which itself extends the protocol-agnostic
+`AgentDriverInterface` (`execute()`, `getCapabilities()`,
+`supportsStreaming()`). Write your own driver for another MCP transport or
+agent protocol the same way you would for an LLM provider.
+
 ## What this package does *not* do
 
 - **No DB-backed usage/cost tracking.** `LLMResponse::$costUsd` and
@@ -258,6 +314,7 @@ $driver = $strategy->select($request, $drivers); // cycles, skipping unavailable
 
 - PHP >= 8.2
 - `guzzlehttp/guzzle` ^7.8
+- `mcp/sdk` ^0.7 (for `McpClientDriver`)
 
 ## License
 
