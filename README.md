@@ -324,6 +324,17 @@ $response = $driver->embed(new EmbeddingRequest(['doc one', 'doc two', 'doc thre
 $vectors = $response->embeddings;
 ```
 
+`FallbackEmbeddingDriver` wraps an ordered list of them — always tries the
+first, falling through to the next only when a driver is unavailable or its
+`embed()` call throws:
+
+```php
+use LlmRouter\Driver\FallbackEmbeddingDriver;
+
+$driver = new FallbackEmbeddingDriver([$ollama, $openai, $mistral]); // priority order, highest first
+$response = $driver->embed(EmbeddingRequest::forText('Hello, world')); // tries $ollama, falls back on failure
+```
+
 ## What this package does *not* do
 
 - **No DB-backed usage/cost tracking.** `LLMResponse::$costUsd` and
