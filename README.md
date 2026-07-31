@@ -353,6 +353,9 @@ $response = $driver->transcribe(AudioTranscriptionRequest::fromFile('/path/to/vo
 echo $response->text;
 ```
 
+`FallbackAudioDriver` wraps them the same way `FallbackEmbeddingDriver` does —
+priority order, falls through on failure/unavailability.
+
 ## What this package does *not* do
 
 - **No DB-backed usage/cost tracking.** `LLMResponse::$costUsd` and
