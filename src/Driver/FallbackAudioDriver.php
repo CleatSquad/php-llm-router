@@ -15,10 +15,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Same role as FallbackEmbeddingDriver, for audio transcription: decorates
- * an ordered list of AudioDriverInterface, always trying the first first,
- * falling through to the next only when a driver is unavailable or its
- * transcribe() call throws.
+ * Same role as FallbackEmbeddingDriver, for audio transcription: tries drivers in order, falling through only on unavailability or a transcribe() failure.
  */
 final class FallbackAudioDriver implements AudioDriverInterface
 {

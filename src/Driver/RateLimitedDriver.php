@@ -18,21 +18,9 @@ use Generator;
 use RuntimeException;
 
 /**
- * Decorates any LLMDriverInterface with a requests-per-minute and/or
- * tokens-per-minute budget. When a call would exceed either limit,
- * chat()/stream() block (polling) until capacity frees up or
- * $maxWaitSeconds runs out — whichever comes first — instead of firing
- * the request straight into the provider's own 429.
- *
- * Token usage for stream() is only an estimate: this package's
- * stream() yields text + an optional tool-calls array, no usage block
- * (providers don't send one over SSE), so only the request's estimated
- * input tokens count against the TPM budget for streamed calls — a
- * conservative undercount, not exact accounting.
- *
- * State is delegated to a RateLimitStoreInterface (defaults to
- * InMemoryRateLimitStore, scoped to the current process); implement it
- * against Redis/DB to share a quota across requests or processes.
+ * Decorates a driver with a requests/tokens-per-minute budget; chat()/stream() block (polling) until capacity frees up or $maxWaitSeconds elapses, instead of hitting the provider's own 429.
+ * Streamed token usage is only an estimate (input tokens only), since providers don't send a usage block over SSE.
+ * State lives in a RateLimitStoreInterface (defaults to in-process memory); swap in a Redis/DB implementation to share quota across processes.
  */
 final class RateLimitedDriver implements LLMDriverInterface
 {

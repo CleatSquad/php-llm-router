@@ -18,11 +18,7 @@ use Generator;
 use RuntimeException;
 
 /**
- * Direct Groq API driver — OpenAI-compatible chat completions (same
- * wire format LiteLLM/OpenAI/Kimi/Mistral speak, hence the shared
- * trait). Groq itself just serves open models (Llama, Gemma, ...) on
- * its own fast inference hardware — this talks to Groq directly,
- * without going through a LiteLLM proxy.
+ * Direct Groq API driver — OpenAI-compatible chat completions, talking to Groq directly rather than via a LiteLLM proxy.
  */
 class GroqDriver implements LLMDriverInterface
 {

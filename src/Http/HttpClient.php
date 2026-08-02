@@ -16,10 +16,7 @@ class HttpClient
     private Client $client;
 
     /**
-     * Accepts an existing Guzzle client so a host application can supply
-     * its own (already-configured, or a test double) instead of always
-     * getting a fresh default one — e.g. wiring this package's drivers
-     * through your app's own HTTP client wrapper for testability.
+     * Accepts an existing Guzzle client (e.g. a test double, or your app's own configured instance) instead of always creating a default one.
      */
     public function __construct(?Client $client = null)
     {

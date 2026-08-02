@@ -15,12 +15,8 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Decorates an ordered list of EmbeddingDriverInterface — always tries the
- * first (the "main system") first, falling through to the next one only
- * when a driver is unavailable or its embed() call throws, in the given
- * order. The order itself carries the priority; callers configure it
- * (e.g. from a DB-backed priority column) rather than this class picking
- * one.
+ * Tries each EmbeddingDriverInterface in order, falling through when one is unavailable or embed() throws.
+ * Priority order is caller-configured (e.g. a DB column), not decided here.
  */
 final class FallbackEmbeddingDriver implements EmbeddingDriverInterface
 {

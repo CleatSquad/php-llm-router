@@ -15,18 +15,8 @@ use LlmRouter\Enum\DriverType;
 use Generator;
 
 /**
- * Decorates any LLMDriverInterface with a response cache for chat():
- * an identical request (same messages/model/temperature/maxTokens/
- * tools/preferQuality) within the TTL window returns the previous
- * LLMResponse instead of paying for another call.
- *
- * stream() intentionally bypasses the cache — buffering a whole
- * response before the first byte reaches the caller would defeat the
- * point of streaming, and always delegates straight to the inner driver.
- *
- * State is delegated to a CacheStoreInterface (defaults to
- * InMemoryCacheStore, scoped to the current process); implement it
- * against Redis/DB to share the cache across requests or processes.
+ * Decorates a driver with a response cache for chat(); stream() intentionally bypasses the cache since streaming can't buffer a full response first.
+ * State is delegated to a CacheStoreInterface (default: InMemoryCacheStore, process-scoped).
  */
 final class CachingDriver implements LLMDriverInterface
 {

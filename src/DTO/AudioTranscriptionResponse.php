@@ -38,12 +38,7 @@ final readonly class AudioTranscriptionResponse
     ) {}
 
     /**
-     * Heuristic used to flag a transcription as too unreliable to act on —
-     * both signals must be reported (a provider that doesn't report
-     * confidence never trips this) and both must independently look bad,
-     * since either alone can be a false positive (a short but confidently
-     * spoken word has a legitimately more negative avg_logprob; background
-     * noise alone can inflate no_speech_prob on an otherwise clear clip).
+     * Flags a transcription unreliable only when both signals are reported and both independently look bad — either alone can be a false positive (e.g. a short confident word naturally has a low avg_logprob).
      */
     public function isLowConfidence(): bool
     {

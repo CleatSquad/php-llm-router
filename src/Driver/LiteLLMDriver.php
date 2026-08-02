@@ -119,10 +119,7 @@ class LiteLLMDriver implements LLMDriverInterface
     }
 
     /**
-     * Resolve a requested model id against the models actually registered
-     * in LiteLLM's own config, fuzzy-matching when there's no exact hit.
-     * Shared by chat() and stream() so both pick the same model for the
-     * same request.
+     * Resolves a requested model against LiteLLM's registered models, fuzzy-matching when there's no exact hit.
      */
     private function resolveModel(?string $requestedModel, bool $preferQuality): string
     {

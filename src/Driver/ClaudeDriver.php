@@ -253,22 +253,10 @@ class ClaudeDriver implements LLMDriverInterface
             throw new RuntimeException('Claude stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        // Anthropic's SSE framing differs from the OpenAI-compatible one:
-        // each event is an "event: <type>" line followed by a "data: {json}"
-        // line. Text deltas arrive as content_block_delta events with
-        // delta.type === "text_delta"; message_stop ends the stream.
-        //
-        // A streamed tool call arrives as three events instead of one JSON
-        // blob: content_block_start (type: "tool_use", carries id + name,
-        // empty input) at some $data['index'], then one or more
-        // content_block_delta events at that same index with
-        // delta.type === "input_json_delta" carrying delta.partial_json
-        // fragments (the arguments JSON string arrives incrementally, same
-        // idea as OpenAI's tool_calls[].function.arguments deltas — just a
-        // different envelope). Re-shaped into the same
-        // {id, type: "function", function: {name, arguments}} array chat()
-        // already returns for tool calls, so callers don't need two
-        // different tool-call shapes depending on stream() vs chat().
+        // Anthropic's SSE framing differs from OpenAI's: "event: <type>" + "data: {json}" lines;
+        // text arrives via content_block_delta/text_delta, tool calls via content_block_start
+        // (id, name) then content_block_delta/input_json_delta chunks, re-shaped here into the
+        // same {id, type: "function", function: {name, arguments}} array chat() returns.
         $body = $response->getBody();
         $buffer = '';
         $toolCalls = [];
@@ -378,15 +366,8 @@ class ClaudeDriver implements LLMDriverInterface
     }
 
     /**
-     * Split OpenAI-style messages (which may include a "system" role) into
-     * Anthropic's separate system prompt + user/assistant message list.
-     * Non-system message content is also translated to Anthropic's own
-     * block shape via convertContentForClaude() — real bug fixed
-     * 2026-08-01: this used to pass $message['content'] straight through,
-     * so a multi-part vision message (OpenAI's {type: image_url, ...}
-     * shape) was sent to Anthropic's API verbatim, which doesn't
-     * understand that shape at all — every vision request to Claude
-     * failed, despite supportsVision() claiming otherwise.
+     * Splits OpenAI-style messages (may include a "system" role) into Anthropic's system prompt + message list.
+     * Non-system content is translated via convertContentForClaude() — a 2026-08-01 fix, since passing OpenAI's vision shape straight through silently broke every vision request to Claude.
      *
      * @param array<int, array{role: string, content: mixed}> $messages
      * @return array{0: string, 1: array<int, array{role: string, content: mixed}>}
@@ -412,12 +393,8 @@ class ClaudeDriver implements LLMDriverInterface
     }
 
     /**
-     * A plain string passes through unchanged — the shape every non-vision
-     * message already used correctly. A multi-part (text + image_url)
-     * array is translated into Anthropic's native content-block array:
-     * {type: text, text} and {type: image, source: {type: base64,
-     * media_type, data}} — see NormalizesVisionContent::extractVisionParts()
-     * for the shared OpenAI-shape parsing.
+     * Translates OpenAI-shaped vision content into Anthropic's content-block array; plain strings pass through unchanged.
+     * Shared OpenAI-shape parsing lives in NormalizesVisionContent::extractVisionParts().
      *
      * @return string|array<int, array<string, mixed>>
      */

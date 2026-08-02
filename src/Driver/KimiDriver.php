@@ -121,15 +121,7 @@ class KimiDriver implements LLMDriverInterface
     }
 
     /**
-     * Moonshot ships two separate platforms with disjoint model catalogs
-     * (api.moonshot.cn: moonshot-v1-8k/32k/128k; api.moonshot.ai: kimi-k3,
-     * kimi-k2.6, ...) and the catalog on either one can change server-side
-     * without this package knowing about it. So an explicitly-requested
-     * model is trusted as-is instead of being validated against a static
-     * whitelist here — silently discarding it in favor of a hardcoded
-     * default would make it impossible to ever use a model this package
-     * doesn't already know about. Only a null request falls back to the
-     * default.
+     * Moonshot's two platforms (api.moonshot.cn vs .ai) have disjoint, server-side-mutable catalogs, so an explicit model is trusted as-is rather than validated against a static whitelist. Only a null request falls back to the default.
      */
     private function resolveModel(?string $requestedModel): string
     {
@@ -144,13 +136,7 @@ class KimiDriver implements LLMDriverInterface
     }
 
     /**
-     * Moonshot's K2 reasoning models (kimi-k2, kimi-k2.6, ...) reject any
-     * temperature other than exactly 1 with a 400 "invalid temperature: only
-     * 1 is allowed for this model" error — unlike the older moonshot-v1-*
-     * chat models, which accept the usual 0-1 range. Since callers set a
-     * generic default (e.g. 0.70) with no knowledge of which Kimi model
-     * they're hitting, this driver overrides it rather than surfacing the
-     * error to every single request.
+     * K2 reasoning models (kimi-k2*) reject any temperature but exactly 1 with a 400 error, so it's overridden here rather than surfaced to every caller.
      */
     private function resolveTemperature(string $model, float $temperature): float
     {

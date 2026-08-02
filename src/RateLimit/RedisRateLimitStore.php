@@ -7,16 +7,8 @@ namespace LlmRouter\RateLimit;
 use Redis;
 
 /**
- * RateLimitStoreInterface backed by Redis (ext-redis), so a driver's
- * RPM/TPM usage window is shared across requests and worker processes
- * instead of living only in one process like InMemoryRateLimitStore —
- * needed for the budget to mean anything once more than one PHP-FPM
- * worker (or one machine) is calling the same driver.
- *
- * Keep $ttlSeconds >= the RateLimitedDriver's $windowSeconds: if the
- * key expired mid-window, the next read starts a fresh window early
- * and under-counts usage — the budget becomes more permissive, never
- * more restrictive, but it does stop being exact.
+ * RateLimitStoreInterface backed by Redis, sharing the usage window across requests and workers.
+ * Keep $ttlSeconds >= RateLimitedDriver's $windowSeconds, or a mid-window expiry silently starts a fresh window early (more permissive, never more restrictive, but less exact).
  */
 final class RedisRateLimitStore implements RateLimitStoreInterface
 {

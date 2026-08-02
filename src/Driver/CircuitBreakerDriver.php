@@ -18,18 +18,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Decorates any LLMDriverInterface with a circuit breaker: after
- * $failureThreshold consecutive chat()/stream() failures, the driver
- * reports unavailable and fails fast — no network call — for
- * $openSeconds, instead of every caller re-discovering the same outage
- * one timeout at a time. A single success resets the failure count.
- *
- * Wrap a driver with this before handing it to a routing strategy:
- *
- *   $strategy->select($request, [
- *       new CircuitBreakerDriver(new ClaudeDriver($http, ...)),
- *       new CircuitBreakerDriver(new OllamaDriver($http, ...)),
- *   ]);
+ * Decorates a driver with a circuit breaker: after $failureThreshold consecutive failures it fails fast (no network call) for $openSeconds instead of every caller re-discovering the same outage; a single success resets the count.
  */
 final class CircuitBreakerDriver implements LLMDriverInterface
 {

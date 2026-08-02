@@ -10,18 +10,8 @@ use LlmRouter\DTO\LLMRequest;
 use RuntimeException;
 
 /**
- * Spreads load across multiple *equivalent* deployments of the same
- * model (e.g. three OpenAI API keys behind three OpenAiDriver
- * instances) instead of always trying them in the same fixed order —
- * PriorityStrategy answers "which provider first when several differ
- * in quality/cost", this answers "how do I not hammer one deployment
- * while two idle ones sit there".
- *
- * Optional integer weights bias the rotation without needing a
- * separate "weighted" class: a driver with weight 3 is offered three
- * times as often as one with weight 1. Unweighted drivers default to 1.
- * Only isAvailable() candidates are ever selected; an unavailable
- * driver is skipped (and does not consume its turn).
+ * Rotates across equivalent deployments of the same model (e.g. several API keys) instead of always picking the same one first.
+ * Optional integer weights bias the rotation (weight 3 = offered 3x as often as weight 1, default 1); unavailable drivers are skipped without consuming a turn.
  */
 final class RoundRobinStrategy implements RoutingStrategyInterface
 {

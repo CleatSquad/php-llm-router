@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace LlmRouter\CircuitBreaker;
 
 /**
- * Where CircuitBreakerDriver persists its per-driver failure state.
- * The default is a same-process array (InMemoryCircuitBreakerStore);
- * implement this against Redis/DB/etc. to share breaker state across
- * requests or worker processes.
+ * Where CircuitBreakerDriver persists per-driver failure state; implement against Redis/DB to share it across processes.
  */
 interface CircuitBreakerStoreInterface
 {

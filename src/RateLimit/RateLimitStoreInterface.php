@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace LlmRouter\RateLimit;
 
 /**
- * Where RateLimitedDriver persists its per-driver usage window. The
- * default is a same-process array (InMemoryRateLimitStore); implement
- * this against Redis/DB/etc. to share a quota across requests or
- * worker processes.
+ * Where RateLimitedDriver persists its per-driver usage window; implement against Redis/DB to share a quota across processes.
  */
 interface RateLimitStoreInterface
 {

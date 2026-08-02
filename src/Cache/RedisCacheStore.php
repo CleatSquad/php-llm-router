@@ -8,11 +8,8 @@ use LlmRouter\DTO\LLMResponse;
 use Redis;
 
 /**
- * CacheStoreInterface backed by Redis (ext-redis), so cached chat()
- * responses are shared across requests and worker processes instead of
- * living only in one process like InMemoryCacheStore. Entries are
- * PHP-serialized and stored with a native Redis expiry (SETEX) — no
- * separate cleanup pass needed, expired keys just disappear.
+ * CacheStoreInterface backed by Redis, sharing cached responses across requests and workers.
+ * Entries are PHP-serialized with a native Redis expiry (SETEX), so no separate cleanup pass is needed.
  */
 final class RedisCacheStore implements CacheStoreInterface
 {

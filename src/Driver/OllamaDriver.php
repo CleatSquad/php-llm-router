@@ -245,10 +245,7 @@ class OllamaDriver implements LLMDriverInterface
     }
 
     /**
-     * Always returns null (no tool_calls) — Ollama's own chat() never
-     * parses tool calls either (its models' function-calling support is
-     * too inconsistent to rely on), so this matches that existing
-     * behavior rather than pretending otherwise.
+     * Always returns null — Ollama's function-calling support is too inconsistent to parse tool_calls reliably, matching chat()'s behavior.
      *
      * @return Generator<int, string, mixed, null>
      */

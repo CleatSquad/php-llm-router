@@ -8,10 +8,8 @@ use LlmRouter\DTO\LLMResponse;
 use DateTimeImmutable;
 
 /**
- * Default CacheStoreInterface: plain array, lives only for the current
- * process. Fine for a CLI session or a single long-lived worker; a
- * multi-process web app wanting a cache shared across requests should
- * implement the interface against Redis/DB instead.
+ * Default CacheStoreInterface: a same-process array, fine for a CLI session or single worker.
+ * Use RedisCacheStore instead when the cache needs to be shared across requests or processes.
  */
 final class InMemoryCacheStore implements CacheStoreInterface
 {

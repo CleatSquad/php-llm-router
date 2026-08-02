@@ -16,10 +16,7 @@ interface A2ADriverInterface extends AgentDriverInterface
     public function getAgentCard(): AgentCard;
 
     /**
-     * Stream a task execution — yields text fragments as they arrive from
-     * message/status/artifact update events. Once exhausted,
-     * Generator::getReturn() carries the final AgentResponse (success,
-     * full output, taskId/contextId/state in metadata).
+     * Yields text fragments from message/status/artifact events; Generator::getReturn() carries the final AgentResponse once exhausted.
      *
      * @param array<string, mixed> $context
      * @return Generator<int, string, mixed, AgentResponse>

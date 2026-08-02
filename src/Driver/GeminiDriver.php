@@ -19,11 +19,7 @@ use RuntimeException;
 
 /**
  * Direct Google Gemini API driver (generateContent / streamGenerateContent).
- * Gemini's wire format differs enough from the OpenAI-compatible one
- * (separate systemInstruction, "model" instead of "assistant",
- * function calls arrive as whole JSON objects rather than incremental
- * string fragments) that it gets its own request/response mapping
- * rather than the shared ParsesChatCompletionSse trait.
+ * Gemini's wire format differs enough from OpenAI-compatible ones (separate systemInstruction, "model" role, whole-object function calls) that it needs its own mapping instead of the shared ParsesChatCompletionSse trait.
  */
 class GeminiDriver implements LLMDriverInterface
 {
@@ -337,13 +333,8 @@ class GeminiDriver implements LLMDriverInterface
     }
 
     /**
-     * Splits OpenAI-style messages (role: system/user/assistant) into
-     * Gemini's separate system instruction + "contents" list (role:
-     * user/model). Non-system content is translated to Gemini's own
-     * "parts" shape via convertContentForGemini() — real bug fixed
-     * 2026-08-01: `(string) ($message['content'] ?? '')` silently cast a
-     * multi-part vision array to the literal string "Array", dropping
-     * every image, despite supportsVision() claiming otherwise.
+     * Splits OpenAI-style messages into Gemini's system instruction + "contents" (role: user/model).
+     * Bug fixed 2026-08-01: casting content to string silently dropped every image behind a multi-part vision array.
      *
      * @param array<int, array{role: string, content: mixed}> $messages
      * @return array{0: string, 1: array<int, array{role: string, parts: array<int, array<string, mixed>>}>}
@@ -372,14 +363,8 @@ class GeminiDriver implements LLMDriverInterface
     }
 
     /**
-     * A plain string becomes a single {text} part — the shape every
-     * non-vision message already used correctly. A multi-part (text +
-     * image_url) array is translated into Gemini's "parts" shape: {text}
-     * and {inlineData: {mimeType, data}} — camelCase to match this
-     * driver's existing REST payload conventions (generationConfig,
-     * systemInstruction). See NormalizesVisionContent::extractVisionParts()
-     * for the shared OpenAI-shape parsing. Always returns at least one
-     * part — Gemini's API rejects an empty parts array.
+     * Translates a plain string or multi-part vision content into Gemini's "parts" shape ({text}, {inlineData}).
+     * Always returns at least one part — Gemini's API rejects an empty parts array.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -404,9 +389,7 @@ class GeminiDriver implements LLMDriverInterface
     }
 
     /**
-     * Converts our common OpenAI-shaped tools array
-     * ({type: "function", function: {name, description, parameters}})
-     * into Gemini's single-object-with-functionDeclarations shape.
+     * Converts OpenAI-shaped tools ({type, function}) into Gemini's functionDeclarations shape.
      *
      * @param array<int, array<string, mixed>>|null $tools
      * @return array<int, array<string, mixed>>|null
@@ -431,10 +414,7 @@ class GeminiDriver implements LLMDriverInterface
     }
 
     /**
-     * Splits a Gemini "parts" array into its text content and any tool
-     * calls, re-shaped into the {id, type: "function", function: {name,
-     * arguments}} array chat()/stream() already return for the other
-     * drivers' tool calls.
+     * Splits a Gemini "parts" array into text content and tool calls re-shaped to match the other drivers' format.
      *
      * @param array<int, array<string, mixed>> $parts
      * @return array{0: string, 1: array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>}

@@ -8,17 +8,8 @@ use Generator;
 use Psr\Http\Message\StreamInterface;
 
 /**
- * Shared by every driver whose provider speaks the OpenAI Chat Completions
- * streaming wire format (LiteLLM, OpenAI, Kimi/Moonshot): SSE lines of
- * "data: {json}\n\n", each carrying a choices[0].delta.content fragment,
- * terminated by a literal "data: [DONE]" line.
- *
- * Also accumulates choices[0].delta.tool_calls — a streamed tool call
- * arrives as a first delta carrying {index, id, function: {name}} followed
- * by further deltas for the same index carrying only
- * {index, function: {arguments}} fragments (the JSON args string arrives
- * character-by-character-ish, not as one block) — grouped by index so two
- * tool calls in the same response don't interleave into garbage.
+ * Shared by drivers using the OpenAI Chat Completions SSE format (LiteLLM, OpenAI, Kimi/Moonshot): "data: {json}" lines ending in "data: [DONE]".
+ * Streamed tool_calls deltas are accumulated by index, since each call's id/name/arguments arrive fragmented across multiple deltas.
  */
 trait ParsesChatCompletionSse
 {

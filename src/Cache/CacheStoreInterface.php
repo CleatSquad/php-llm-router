@@ -7,9 +7,7 @@ namespace LlmRouter\Cache;
 use LlmRouter\DTO\LLMResponse;
 
 /**
- * Where CachingDriver persists cached chat() responses. The default is
- * a same-process array (InMemoryCacheStore); implement this against
- * Redis/DB/etc. to share the cache across requests or worker processes.
+ * Where CachingDriver persists cached chat() responses; implement against Redis/DB to share the cache across processes.
  */
 interface CacheStoreInterface
 {

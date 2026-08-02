@@ -5,29 +5,14 @@ declare(strict_types=1);
 namespace LlmRouter\Driver\Concern;
 
 /**
- * Shared by every driver whose provider needs its OWN wire shape for image
- * content, since the request DTO carries the caller's content in the one
- * shape OpenAI's Chat Completions API actually expects natively (`{type:
- * text, text}` / `{type: image_url, image_url: {url: "data:...;base64,..."}}`
- * — see LLMRequest::estimateInputTokens()'s own handling of that shape).
- * OpenAiDriver passes it straight through unmodified; every other
- * vision-capable driver needs to translate it into its provider's native
- * image block before sending — this trait does the provider-agnostic half
- * of that (parsing the message into plain text + decoded image parts), the
- * driver itself does the provider-specific half (building its own block
- * shape from those parts).
+ * Shared by vision-capable drivers that need their own wire shape for image content — request DTOs carry it in OpenAI's native shape (see LLMRequest::estimateInputTokens()), which OpenAiDriver passes through unmodified but every other driver must translate.
+ * This trait does the provider-agnostic half — parsing into plain text + decoded image parts — each driver builds its own block shape from those parts.
  */
 trait NormalizesVisionContent
 {
     /**
-     * Splits a message's `content` (either a plain string, or an OpenAI-
-     * shaped multi-part array) into its text and any embedded images.
-     * A plain string returns as-is with no images — the shape every
-     * driver already sent correctly for a text-only message, unchanged.
-     * An `image_url` part whose `url` isn't a `data:` URI (unlikely for
-     * this app's own callers, which always inline base64) is skipped
-     * rather than guessed at — a provider-side fetch-by-URL is a
-     * different code path this trait doesn't attempt to fake.
+     * Splits `content` (plain string or OpenAI-shaped multi-part array) into text and decoded images.
+     * An `image_url` part whose `url` isn't a `data:` URI is skipped rather than fetched — callers always inline base64.
      *
      * @param mixed $content
      * @return array{0: string, 1: array<int, array{mediaType: string, data: string}>}

@@ -16,15 +16,8 @@ use Generator;
 use Throwable;
 
 /**
- * Decorates any LLMDriverInterface with automatic retries on transient
- * failures (connection errors, timeouts, HTTP 429, HTTP 5xx), using
- * exponential backoff. Non-transient failures (4xx other than 429 —
- * bad request, auth, not found, ...) propagate on the first attempt,
- * since retrying them would just fail the same way $maxAttempts times.
- *
- * Every driver in this package wraps its underlying Guzzle exception as
- * RuntimeException::getPrevious(), which is how retryability is judged
- * here without each driver needing to know about retries at all.
+ * Retries transient failures (connection errors, timeouts, HTTP 429/5xx) with exponential backoff; other 4xx propagate immediately since retrying would just fail the same way.
+ * Retryability is judged from the wrapped Guzzle exception on RuntimeException::getPrevious(), which every driver in this package sets.
  */
 final class RetryingDriver implements LLMDriverInterface
 {
@@ -85,13 +78,7 @@ final class RetryingDriver implements LLMDriverInterface
     }
 
     /**
-     * A failure that happens before any chunk has reached the caller is
-     * safe to retry (the caller has seen nothing yet, so the retried
-     * attempt just replaces the failed one). A failure partway through
-     * an already-flowing stream is NOT retried — some of that content
-     * was already yielded out to the caller, and a fresh attempt would
-     * either duplicate it or produce an inconsistent transcript, so it
-     * propagates immediately regardless of attempts remaining.
+     * Only retries before any chunk reached the caller; once streaming has started a failure propagates immediately to avoid duplicating or corrupting already-yielded output.
      *
      * @return Generator<int, string, mixed, ?array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>>
      */
