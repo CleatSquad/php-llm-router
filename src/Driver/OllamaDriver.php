@@ -144,7 +144,7 @@ class OllamaDriver implements LLMDriverInterface
             // 1. Try to find a local model that contains the requested clean model name (excluding embedding models), case-insensitive
             if ($matchedModel === null) {
                 foreach ($localModels as $localModel) {
-                    if (str_contains($localModel, 'embed') || str_contains($localModel, 'nomic')) {
+                    if (self::isEmbeddingModelName($localModel)) {
                         continue;
                     }
                     if (str_contains(strtolower($localModel), strtolower($modelClean))) {
@@ -168,7 +168,7 @@ class OllamaDriver implements LLMDriverInterface
             // 3. If still not found, fallback to the first non-embedding model
             if ($matchedModel === null) {
                 foreach ($localModels as $localModel) {
-                    if (!str_contains($localModel, 'embed') && !str_contains($localModel, 'nomic')) {
+                    if (!self::isEmbeddingModelName($localModel)) {
                         $matchedModel = $localModel;
                         break;
                     }
@@ -181,6 +181,18 @@ class OllamaDriver implements LLMDriverInterface
         }
 
         return $model;
+    }
+
+    /** Fallback matching must never pick an embedding-only model as a chat substitute — it would fail immediately. */
+    private static function isEmbeddingModelName(string $modelName): bool
+    {
+        foreach (['embed', 'nomic', 'e5-large', 'multilingual'] as $marker) {
+            if (str_contains($modelName, $marker)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function chat(LLMRequest $request): LLMResponse

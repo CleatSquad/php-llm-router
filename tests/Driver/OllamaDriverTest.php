@@ -53,6 +53,26 @@ final class OllamaDriverTest extends TestCase
         ], JSON_THROW_ON_ERROR));
     }
 
+    /**
+     * Real incident: a requested model absent locally (e.g. gpt-4o-mini,
+     * meant for a different driver entirely) used to fall back to whatever
+     * local model came first that didn't contain "embed"/"nomic" — the
+     * actually-installed embedding model "zylonai/multilingual-e5-large"
+     * slipped through that filter and got picked as a "chat" substitute,
+     * guaranteed to fail ("does not support chat").
+     */
+    public function testResolveModelFallbackNeverPicksAnEmbeddingModelListedFirst(): void
+    {
+        $driver = $this->driverWithMockedResponses([
+            $this->tagsResponse(['zylonai/multilingual-e5-large', 'llama3.2:3b']),
+            $this->chatResponse(),
+        ], ollamaModel: 'llama3.2:3b');
+
+        $response = $driver->chat(new LLMRequest(messages: [['role' => 'user', 'content' => 'Salut']], model: 'gpt-4o-mini'));
+
+        $this->assertSame('llama3.2:3b', $response->model);
+    }
+
     public function testChatMapsResponseAndIsAlwaysFree(): void
     {
         $driver = $this->driverWithMockedResponses([$this->tagsResponse(['llama3']), $this->chatResponse()]);
