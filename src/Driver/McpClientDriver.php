@@ -91,10 +91,9 @@ class McpClientDriver implements MCPDriverInterface
 
     public function disconnect(): void
     {
-        if ($this->connected) {
-            $this->client->disconnect();
-            $this->connected = false;
-        }
+        // Appel inconditionnel : nettoie aussi le transport d'un connect() qui a levé une exception.
+        $this->client->disconnect();
+        $this->connected = false;
     }
 
     public function healthCheck(): HealthStatus
