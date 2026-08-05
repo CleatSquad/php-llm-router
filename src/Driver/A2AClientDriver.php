@@ -160,6 +160,7 @@ class A2AClientDriver implements A2ADriverInterface
                 'json' => $payload,
                 'headers' => $this->jsonRpcHeaders(),
                 'timeout' => $this->timeoutSeconds,
+                'read_timeout' => $this->timeoutSeconds,
                 'stream' => true,
             ]);
         } catch (Exception $e) {

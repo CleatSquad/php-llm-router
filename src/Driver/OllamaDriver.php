@@ -273,6 +273,7 @@ class OllamaDriver implements LLMDriverInterface
             $response = $this->httpClient->getClient()->post($this->ollamaUrl . '/api/chat', [
                 'json' => $payload,
                 'timeout' => $timeout,
+                'read_timeout' => $timeout,
                 'stream' => true,
             ]);
         } catch (\Exception $e) {

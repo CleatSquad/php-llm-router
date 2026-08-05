@@ -226,6 +226,7 @@ class OpenAiDriver implements LLMDriverInterface
                 'json' => $payload,
                 'headers' => $this->getHeaders(),
                 'timeout' => $timeout,
+                'read_timeout' => $timeout,
                 'stream' => true,
             ]);
         } catch (\Exception $e) {

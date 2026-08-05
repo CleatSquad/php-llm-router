@@ -201,6 +201,7 @@ class GeminiDriver implements LLMDriverInterface
                 'json' => $payload,
                 'headers' => ['Content-Type' => 'application/json'],
                 'timeout' => $timeout,
+                'read_timeout' => $timeout,
                 'stream' => true,
             ]);
         } catch (\Exception $e) {
