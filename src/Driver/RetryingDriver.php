@@ -157,9 +157,14 @@ final class RetryingDriver implements LLMDriverInterface
         return false;
     }
 
+    /**
+     * Decorrelated jitter: 50-100% of the exponential delay, so workers
+     * retrying the same outage don't resync onto one schedule.
+     */
     private function delayForAttempt(int $attempt): float
     {
-        return min($this->maxDelaySeconds, $this->baseDelaySeconds * (2 ** ($attempt - 1)));
+        $exp = min($this->maxDelaySeconds, $this->baseDelaySeconds * (2 ** ($attempt - 1)));
+        return $exp * (0.5 + (random_int(0, 500) / 1000));
     }
 
     private function sleep(float $seconds): void

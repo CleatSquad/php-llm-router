@@ -187,4 +187,37 @@ final class RetryingDriverTest extends TestCase
         $this->assertSame(['partial '], $chunks);
         $this->assertSame(1, $inner->callCount, 'must not retry once content has already reached the caller');
     }
+
+    public function testBackoffIsJitteredWithinFiftyToOneHundredPercentOfTheExponentialDelay(): void
+    {
+        // exp = min(2.0, 0.3 * 2^0) = 0.3 -> jittered range [0.15, 0.3]
+        $inner = new ControllableDriver('fake', [self::serverError(), null]);
+        $driver = new RetryingDriver($inner, maxAttempts: 2, baseDelaySeconds: 0.3, maxDelaySeconds: 2.0);
+
+        $start = microtime(true);
+        $driver->chat($this->request());
+        $elapsed = microtime(true) - $start;
+
+        $this->assertGreaterThanOrEqual(0.14, $elapsed);
+        $this->assertLessThan(0.5, $elapsed, 'jitter must not exceed 100% of the exponential delay by more than scheduling noise');
+    }
+
+    public function testBackoffVariesAcrossRunsInsteadOfBeingFixed(): void
+    {
+        // A fixed (non-jittered) delay clusters tightly (a few ms of
+        // scheduling noise); real jitter spans up to half of the 0.3s
+        // exponential delay, so the spread across runs is the signal.
+        $elapsedTimes = [];
+        for ($i = 0; $i < 8; $i++) {
+            $inner = new ControllableDriver('fake', [self::serverError(), null]);
+            $driver = new RetryingDriver($inner, maxAttempts: 2, baseDelaySeconds: 0.3, maxDelaySeconds: 2.0);
+
+            $start = microtime(true);
+            $driver->chat($this->request());
+            $elapsedTimes[] = microtime(true) - $start;
+        }
+
+        $spread = max($elapsedTimes) - min($elapsedTimes);
+        $this->assertGreaterThan(0.05, $spread, 'a fixed delay would not spread this much across runs');
+    }
 }
