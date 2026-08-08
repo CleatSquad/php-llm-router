@@ -427,7 +427,7 @@ class GeminiDriver implements LLMDriverInterface
 
         foreach ($parts as $part) {
             if (isset($part['text'])) {
-                $text .= $part['text'];
+                $text .= (string)$part['text'];
             } elseif (isset($part['functionCall'])) {
                 $toolCalls[] = [
                     'id' => 'call_' . ($toolCallOffset + count($toolCalls)),

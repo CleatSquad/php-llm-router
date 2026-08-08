@@ -173,6 +173,18 @@ class MistralDriver implements LLMDriverInterface
         }
 
         $content = $data['choices'][0]['message']['content'] ?? '';
+        if (is_array($content)) {
+            $textParts = [];
+            foreach ($content as $part) {
+                if (is_array($part) && isset($part['text'])) {
+                    $textParts[] = (string)$part['text'];
+                } elseif (is_string($part)) {
+                    $textParts[] = $part;
+                }
+            }
+            $content = !empty($textParts) ? implode('', $textParts) : json_encode($content, JSON_UNESCAPED_UNICODE);
+        }
+        $content = (string)$content;
         $finishReason = $data['choices'][0]['finish_reason'] ?? 'stop';
         $toolCalls = $data['choices'][0]['message']['tool_calls'] ?? null;
 
