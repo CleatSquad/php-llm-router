@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace LlmRouter\Tests\Fixtures;
 
+use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
-use Generator;
 
 /**
  * Minimal in-memory LLMDriverInterface implementation for routing-strategy

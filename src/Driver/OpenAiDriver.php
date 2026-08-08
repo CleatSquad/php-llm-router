@@ -17,6 +17,9 @@ use LlmRouter\Enum\DriverType;
 use LlmRouter\Http\HttpClient;
 use RuntimeException;
 
+/**
+ * Direct OpenAI Chat Completions API driver.
+ */
 class OpenAiDriver implements LLMDriverInterface
 {
     private const PRICING = [

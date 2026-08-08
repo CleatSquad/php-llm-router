@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use DateTimeImmutable;
+use Generator;
 use LlmRouter\CircuitBreaker\CircuitBreakerStoreInterface;
 use LlmRouter\CircuitBreaker\InMemoryCircuitBreakerStore;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
@@ -12,8 +14,6 @@ use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
-use DateTimeImmutable;
-use Generator;
 use RuntimeException;
 use Throwable;
 
@@ -80,7 +80,7 @@ final class CircuitBreakerDriver implements LLMDriverInterface
         try {
             $response = $this->inner->chat($request);
         } catch (Throwable $e) {
-            $this->recordFailure($e);
+            $this->recordFailure();
             throw $e;
         }
 
@@ -98,7 +98,7 @@ final class CircuitBreakerDriver implements LLMDriverInterface
         try {
             $toolCalls = yield from $this->inner->stream($request);
         } catch (Throwable $e) {
-            $this->recordFailure($e);
+            $this->recordFailure();
             throw $e;
         }
 
@@ -154,22 +154,12 @@ final class CircuitBreakerDriver implements LLMDriverInterface
         }
     }
 
-    private function recordFailure(?Throwable $e = null): void
+    private function recordFailure(): void
     {
-        $retryAfterSeconds = null;
-        if ($e instanceof \LlmRouter\Exception\RateLimitException) {
-            $retryAfterSeconds = $e->getRetryAfterSeconds();
-        }
-
         $id = $this->inner->getId();
         $this->store->saveState(
             $id,
-            $this->store->getState($id)->withFailure(
-                $this->failureThreshold,
-                $this->openSeconds,
-                new DateTimeImmutable(),
-                $retryAfterSeconds
-            )
+            $this->store->getState($id)->withFailure($this->failureThreshold, $this->openSeconds, new DateTimeImmutable())
         );
     }
 

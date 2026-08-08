@@ -15,6 +15,10 @@ use LlmRouter\Enum\DriverType;
 use LlmRouter\Http\HttpClient;
 use RuntimeException;
 
+/**
+ * Direct Groq Audio Transcriptions API driver — OpenAI-compatible
+ * multipart/form-data request shape, Groq's own fast Whisper inference.
+ */
 class GroqAudioDriver implements AudioDriverInterface
 {
     use Concern\HandlesHttpRateLimit;

@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use DateTimeImmutable;
+use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
+use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
 use LlmRouter\Http\HttpClient;
-use DateTimeImmutable;
-use Generator;
 use RuntimeException;
 
 /**
@@ -22,7 +22,6 @@ use RuntimeException;
  */
 class KimiDriver implements LLMDriverInterface
 {
-    use Concern\HandlesHttpRateLimit;
     use ParsesChatCompletionSse;
 
     private string $moonshotUrl;
@@ -181,9 +180,6 @@ class KimiDriver implements LLMDriverInterface
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $contents = $response->getBody()->getContents();
             $data = json_decode($contents, true);
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            $this->handleHttpRateLimit($e, 'Kimi');
-            throw new RuntimeException('Kimi request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Kimi request failed: ' . $e->getMessage(), 0, $e);
         }
@@ -270,9 +266,6 @@ class KimiDriver implements LLMDriverInterface
                 'read_timeout' => $timeout,
                 'stream' => true,
             ]);
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            $this->handleHttpRateLimit($e, 'Kimi');
-            throw new RuntimeException('Kimi stream request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Kimi stream request failed: ' . $e->getMessage(), 0, $e);
         }

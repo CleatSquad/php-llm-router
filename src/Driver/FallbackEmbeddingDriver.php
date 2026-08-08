@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use InvalidArgumentException;
 use LlmRouter\Contract\Driver\EmbeddingDriverInterface;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\EmbeddingRequest;
 use LlmRouter\DTO\EmbeddingResponse;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\Enum\DriverType;
-use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
 

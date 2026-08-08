@@ -20,7 +20,6 @@ use RuntimeException;
  */
 class MistralEmbeddingDriver implements EmbeddingDriverInterface
 {
-    use Concern\HandlesHttpRateLimit;
     private const PRICING = [
         'mistral-embed' => 0.0001,
     ];
@@ -103,9 +102,6 @@ class MistralEmbeddingDriver implements EmbeddingDriverInterface
             ]);
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $data = json_decode($response->getBody()->getContents(), true);
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            $this->handleHttpRateLimit($e, 'Mistral Embeddings');
-            throw new RuntimeException('Mistral embeddings request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Mistral embeddings request failed: ' . $e->getMessage(), 0, $e);
         }

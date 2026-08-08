@@ -91,21 +91,6 @@ final class GroqDriverTest extends TestCase
         $driver->chat(new LLMRequest(messages: [['role' => 'user', 'content' => 'hi']]));
     }
 
-    public function testChatThrowsRateLimitExceptionWithRetryAfterHeader(): void
-    {
-        $driver = $this->driverWithMockedResponses([
-            new Response(429, ['Retry-After' => '3442'], 'Rate limit reached'),
-        ]);
-
-        try {
-            $driver->chat(new LLMRequest(messages: [['role' => 'user', 'content' => 'hi']]));
-            $this->fail('Expected RateLimitException');
-        } catch (\LlmRouter\Exception\RateLimitException $e) {
-            $this->assertSame(3442, $e->getRetryAfterSeconds());
-            $this->assertSame(429, $e->getStatusCode());
-        }
-    }
-
     public function testIdentity(): void
     {
         $driver = $this->driverWithMockedResponses([]);

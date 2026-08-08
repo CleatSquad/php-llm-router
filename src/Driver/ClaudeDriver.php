@@ -17,6 +17,9 @@ use LlmRouter\Enum\DriverType;
 use LlmRouter\Http\HttpClient;
 use RuntimeException;
 
+/**
+ * LLM driver for the Anthropic Claude API (Messages API).
+ */
 class ClaudeDriver implements LLMDriverInterface
 {
     use NormalizesVisionContent;
