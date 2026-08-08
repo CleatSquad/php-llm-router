@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace LlmRouter\Contract\Driver;
 
+use Generator;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
-use Generator;
 
 interface LLMDriverInterface extends DriverInterface
 {

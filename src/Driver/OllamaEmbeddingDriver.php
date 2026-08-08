@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use DateTimeImmutable;
 use LlmRouter\Contract\Driver\EmbeddingDriverInterface;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\EmbeddingRequest;
@@ -12,7 +13,6 @@ use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\Enum\DriverType;
 use LlmRouter\Http\HttpClient;
-use DateTimeImmutable;
 use RuntimeException;
 
 /**

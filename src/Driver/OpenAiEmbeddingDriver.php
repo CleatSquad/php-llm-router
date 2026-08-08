@@ -20,6 +20,7 @@ use RuntimeException;
  */
 class OpenAiEmbeddingDriver implements EmbeddingDriverInterface
 {
+    use Concern\HandlesHttpRateLimit;
     private const PRICING = [
         'text-embedding-3-small' => 0.00002,
         'text-embedding-3-large' => 0.00013,
@@ -104,6 +105,9 @@ class OpenAiEmbeddingDriver implements EmbeddingDriverInterface
             ]);
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $data = json_decode($response->getBody()->getContents(), true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'OpenAI Embeddings');
+            throw new RuntimeException('OpenAI embeddings request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('OpenAI embeddings request failed: ' . $e->getMessage(), 0, $e);
         }

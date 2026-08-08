@@ -29,6 +29,7 @@ class DeepSeekDriver implements LLMDriverInterface
         'deepseek-reasoner' => ['input' => 0.00055, 'output' => 0.00219],
     ];
 
+    use Concern\HandlesHttpRateLimit;
     use ParsesChatCompletionSse;
 
     private string $deepSeekUrl;
@@ -159,6 +160,9 @@ class DeepSeekDriver implements LLMDriverInterface
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $contents = $response->getBody()->getContents();
             $data = json_decode($contents, true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'DeepSeek');
+            throw new RuntimeException('DeepSeek request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('DeepSeek request failed: ' . $e->getMessage(), 0, $e);
         }
@@ -243,6 +247,9 @@ class DeepSeekDriver implements LLMDriverInterface
                 'read_timeout' => $timeout,
                 'stream' => true,
             ]);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'DeepSeek');
+            throw new RuntimeException('DeepSeek stream request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('DeepSeek stream request failed: ' . $e->getMessage(), 0, $e);
         }

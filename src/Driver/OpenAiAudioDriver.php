@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use DateTimeImmutable;
 use LlmRouter\Contract\Driver\AudioDriverInterface;
 use LlmRouter\DTO\AudioTranscriptionRequest;
 use LlmRouter\DTO\AudioTranscriptionResponse;
@@ -12,7 +13,6 @@ use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\Enum\DriverType;
 use LlmRouter\Http\HttpClient;
-use DateTimeImmutable;
 use RuntimeException;
 
 /**
@@ -20,6 +20,7 @@ use RuntimeException;
  */
 class OpenAiAudioDriver implements AudioDriverInterface
 {
+    use Concern\HandlesHttpRateLimit;
     // USD per minute of audio (billed per second, rounded up by the
     // provider) — not a per-token rate like every other driver's PRICING
     // table, audio transcription is priced by duration.
@@ -116,6 +117,9 @@ class OpenAiAudioDriver implements AudioDriverInterface
             ]);
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $data = json_decode($response->getBody()->getContents(), true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'OpenAI Audio');
+            throw new RuntimeException('OpenAI transcription request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('OpenAI transcription request failed: ' . $e->getMessage(), 0, $e);
         }

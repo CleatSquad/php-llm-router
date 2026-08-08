@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace LlmRouter\Cache;
 
-use LlmRouter\DTO\LLMResponse;
 use DateTimeImmutable;
+use LlmRouter\DTO\LLMResponse;
 
 /**
  * Default CacheStoreInterface: a same-process array, fine for a CLI session or single worker.

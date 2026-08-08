@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use DateTimeImmutable;
 use LlmRouter\Contract\Driver\AudioDriverInterface;
 use LlmRouter\DTO\AudioTranscriptionRequest;
 use LlmRouter\DTO\AudioTranscriptionResponse;
@@ -12,15 +13,11 @@ use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\Enum\DriverType;
 use LlmRouter\Http\HttpClient;
-use DateTimeImmutable;
 use RuntimeException;
 
-/**
- * Direct Groq Audio Transcriptions API driver — OpenAI-compatible
- * multipart/form-data request shape, Groq's own fast Whisper inference.
- */
 class GroqAudioDriver implements AudioDriverInterface
 {
+    use Concern\HandlesHttpRateLimit;
     // USD per minute of audio, same billing shape as OpenAI's Whisper API.
     private const PRICING_PER_MINUTE = [
         'whisper-large-v3' => 0.00185,
@@ -115,6 +112,11 @@ class GroqAudioDriver implements AudioDriverInterface
             ]);
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $data = json_decode($response->getBody()->getContents(), true);
+        } catch (\GuzzleHttp\Exception\GuzzleException $e) {
+            if ($e instanceof \GuzzleHttp\Exception\RequestException) {
+                $this->handleHttpRateLimit($e, 'Groq Audio');
+            }
+            throw new RuntimeException('Groq transcription request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Groq transcription request failed: ' . $e->getMessage(), 0, $e);
         }

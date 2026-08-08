@@ -30,6 +30,7 @@ class MistralDriver implements LLMDriverInterface
         'open-mistral-nemo' => ['input' => 0.00015, 'output' => 0.00015],
     ];
 
+    use Concern\HandlesHttpRateLimit;
     use ParsesChatCompletionSse;
 
     private string $mistralUrl;
@@ -160,6 +161,9 @@ class MistralDriver implements LLMDriverInterface
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $contents = $response->getBody()->getContents();
             $data = json_decode($contents, true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'Mistral');
+            throw new RuntimeException('Mistral request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Mistral request failed: ' . $e->getMessage(), 0, $e);
         }
@@ -243,6 +247,9 @@ class MistralDriver implements LLMDriverInterface
                 'read_timeout' => $timeout,
                 'stream' => true,
             ]);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'Mistral');
+            throw new RuntimeException('Mistral stream request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Mistral stream request failed: ' . $e->getMessage(), 0, $e);
         }

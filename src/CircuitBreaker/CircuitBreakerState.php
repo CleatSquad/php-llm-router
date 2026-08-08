@@ -24,14 +24,30 @@ final readonly class CircuitBreakerState
         return $this->openUntil !== null && $this->openUntil > $now;
     }
 
-    public function withFailure(int $threshold, int $openSeconds, DateTimeImmutable $now): self
-    {
+    public function withFailure(
+        int $threshold,
+        int $openSeconds,
+        DateTimeImmutable $now,
+        ?int $retryAfterSeconds = null
+    ): self {
         $failureCount = $this->failureCount + 1;
-        $openUntil = $failureCount >= $threshold
-            ? $now->modify(sprintf('%+d seconds', $openSeconds))
-            : $this->openUntil;
 
-        return new self($failureCount, $openUntil);
+        if ($failureCount < $threshold) {
+            return new self(
+                $failureCount,
+                $this->openUntil
+            );
+        }
+
+        $cooldownSeconds = $retryAfterSeconds ?? $openSeconds;
+        $cooldownSeconds = max(0, $cooldownSeconds);
+
+        $openUntil = $now->modify("+{$cooldownSeconds} seconds");
+
+        return new self(
+            $failureCount,
+            $openUntil
+        );
     }
 
     public function reset(): self

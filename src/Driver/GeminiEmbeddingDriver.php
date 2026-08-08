@@ -21,6 +21,7 @@ use RuntimeException;
  */
 class GeminiEmbeddingDriver implements EmbeddingDriverInterface
 {
+    use Concern\HandlesHttpRateLimit;
     private const MODELS = ['gemini-embedding-001', 'gemini-embedding-2'];
 
     private string $geminiUrl;
@@ -114,6 +115,9 @@ class GeminiEmbeddingDriver implements EmbeddingDriverInterface
             );
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $data = json_decode($response->getBody()->getContents(), true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'Gemini Embeddings');
+            throw new RuntimeException('Gemini embeddings request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Gemini embeddings request failed: ' . $e->getMessage(), 0, $e);
         }

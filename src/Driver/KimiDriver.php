@@ -22,6 +22,7 @@ use RuntimeException;
  */
 class KimiDriver implements LLMDriverInterface
 {
+    use Concern\HandlesHttpRateLimit;
     use ParsesChatCompletionSse;
 
     private string $moonshotUrl;
@@ -180,6 +181,9 @@ class KimiDriver implements LLMDriverInterface
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $contents = $response->getBody()->getContents();
             $data = json_decode($contents, true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'Kimi');
+            throw new RuntimeException('Kimi request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Kimi request failed: ' . $e->getMessage(), 0, $e);
         }
@@ -266,6 +270,9 @@ class KimiDriver implements LLMDriverInterface
                 'read_timeout' => $timeout,
                 'stream' => true,
             ]);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'Kimi');
+            throw new RuntimeException('Kimi stream request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Kimi stream request failed: ' . $e->getMessage(), 0, $e);
         }

@@ -4,22 +4,19 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use DateTimeImmutable;
+use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\NormalizesVisionContent;
 use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
+use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
 use LlmRouter\Http\HttpClient;
-use DateTimeImmutable;
-use Generator;
 use RuntimeException;
 
-/**
- * LLM driver for the Anthropic Claude API (Messages API).
- */
 class ClaudeDriver implements LLMDriverInterface
 {
     use NormalizesVisionContent;
@@ -32,6 +29,8 @@ class ClaudeDriver implements LLMDriverInterface
         'claude-sonnet-5' => ['input' => 0.003, 'output' => 0.015],
         'claude-haiku-4-5' => ['input' => 0.001, 'output' => 0.005],
     ];
+
+    use Concern\HandlesHttpRateLimit;
 
     private string $anthropicUrl;
     private string $anthropicApiKey;
@@ -163,6 +162,9 @@ class ClaudeDriver implements LLMDriverInterface
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $contents = $response->getBody()->getContents();
             $data = json_decode($contents, true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'Claude');
+            throw new RuntimeException('Claude request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Claude request failed: ' . $e->getMessage(), 0, $e);
         }
@@ -250,6 +252,9 @@ class ClaudeDriver implements LLMDriverInterface
                 'read_timeout' => $timeout,
                 'stream' => true,
             ]);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'Claude');
+            throw new RuntimeException('Claude stream request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Claude stream request failed: ' . $e->getMessage(), 0, $e);
         }

@@ -4,22 +4,19 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use DateTimeImmutable;
+use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
+use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
 use LlmRouter\Http\HttpClient;
-use DateTimeImmutable;
-use Generator;
 use RuntimeException;
 
-/**
- * Direct OpenAI Chat Completions API driver.
- */
 class OpenAiDriver implements LLMDriverInterface
 {
     private const PRICING = [

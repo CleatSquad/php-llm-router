@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use Generator;
 use LlmRouter\Cache\CacheStoreInterface;
 use LlmRouter\Cache\InMemoryCacheStore;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
@@ -12,7 +13,6 @@ use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
-use Generator;
 
 /**
  * Decorates a driver with a response cache for chat(); stream() intentionally bypasses the cache since streaming can't buffer a full response first.

@@ -139,4 +139,23 @@ final class CircuitBreakerDriverTest extends TestCase
         $this->assertFalse($status->isHealthy());
         $this->assertStringContainsString('Circuit breaker open', (string) $status->message);
     }
+
+    public function testRateLimitExceptionSetsCustomOpenDuration(): void
+    {
+        $rateLimitFailure = new \LlmRouter\Exception\RateLimitException('Rate limit hit', 3442, 429);
+        $inner = new ControllableDriver('fake', [$rateLimitFailure]);
+        $store = new InMemoryCircuitBreakerStore();
+        $breaker = new CircuitBreakerDriver($inner, $store, failureThreshold: 1, openSeconds: 60);
+
+        try {
+            $breaker->chat($this->request());
+        } catch (\LlmRouter\Exception\RateLimitException) {
+        }
+
+        $state = $store->getState('fake');
+        $this->assertNotNull($state->openUntil);
+        $diff = $state->openUntil->getTimestamp() - (new \DateTimeImmutable())->getTimestamp();
+        $this->assertGreaterThanOrEqual(3440, $diff);
+        $this->assertLessThanOrEqual(3445, $diff);
+    }
 }

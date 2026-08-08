@@ -16,10 +16,8 @@ use LlmRouter\Http\HttpClient;
 use DateTimeImmutable;
 use Generator;
 use RuntimeException;
+use GuzzleHttp\Exception\RequestException;
 
-/**
- * Direct Groq API driver — OpenAI-compatible chat completions, talking to Groq directly rather than via a LiteLLM proxy.
- */
 class GroqDriver implements LLMDriverInterface
 {
     private const PRICING = [
@@ -28,6 +26,7 @@ class GroqDriver implements LLMDriverInterface
         'gemma2-9b-it' => ['input' => 0.0002, 'output' => 0.0002],
     ];
 
+    use Concern\HandlesHttpRateLimit;
     use ParsesChatCompletionSse;
 
     private string $groqUrl;
@@ -158,6 +157,8 @@ class GroqDriver implements LLMDriverInterface
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $contents = $response->getBody()->getContents();
             $data = json_decode($contents, true);
+        } catch (RequestException $e) {
+            $this->handleRequestException($e, 'request');
         } catch (\Exception $e) {
             throw new RuntimeException('Groq request failed: ' . $e->getMessage(), 0, $e);
         }
@@ -242,6 +243,8 @@ class GroqDriver implements LLMDriverInterface
                 'read_timeout' => $timeout,
                 'stream' => true,
             ]);
+        } catch (RequestException $e) {
+            $this->handleRequestException($e, 'stream request');
         } catch (\Exception $e) {
             throw new RuntimeException('Groq stream request failed: ' . $e->getMessage(), 0, $e);
         }
@@ -310,5 +313,18 @@ class GroqDriver implements LLMDriverInterface
             'Content-Type' => 'application/json',
             'Authorization' => 'Bearer ' . $this->groqApiKey,
         ];
+    }
+
+    private function handleRequestException(
+        RequestException $e,
+        string $operation
+    ): never {
+        $this->handleHttpRateLimit($e, 'Groq');
+
+        throw new RuntimeException(
+            sprintf('Groq %s failed: %s', $operation, $e->getMessage()),
+            0,
+            $e
+        );
     }
 }

@@ -80,7 +80,7 @@ final class CircuitBreakerDriver implements LLMDriverInterface
         try {
             $response = $this->inner->chat($request);
         } catch (Throwable $e) {
-            $this->recordFailure();
+            $this->recordFailure($e);
             throw $e;
         }
 
@@ -98,7 +98,7 @@ final class CircuitBreakerDriver implements LLMDriverInterface
         try {
             $toolCalls = yield from $this->inner->stream($request);
         } catch (Throwable $e) {
-            $this->recordFailure();
+            $this->recordFailure($e);
             throw $e;
         }
 
@@ -154,12 +154,22 @@ final class CircuitBreakerDriver implements LLMDriverInterface
         }
     }
 
-    private function recordFailure(): void
+    private function recordFailure(?Throwable $e = null): void
     {
+        $retryAfterSeconds = null;
+        if ($e instanceof \LlmRouter\Exception\RateLimitException) {
+            $retryAfterSeconds = $e->getRetryAfterSeconds();
+        }
+
         $id = $this->inner->getId();
         $this->store->saveState(
             $id,
-            $this->store->getState($id)->withFailure($this->failureThreshold, $this->openSeconds, new DateTimeImmutable())
+            $this->store->getState($id)->withFailure(
+                $this->failureThreshold,
+                $this->openSeconds,
+                new DateTimeImmutable(),
+                $retryAfterSeconds
+            )
         );
     }
 

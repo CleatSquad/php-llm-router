@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use DateTimeImmutable;
+use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\NormalizesVisionContent;
 use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\HealthState;
+use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
 use LlmRouter\Http\HttpClient;
-use DateTimeImmutable;
-use Generator;
 use RuntimeException;
 
 /**
@@ -32,6 +32,8 @@ class GeminiDriver implements LLMDriverInterface
         'gemini-1.5-flash' => ['input' => 0.000075, 'output' => 0.0003],
         'gemini-flash-lite-latest' => ['input' => 0.000075, 'output' => 0.0003],
     ];
+
+    use Concern\HandlesHttpRateLimit;
 
     private string $geminiUrl;
     private string $geminiApiKey;
@@ -147,6 +149,9 @@ class GeminiDriver implements LLMDriverInterface
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
             $contents = $response->getBody()->getContents();
             $data = json_decode($contents, true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'Gemini');
+            throw new RuntimeException('Gemini request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Gemini request failed: ' . $e->getMessage(), 0, $e);
         }
@@ -204,6 +209,9 @@ class GeminiDriver implements LLMDriverInterface
                 'read_timeout' => $timeout,
                 'stream' => true,
             ]);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $this->handleHttpRateLimit($e, 'Gemini');
+            throw new RuntimeException('Gemini stream request failed: ' . $e->getMessage(), 0, $e);
         } catch (\Exception $e) {
             throw new RuntimeException('Gemini stream request failed: ' . $e->getMessage(), 0, $e);
         }

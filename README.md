@@ -145,7 +145,7 @@ has no memory across requests, so a dead provider gets retried by every
 caller until it's fixed. `CircuitBreakerDriver` wraps any driver and adds
 that memory: after `$failureThreshold` consecutive `chat()`/`stream()`
 failures it reports unavailable and fails fast — no network call — for
-`$openSeconds`, resetting on the next success.
+`$openSeconds` (or the dynamic delay extracted from HTTP 429 `Retry-After` headers via `RateLimitException`), resetting on the next success.
 
 ```php
 use LlmRouter\Driver\CircuitBreakerDriver;

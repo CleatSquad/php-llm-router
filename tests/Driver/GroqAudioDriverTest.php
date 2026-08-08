@@ -62,4 +62,19 @@ final class GroqAudioDriverTest extends TestCase
         $this->expectExceptionMessage('invalid api key');
         $driver->transcribe(new AudioTranscriptionRequest('fake-audio-bytes'));
     }
+
+    public function testTranscribeThrowsRateLimitExceptionWithRetryAfterHeader(): void
+    {
+        $driver = $this->driverWithMockedResponses([
+            new Response(429, ['Retry-After' => '120'], 'Rate limit reached'),
+        ]);
+
+        try {
+            $driver->transcribe(new AudioTranscriptionRequest('fake-audio-bytes'));
+            $this->fail('Expected RateLimitException');
+        } catch (\LlmRouter\Exception\RateLimitException $e) {
+            $this->assertSame(120, $e->getRetryAfterSeconds());
+            $this->assertSame(429, $e->getStatusCode());
+        }
+    }
 }

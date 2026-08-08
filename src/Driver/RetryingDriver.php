@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use Generator;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
-use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\RequestException;
-use Generator;
 use Throwable;
 
 /**

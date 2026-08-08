@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use DateTimeImmutable;
+use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
@@ -13,8 +15,6 @@ use LlmRouter\Enum\DriverType;
 use LlmRouter\RateLimit\InMemoryRateLimitStore;
 use LlmRouter\RateLimit\RateLimitStoreInterface;
 use LlmRouter\RateLimit\RateLimitWindow;
-use DateTimeImmutable;
-use Generator;
 use RuntimeException;
 
 /**

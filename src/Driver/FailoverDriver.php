@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver;
 
+use Generator;
+use InvalidArgumentException;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Contract\RoutingStrategyInterface;
 use LlmRouter\DTO\CostEstimate;
@@ -12,8 +14,6 @@ use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
 use LlmRouter\Exception\AllDriversFailedException;
-use Generator;
-use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
