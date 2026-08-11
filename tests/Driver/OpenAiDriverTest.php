@@ -145,6 +145,13 @@ final class OpenAiDriverTest extends TestCase
     {
         $driver = $this->driverWithMockedResponses([]);
 
-        $this->assertSame(['gpt-4o', 'gpt-4o-mini'], $driver->getModels());
+        $models = $driver->getModels();
+
+        // The catalogue leads with the current families and keeps the gpt-4o
+        // pair, which is still served and still the default.
+        $this->assertContains('gpt-5', $models);
+        $this->assertContains('o3', $models);
+        $this->assertContains('gpt-4o', $models);
+        $this->assertContains('gpt-4o-mini', $models);
     }
 }

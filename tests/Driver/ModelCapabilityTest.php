@@ -167,7 +167,10 @@ final class ModelCapabilityTest extends TestCase
             // The provider would have answered "400 Bad Request"; this says
             // which model was asked and what to do instead.
             $this->assertStringContainsString('gpt-4o', $e->getMessage());
-            $this->assertStringContainsString('extraModelPricing', $e->getMessage());
+            // The message names models that would have worked, so the caller
+            // can act on it without opening the docs.
+            $this->assertStringContainsString('gpt-5', $e->getMessage());
+            $this->assertContains('o3', $e->reasoningModels);
         }
     }
 
@@ -178,10 +181,9 @@ final class ModelCapabilityTest extends TestCase
 
     public function testARegisteredReasoningModelIsAccepted(): void
     {
-        $driver = new OpenAiDriver($this->http($this->openAiAnswer()), extraModelPricing: [
-            'gpt-5' => ['input' => 0.00125, 'output' => 0.01],
-        ]);
+        $driver = new OpenAiDriver($this->http($this->openAiAnswer()));
 
+        // gpt-5 ships in the catalogue as a reasoning model.
         $driver->chat(new LLMRequest(
             messages: [['role' => 'user', 'content' => 'hi']],
             model: 'gpt-5',

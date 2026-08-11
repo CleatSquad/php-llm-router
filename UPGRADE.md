@@ -1,5 +1,45 @@
 # Upgrade guide
 
+## 2.x → 3.0.0
+
+**One breaking change, and it only affects `KimiDriver`.** Every other driver is
+unchanged; if you don't use Kimi, `composer require` is the whole migration.
+
+### KimiDriver refuses models outside its catalogue
+
+It used to accept any model name and price it from a hardcoded guess. It now
+carries a real catalogue — `kimi-k3`, `kimi-k2.7-code`, `kimi-k2.6`,
+`kimi-k2.5` — priced in USD from Moonshot's published rates for the
+international endpoint, and raises `UnknownModelException` for anything else.
+
+```php
+// Before — any name accepted, cost estimated from a guess
+new KimiDriver($http, moonshotApiKey: $key);            // default moonshot-v1-8k
+
+// After — international endpoint, catalogue model
+new KimiDriver($http,
+    moonshotUrl: 'https://api.moonshot.ai/v1',
+    moonshotApiKey: $key,
+    moonshotModel: 'kimi-k2.6',   // or omit: this is the default
+);
+```
+
+**If you use the mainland endpoint (`api.moonshot.cn`)**, its `moonshot-v1-*`
+models are deliberately absent: Moonshot publishes their rates in **yuan**, and
+`CostEstimate` reports USD. Putting ¥ figures in the table would understate cost
+by roughly a factor of seven. Register them with rates you have converted:
+
+```php
+new KimiDriver($http, moonshotApiKey: $key, extraModelPricing: [
+    // ¥2 / ¥10 per million tokens, converted to USD per 1k at your own rate
+    'moonshot-v1-8k' => ['input' => 0.00028, 'output' => 0.0014],
+]);
+```
+
+Pick the conversion rate yourself and revisit it: this library will not invent
+one, because a stale exchange rate baked into a pricing table produces a wrong
+cost reported with total confidence.
+
 ## 2.0.x → 2.1.0
 
 **Nothing is required.** Every addition is opt-in: omit `reasoningEffort` and

@@ -12,6 +12,57 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
+## [3.0.0] — 2026-08-11
+
+### Breaking
+
+- **`KimiDriver` now has a model catalogue, and refuses models outside it.** It
+  used to forward any name it was given and price it from a hardcoded guess
+  (`0.0016`/`0.0033`/`0.0083` per 1k, keyed off "32k"/"128k" in the name). It
+  now behaves like every other priced driver: `kimi-k3`, `kimi-k2.7-code`,
+  `kimi-k2.6` and `kimi-k2.5`, priced in USD from Moonshot's published rates for
+  the **international endpoint** (`api.moonshot.ai`), and `UnknownModelException`
+  for anything else.
+
+  **The mainland endpoint bills in yuan.** The `moonshot-v1-*` family served by
+  `api.moonshot.cn` is not in the catalogue: its published rates are in ¥, and
+  putting them in a table whose values feed `estimatedCostUsd` would report a
+  cost roughly seven times too low. If you use that endpoint, register those
+  models through `$extraModelPricing` with rates you have converted yourself.
+
+  The constructor's `$moonshotModel` default changed from `'moonshot-v1-8k'` to
+  `null`, which resolves to `kimi-k2.6`.
+
+### Added
+
+- **The OpenAI catalogue covers the current families.** It held two models,
+  neither of which can reason — so no reasoning request could succeed without
+  registering a model by hand. Added the GPT-5 family (`gpt-5.6-sol`,
+  `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`, `gpt-5.4`, `gpt-5`, `gpt-5-mini`,
+  `gpt-5-nano`) and the o-series (`o1`, `o1-pro`, `o3`, `o3-pro`, `o3-mini`),
+  priced from OpenAI's published rates. `gpt-4o` and `gpt-4o-mini` were verified
+  correct and keep their `reasoning => false` flag.
+
+### Fixed
+
+- **The drift checker raised two kinds of false alarm**, both found on its first
+  real run:
+  - *Aliases.* `/v1/models` lists dated snapshots (`claude-haiku-4-5-20251001`)
+    while catalogues store the stable alias (`claude-haiku-4-5`). The alias was
+    reported as retired; acting on that would have removed a working model. An
+    entry now counts as served if any listed ID starts with it.
+  - *Non-chat models.* Provider listings include embeddings, speech, moderation
+    and realtime endpoints. OpenAI alone contributed 122 lines of noise, burying
+    the real findings. Only chat-shaped IDs are reported now.
+
+  The retired-entry section also notes that a model restricted to your account
+  tier — a preview or invite-only model such as `claude-mythos-5` — appears the
+  same way and should be checked before removal.
+- `gemma2-9b-it` removed from the Groq catalogue: confirmed gone both from
+  Groq's production model list and from the live `/models` response.
+
+---
+
 ## [2.3.0] — 2026-08-11
 
 ### Fixed

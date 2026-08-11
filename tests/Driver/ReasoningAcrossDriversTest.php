@@ -173,9 +173,7 @@ final class ReasoningAcrossDriversTest extends TestCase
     {
         // gpt-4o rejects reasoning_effort outright, so a reasoning request has
         // to name a reasoning model — registered here the way a caller would.
-        $driver = new OpenAiDriver($this->http($this->chatCompletion('unused')), extraModelPricing: [
-            'gpt-5' => ['input' => 0.00125, 'output' => 0.01],
-        ]);
+        $driver = new OpenAiDriver($this->http($this->chatCompletion('unused')));
 
         $driver->chat(new LLMRequest(
             model: 'gpt-5',
@@ -196,9 +194,7 @@ final class ReasoningAcrossDriversTest extends TestCase
 
     public function testOpenAiNeverReportsATraceEvenWhenAsked(): void
     {
-        $driver = new OpenAiDriver($this->http($this->chatCompletion('reasoning_content')), extraModelPricing: [
-            'gpt-5' => ['input' => 0.00125, 'output' => 0.01],
-        ]);
+        $driver = new OpenAiDriver($this->http($this->chatCompletion('reasoning_content')));
 
         $response = $driver->chat(new LLMRequest(
             messages: [['role' => 'user', 'content' => 'hi']],
