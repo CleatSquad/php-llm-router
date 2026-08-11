@@ -58,7 +58,24 @@ const DECLINED = [
     // and Groq publishes no per-token rate for them — there is nothing to put
     // in a pricing table. allam-2-7b likewise has no published rate.
     'groq/compound', 'allam-',
+    // Google's open-weight Gemma models are served through the Gemini API on
+    // the free tier and carry no paid per-token rate.
+    'gemma-',
 ];
+
+/**
+ * Whether a served ID is a moving alias rather than a concrete model.
+ *
+ * `gemini-flash-lite-latest` and friends resolve to whichever version Google
+ * currently points them at, so they carry no rate of their own — the versioned
+ * model behind them does. Cataloguing one would mean quoting a price that
+ * silently becomes wrong the day the alias moves, which is the failure this
+ * whole exercise exists to prevent. Name the version you want instead.
+ */
+function isMovingAlias(string $id): bool
+{
+    return str_ends_with($id, '-latest');
+}
 
 /**
  * Whether a served model ID is a chat model this package could plausibly use.
@@ -72,6 +89,9 @@ function isChatModel(string $id): bool
         'search-preview', 'tts', 'codex', 'computer-use',
         // Mistral: voice models, and the labs- prefix marks experiments.
         'voxtral', 'labs-', 'ocr', 'moderation',
+        // Gemini: previews, and modalities this package does not serve.
+        '-preview', 'lyria', 'robotics', 'antigravity', 'deep-research',
+        'nano-banana', 'omni',
     ] as $marker) {
         if (str_contains($id, $marker)) {
             return false;
@@ -261,6 +281,7 @@ foreach ($providers as $name => $provider) {
     $missing = array_values(array_filter(
         $live,
         static fn (string $id): bool => isChatModel($id)
+            && !isMovingAlias($id)
             && !in_array($id, $shipped, true)
             && !isSnapshotOfKnown($id, $shipped)
     ));

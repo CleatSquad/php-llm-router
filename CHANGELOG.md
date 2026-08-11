@@ -12,6 +12,31 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
+## [3.3.0] — 2026-08-11
+
+### Changed
+
+- The drift checker no longer reports **moving aliases** (`gemini-flash-latest`,
+  `gemini-flash-lite-latest`, `gemini-pro-latest`) as missing models. An alias
+  resolves to whichever version Google currently points it at, so it carries no
+  rate of its own — cataloguing one would mean quoting a price that silently
+  becomes wrong the day the alias moves, which is precisely the failure this
+  work exists to prevent.
+- Also filtered from the report: Gemini previews, robotics, music (`lyria`),
+  deep-research and omni endpoints, and Google's open-weight `gemma-*` models,
+  which are served free-tier with no paid per-token rate. Gemini's section of
+  the report drops from 16 entries to none.
+
+### Correction to the 2.3.0 notes
+
+2.3.0 listed `gemini-flash-lite-latest` among "retired catalogue entries". That
+was wrong: the alias is still served — it is simply absent from the pricing
+page, because aliases have no rate of their own. Moving the default to the
+explicit `gemini-2.5-flash-lite` was still the right call, since a versioned
+model has a stable price, but it was not a retirement.
+
+---
+
 ## [3.2.0] — 2026-08-11
 
 ### Fixed

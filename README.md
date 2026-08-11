@@ -359,6 +359,15 @@ try {
 Passing no model at all is unchanged — that is declining to choose, not being
 overruled, and resolves to the driver's default.
 
+### Moving aliases
+
+Providers publish aliases like `gemini-flash-latest` that resolve to whichever
+version they currently point at. None of them is in a catalogue here, and that
+is deliberate: an alias has no rate of its own, so any price recorded for it
+becomes wrong the day it moves — silently, while `estimateCost()` keeps
+reporting the old figure with confidence. Name the version you want, or
+register the alias yourself with a rate you accept responsibility for.
+
 ### Models newer than this release
 
 The tables lag behind the providers. Register a model with its pricing instead
