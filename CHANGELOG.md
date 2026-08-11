@@ -12,6 +12,34 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
+## [3.2.0] — 2026-08-11
+
+### Fixed
+
+- **`open-mistral-nemo` removed.** Kept in 2.3.0 out of caution when it vanished
+  from Mistral's pricing page; the live `/v1/models` response confirms it is no
+  longer served, so it was a selectable entry that could only fail.
+
+### Added
+
+- `ministral-3b-latest` ($0.10/$0.10 per million tokens) and
+  `ministral-14b-latest` ($0.20/$0.20), from Mistral's published rates.
+  `ministral-8b-latest` was already correct.
+- The drift checker now matches Mistral's alias/snapshot naming
+  (`mistral-medium-latest` ↔ `mistral-medium-2505`) and filters its voice,
+  OCR, moderation and `labs-` experimental models, which are not chat models.
+
+### Known limit — reasoning on Mistral
+
+`MistralDriver` sends `prompt_mode: "reasoning"`, which is the Magistral
+family's switch. **No Magistral model is in the catalogue**, because Mistral
+publishes no per-token rate for it and its own model overview lists Magistral
+and Devstral among deprecated models. A reasoning request through this driver
+therefore needs a Magistral model registered via `$extraModelPricing` with a
+rate you have confirmed. The same applies to Devstral and `mistral-code`.
+
+---
+
 ## [3.1.0] — 2026-08-11
 
 ### Fixed

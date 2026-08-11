@@ -157,8 +157,9 @@ final class MistralDriverTest extends TestCase
                 'mistral-large-latest',
                 'mistral-small-latest',
                 'codestral-latest',
+                'ministral-14b-latest',
                 'ministral-8b-latest',
-                'open-mistral-nemo',
+                'ministral-3b-latest',
             ],
             $driver->getModels()
         );
