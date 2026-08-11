@@ -12,6 +12,22 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
+## [1.14.1] — 2026-08-11
+
+### Fixed
+
+- **CI actually runs the shared-store tests.** `tests/Fixtures/FakeRedis` only
+  declares itself when class `Redis` is absent, on the stated assumption that
+  CI has no `ext-redis`. The GitHub runners do ship it, so every `Redis*Store`
+  test ran against a real phpredis client with no server behind it and errored
+  — the workflow had been red since before the store rework, not because of it.
+  `setup-php` now uninstalls the extension for the test matrix, so the stub
+  takes effect as intended.
+
+No source changes: `src/` is byte-identical to 1.14.0.
+
+---
+
 ## [1.14.0] — 2026-08-11
 
 ### Security
