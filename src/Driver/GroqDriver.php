@@ -9,6 +9,7 @@ use Generator;
 use GuzzleHttp\Exception\RequestException;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
+use LlmRouter\Driver\Concern\ResolvesPricedModel;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\HealthStatus;
@@ -20,6 +21,11 @@ use RuntimeException;
 
 class GroqDriver implements LLMDriverInterface
 {
+    use ResolvesPricedModel;
+
+    /** Used when a request names no model at all — a caller declining to choose. */
+    private const DEFAULT_MODEL = 'llama-3.1-8b-instant';
+
     private const PRICING = [
         'llama-3.3-70b-versatile' => ['input' => 0.00059, 'output' => 0.00079],
         'llama-3.1-8b-instant' => ['input' => 0.00005, 'output' => 0.00008],
@@ -32,12 +38,20 @@ class GroqDriver implements LLMDriverInterface
     private string $groqUrl;
     private string $groqApiKey;
 
+    /**
+     * @param array<string, array{input: float, output: float}> $extraModelPricing
+     *   Pricing per 1k tokens for models this release predates, merged over the
+     *   shipped table. Without an entry here, an unknown model is rejected
+     *   rather than silently served by the default one.
+     */
     public function __construct(
         private readonly HttpClient $httpClient,
         string $groqUrl = 'https://api.groq.com/openai/v1',
         string $groqApiKey = '',
-        private readonly float $localLlmTimeout = 30.0
+        private readonly float $localLlmTimeout = 30.0,
+        array $extraModelPricing = [],
     ) {
+        $this->extraModelPricing = $extraModelPricing;
         $this->groqUrl = rtrim($groqUrl, '/');
         $this->groqApiKey = $groqApiKey;
     }
@@ -192,7 +206,7 @@ class GroqDriver implements LLMDriverInterface
         $completionTokens = (int) ($data['usage']['completion_tokens'] ?? 0);
         $totalTokens = (int) ($data['usage']['total_tokens'] ?? 0);
 
-        $pricing = self::PRICING[$model] ?? self::PRICING['llama-3.1-8b-instant'];
+        $pricing = $this->pricingFor($model);
         $costUsd = (($promptTokens * $pricing['input']) + ($completionTokens * $pricing['output'])) / 1000;
 
         return new LLMResponse(
@@ -257,7 +271,7 @@ class GroqDriver implements LLMDriverInterface
      */
     public function getModels(): array
     {
-        return array_keys(self::PRICING);
+        return array_keys($this->modelPricing());
     }
 
     public function supportsStreaming(): bool
@@ -284,7 +298,7 @@ class GroqDriver implements LLMDriverInterface
     {
         $model = $this->resolveModel($request->model);
         $inputTokens = $request->estimateInputTokens();
-        $pricing = self::PRICING[$model] ?? self::PRICING['llama-3.1-8b-instant'];
+        $pricing = $this->pricingFor($model);
 
         $estimatedOutputTokens = $request->maxTokens ?? 200;
         $estimatedTokens = $inputTokens + $estimatedOutputTokens;
@@ -293,16 +307,6 @@ class GroqDriver implements LLMDriverInterface
         return new CostEstimate($pricing['input'], $pricing['output'], $estimatedTokens, $estimatedCostUsd);
     }
 
-    private function resolveModel(?string $model): string
-    {
-        $model = $model ?? 'llama-3.1-8b-instant';
-
-        if (str_contains($model, '/')) {
-            $model = explode('/', $model)[1];
-        }
-
-        return isset(self::PRICING[$model]) ? $model : 'llama-3.1-8b-instant';
-    }
 
     /**
      * @return array<string, string>

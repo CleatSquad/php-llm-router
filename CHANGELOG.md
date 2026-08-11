@@ -12,6 +12,47 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
+## [2.0.0] — 2026-08-11
+
+Single-change major: the only breaking item is model resolution. Everything
+else in 1.14.1 is unchanged, so upgrading is a `composer require` plus the
+check described in UPGRADE.md.
+
+### Breaking
+
+- **An explicitly requested unknown model is now refused instead of silently
+  replaced.** Six drivers (Claude, OpenAI, Gemini, DeepSeek, Groq, Mistral)
+  ended `resolveModel()` with `isset(self::PRICING[$model]) ? $model : <default>`.
+  Asking `OpenAiDriver` for `gpt-5` returned an answer from `gpt-4o-mini`,
+  priced as `gpt-4o-mini`, with nothing in the response or the cost estimate
+  revealing the substitution. It now throws `Exception\UnknownModelException`.
+
+  This is a real break: the shipped pricing tables hold only 2–5 models each,
+  so any model they predate — `gpt-4-turbo`, `claude-3-5-sonnet`, anything
+  released since — used to "work" and now raises. See UPGRADE.md for the
+  one-line fix (`$extraModelPricing`).
+
+  Passing no model at all is unchanged: that is a caller declining to choose,
+  not a caller being overruled, and still resolves to the driver's default.
+
+  `UnknownModelException` extends `RuntimeException` on purpose, so
+  `FailoverDriver` treats it as a failure worth failing over from — in a mixed
+  chain the driver that doesn't know a model steps aside for the one that does.
+
+  `KimiDriver` (no pricing table, forwards the name as given) and
+  `OllamaDriver` (resolves against the models actually installed locally, tuned
+  by `ad6c8f5`) are deliberately unchanged.
+
+### Added
+
+- `$extraModelPricing` constructor argument on the six priced drivers: register
+  a model this release predates, or correct a stale price, without waiting for
+  a new version of the package. Entries also show up in `getModels()`.
+- `Driver\Concern\ResolvesPricedModel`, replacing six copies of the same
+  resolution code.
+
+---
+
 ## [1.14.1] — 2026-08-11
 
 ### Fixed

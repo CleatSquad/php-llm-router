@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
+use LlmRouter\Driver\Concern\ResolvesPricedModel;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\HealthStatus;
@@ -24,6 +25,11 @@ use RuntimeException;
  */
 class DeepSeekDriver implements LLMDriverInterface
 {
+    use ResolvesPricedModel;
+
+    /** Used when a request names no model at all — a caller declining to choose. */
+    private const DEFAULT_MODEL = 'deepseek-chat';
+
     private const PRICING = [
         'deepseek-chat' => ['input' => 0.00027, 'output' => 0.0011],
         'deepseek-reasoner' => ['input' => 0.00055, 'output' => 0.00219],
@@ -34,12 +40,20 @@ class DeepSeekDriver implements LLMDriverInterface
     private string $deepSeekUrl;
     private string $deepSeekApiKey;
 
+    /**
+     * @param array<string, array{input: float, output: float}> $extraModelPricing
+     *   Pricing per 1k tokens for models this release predates, merged over the
+     *   shipped table. Without an entry here, an unknown model is rejected
+     *   rather than silently served by the default one.
+     */
     public function __construct(
         private readonly HttpClient $httpClient,
         string $deepSeekUrl = 'https://api.deepseek.com/v1',
         string $deepSeekApiKey = '',
-        private readonly float $localLlmTimeout = 30.0
+        private readonly float $localLlmTimeout = 30.0,
+        array $extraModelPricing = [],
     ) {
+        $this->extraModelPricing = $extraModelPricing;
         $this->deepSeekUrl = rtrim($deepSeekUrl, '/');
         $this->deepSeekApiKey = $deepSeekApiKey;
     }
@@ -192,7 +206,7 @@ class DeepSeekDriver implements LLMDriverInterface
         $completionTokens = (int) ($data['usage']['completion_tokens'] ?? 0);
         $totalTokens = (int) ($data['usage']['total_tokens'] ?? 0);
 
-        $pricing = self::PRICING[$model] ?? self::PRICING['deepseek-chat'];
+        $pricing = $this->pricingFor($model);
         $costUsd = (($promptTokens * $pricing['input']) + ($completionTokens * $pricing['output'])) / 1000;
 
         return new LLMResponse(
@@ -255,7 +269,7 @@ class DeepSeekDriver implements LLMDriverInterface
      */
     public function getModels(): array
     {
-        return array_keys(self::PRICING);
+        return array_keys($this->modelPricing());
     }
 
     public function supportsStreaming(): bool
@@ -282,7 +296,7 @@ class DeepSeekDriver implements LLMDriverInterface
     {
         $model = $this->resolveModel($request->model);
         $inputTokens = $request->estimateInputTokens();
-        $pricing = self::PRICING[$model] ?? self::PRICING['deepseek-chat'];
+        $pricing = $this->pricingFor($model);
 
         $estimatedOutputTokens = $request->maxTokens ?? 200;
         $estimatedTokens = $inputTokens + $estimatedOutputTokens;
@@ -291,16 +305,6 @@ class DeepSeekDriver implements LLMDriverInterface
         return new CostEstimate($pricing['input'], $pricing['output'], $estimatedTokens, $estimatedCostUsd);
     }
 
-    private function resolveModel(?string $model): string
-    {
-        $model = $model ?? 'deepseek-chat';
-
-        if (str_contains($model, '/')) {
-            $model = explode('/', $model)[1];
-        }
-
-        return isset(self::PRICING[$model]) ? $model : 'deepseek-chat';
-    }
 
     /**
      * @return array<string, string>

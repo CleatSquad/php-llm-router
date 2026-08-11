@@ -1,5 +1,78 @@
 # Upgrade guide
 
+## 1.14.x → 2.0.0
+
+**This major release carries exactly one breaking change.** Nothing else moved:
+no interface, no signature, no constructor order, and the PHP floor stays at
+8.2. If you never pass an explicit model name, `composer require` is the whole
+migration.
+
+### Unknown models are refused instead of silently substituted
+
+**This is the one change that can break a working application, and it is worth
+five minutes of your attention.**
+
+Six drivers used to end model resolution like this:
+
+```php
+return isset(self::PRICING[$model]) ? $model : 'gpt-4o-mini';
+```
+
+Ask `OpenAiDriver` for `gpt-5` and you got an answer from `gpt-4o-mini` —
+priced as `gpt-4o-mini`, reported as `gpt-4o-mini`, with nothing anywhere
+saying a substitution had happened. You could run for months believing you were
+on a frontier model.
+
+It now throws `LlmRouter\Exception\UnknownModelException`.
+
+**Why this is likely to affect you:** the shipped pricing tables hold only 2–5
+models each and lag behind the providers. Every model they predate used to
+"work":
+
+| Driver | Models it knows |
+| --- | --- |
+| `ClaudeDriver` | `claude-opus-4-8`, `claude-sonnet-5`, `claude-haiku-4-5` |
+| `OpenAiDriver` | `gpt-4o`, `gpt-4o-mini` |
+| `GeminiDriver` | `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-flash`, `gemini-flash-lite-latest` |
+| `DeepSeekDriver` | `deepseek-chat`, `deepseek-reasoner` |
+| `GroqDriver` | `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `gemma2-9b-it` |
+| `MistralDriver` | `mistral-small-latest`, `mistral-large-latest`, `codestral-latest`, `open-mistral-nemo` |
+
+Check what you actually pass:
+
+```bash
+grep -rn "model:" --include=*.php your-app/ | grep -i "gpt-\|claude-\|gemini-\|mistral-\|llama-\|deepseek-"
+```
+
+**If a model you use isn't listed**, register it with its pricing — one
+argument, no fork, no waiting for a release:
+
+```php
+$driver = new OpenAiDriver($http, openAiApiKey: $key, extraModelPricing: [
+    'gpt-5' => ['input' => 0.00125, 'output' => 0.01], // USD per 1k tokens
+]);
+```
+
+The same argument corrects a stale shipped price; caller entries win over the
+built-in table. Registered models also appear in `getModels()`.
+
+**Unaffected:**
+
+- Requests that pass no model at all. That is a caller declining to choose, and
+  still resolves to the driver's default exactly as before.
+- Provider-prefixed names: `anthropic/claude-sonnet-5` still resolves.
+- `KimiDriver`, which has no pricing table and forwards the name as given.
+- `OllamaDriver`, which resolves against the models actually installed on your
+  local server.
+
+**In a fail-over chain, this mostly resolves itself.**
+`UnknownModelException` extends `RuntimeException`, so `FailoverDriver` treats
+it as a failure and moves to the next candidate. A chain asking for `gpt-5`
+will skip Claude and Gemini and land on the driver that knows it — which is the
+behaviour you wanted all along, and what the silent substitution was hiding.
+
+---
+
 ## 1.13.1 → 1.14.0
 
 **No code changes are required.** No public interface, class name, method
