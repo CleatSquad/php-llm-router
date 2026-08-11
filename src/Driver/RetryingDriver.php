@@ -13,6 +13,7 @@ use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
+use LlmRouter\Exception\RateLimitException;
 use Throwable;
 
 /**
@@ -21,12 +22,27 @@ use Throwable;
  */
 final class RetryingDriver implements LLMDriverInterface
 {
+    /** @var callable(float): void */
+    private $sleeper;
+
+    /**
+     * @param callable(float): void|null $sleeper How to wait between attempts.
+     *   Defaults to usleep(). Injectable so a test can assert on the schedule
+     *   the driver decided (a 30s Retry-After must actually mean 30s) without
+     *   waiting it out, and so an event-loop application can yield instead of
+     *   blocking its worker.
+     */
     public function __construct(
         private readonly LLMDriverInterface $inner,
         private readonly int $maxAttempts = 3,
         private readonly float $baseDelaySeconds = 0.5,
         private readonly float $maxDelaySeconds = 8.0,
-    ) {}
+        ?callable $sleeper = null,
+    ) {
+        $this->sleeper = $sleeper ?? static function (float $seconds): void {
+            usleep((int) ($seconds * 1_000_000));
+        };
+    }
 
     public function getId(): string
     {
@@ -72,7 +88,7 @@ final class RetryingDriver implements LLMDriverInterface
                 if ($attempt >= $this->maxAttempts || !$this->isRetryable($e)) {
                     throw $e;
                 }
-                $this->sleep($this->delayForAttempt($attempt));
+                $this->sleep($this->delayFor($e, $attempt));
             }
         }
     }
@@ -99,7 +115,7 @@ final class RetryingDriver implements LLMDriverInterface
                 if ($yieldedAny || $attempt >= $this->maxAttempts || !$this->isRetryable($e)) {
                     throw $e;
                 }
-                $this->sleep($this->delayForAttempt($attempt));
+                $this->sleep($this->delayFor($e, $attempt));
             }
         }
     }
@@ -139,6 +155,10 @@ final class RetryingDriver implements LLMDriverInterface
 
     private function isRetryable(Throwable $e): bool
     {
+        if ($e instanceof RateLimitException) {
+            return true;
+        }
+
         $previous = $e->getPrevious();
 
         if ($previous instanceof ConnectException) {
@@ -158,6 +178,29 @@ final class RetryingDriver implements LLMDriverInterface
     }
 
     /**
+     * How long to wait before the next attempt.
+     *
+     * When the provider itself said how long to back off — a 429 whose
+     * Retry-After the driver surfaced as a typed RateLimitException — that
+     * value replaces the computed backoff outright: it is the only figure
+     * that actually reflects when the quota frees up, and retrying earlier
+     * only earns another 429. It is still capped by $maxDelaySeconds so a
+     * hostile or absurd header can't park the caller for an hour, and a
+     * Retry-After of 0 still yields the exponential delay rather than a
+     * busy-loop.
+     */
+    private function delayFor(Throwable $e, int $attempt): float
+    {
+        $providerDelay = $e instanceof RateLimitException ? $e->getRetryAfterSeconds() : null;
+
+        if ($providerDelay !== null && $providerDelay > 0) {
+            return min((float) $providerDelay, $this->maxDelaySeconds);
+        }
+
+        return $this->delayForAttempt($attempt);
+    }
+
+    /**
      * Decorrelated jitter: 50-100% of the exponential delay, so workers
      * retrying the same outage don't resync onto one schedule.
      */
@@ -169,6 +212,6 @@ final class RetryingDriver implements LLMDriverInterface
 
     private function sleep(float $seconds): void
     {
-        usleep((int) ($seconds * 1_000_000));
+        ($this->sleeper)($seconds);
     }
 }

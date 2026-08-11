@@ -4,20 +4,22 @@
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.2-777bb4)](composer.json)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Provider-agnostic LLM client for PHP. One interface, nine LLM drivers (Claude,
-OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, LiteLLM, Kimi/Moonshot),
-pluggable routing strategies (priority/fallback and round-robin load
-balancing), decorators for retries, caching, circuit breaking and rate
+Provider-agnostic LLM client for PHP. One interface, eight LLM drivers (Claude,
+OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, Kimi/Moonshot), pluggable
+routing strategies (priority/fallback and round-robin load balancing),
+decorators for retries, fail-over, caching, circuit breaking and rate
 limiting, plus MCP and A2A client drivers for talking to tools and remote
 agents, embedding drivers (with priority/fallback) for OpenAI/Gemini/
-Mistral/Ollama, and audio transcription drivers for OpenAI/Groq — the PHP
-equivalent of what LiteLLM's SDK does for Python, kept to client-library
-scope (see "What this package does *not* do" below).
+Mistral/Ollama, and audio transcription drivers for OpenAI/Groq — kept to
+client-library scope (see "What this package does *not* do" below).
+
+Any OpenAI-compatible endpoint — a LiteLLM proxy, vLLM, OpenRouter, an Azure
+deployment — is reachable by pointing `OpenAiDriver` at its base URL; there is
+no separate driver for those.
 
 Extracted from a production chat/agent platform where it routes every LLM call
-across local (Ollama) and cloud (Claude, OpenAI, Kimi, LiteLLM-proxied) models,
-failing over automatically when a provider is down, rate-limited, or out of
-credit.
+across local (Ollama) and cloud (Claude, OpenAI, Kimi) models, failing over
+automatically when a provider is down, rate-limited, or out of credit.
 
 ## Install
 
@@ -63,8 +65,8 @@ user-facing reply" — without instantiating two strategies:
 
 ```php
 $strategy = new PriorityStrategy(
-    priorities: ['ollama' => 25, 'litellm' => 10, 'claude' => 1],       // fast-first
-    qualityPriorities: ['litellm' => 25, 'claude' => 15, 'ollama' => 1] // quality-first
+    priorities: ['ollama' => 25, 'openai' => 10, 'claude' => 1],       // fast-first
+    qualityPriorities: ['claude' => 25, 'openai' => 15, 'ollama' => 1] // quality-first
 );
 
 $classifierDriver = $strategy->select(new LLMRequest(messages: $msgs), $drivers);
@@ -82,7 +84,6 @@ $replyDriver = $strategy->select(new LLMRequest(messages: $msgs, preferQuality: 
 | `GroqDriver` | Groq (direct, no proxy) | tools |
 | `DeepSeekDriver` | DeepSeek | tools, reasoning (`deepseek-reasoner`) |
 | `OllamaDriver` | Local Ollama | free, fuzzy-matches the closest locally-pulled model |
-| `LiteLLMDriver` | A LiteLLM proxy | fronts whatever LiteLLM itself routes to |
 | `KimiDriver` | Moonshot AI | tools |
 
 Every driver implements `LlmRouter\Contract\Driver\LLMDriverInterface`:
@@ -103,7 +104,7 @@ foreach ($driver->stream($request) as $textChunk) {
 
 Ollama streams newline-delimited JSON; Claude uses Anthropic's own
 event-typed SSE framing (`content_block_delta` / `message_stop`); Gemini
-streams its own partial-response-per-chunk SSE format; LiteLLM, OpenAI,
+streams its own partial-response-per-chunk SSE format; OpenAI,
 Kimi, Mistral, Groq and DeepSeek all share the OpenAI-compatible
 `data: {json}` SSE framing via `Driver\Concern\ParsesChatCompletionSse`
 (named after the wire format, not the vendor — any OpenAI-compatible API
@@ -137,6 +138,71 @@ never supports tool calls at all (Ollama's `stream()` always returns
 `null` — its own `chat()` never parses tool calls either, native
 function-calling support across Ollama models is too inconsistent to rely
 on).
+
+### Fail-over across providers
+
+`PriorityStrategy::select()` picks *one* driver. When that driver then fails
+mid-call, the caller is left re-implementing the "exclude it and pick the next
+one" loop by hand. `FailoverDriver` is that loop, and it is itself an
+`LLMDriverInterface`, so everything downstream keeps talking to one driver:
+
+```php
+use LlmRouter\Driver\FailoverDriver;
+use LlmRouter\Routing\PriorityStrategy;
+
+$router = new FailoverDriver(
+    new PriorityStrategy(priorities: ['ollama' => 25, 'openai' => 10, 'claude' => 1]),
+    [$ollama, $openai, $claude],
+    logger: $logger, // optional PSR-3: one notice per fail-over, one error on exhaustion
+);
+
+$response = $router->chat($request); // tries ollama, then openai, then claude
+```
+
+On each failure it records a structured entry, excludes the failed driver, and
+asks the strategy for another candidate from what is left. When every candidate
+has failed it throws `AllDriversFailedException`, which carries the attempts as
+live exception objects rather than a concatenated string:
+
+```php
+use LlmRouter\Exception\AllDriversFailedException;
+use LlmRouter\Exception\RateLimitException;
+
+try {
+    $response = $router->chat($request);
+} catch (AllDriversFailedException $e) {
+    foreach ($e->getFailures() as $failure) {
+        $failure['driverId'];  // 'ollama'
+        $failure['exception']; // the RuntimeException that driver threw
+
+        if ($failure['exception'] instanceof RateLimitException) {
+            $failure['exception']->getRetryAfterSeconds(); // typed, never parsed from a message
+        }
+    }
+}
+```
+
+Only `RuntimeException` triggers a fail-over — every driver here throws that on
+a transport or API failure. Anything else (`TypeError`, `Error`, ...) is a
+programming or environment defect that another provider cannot fix, so it
+propagates untouched. Pass `shouldFailover` to narrow this further:
+
+```php
+$router = new FailoverDriver($strategy, $drivers,
+    shouldFailover: static fn (RuntimeException $e, LLMDriverInterface $d): bool
+        => !str_contains($e->getMessage(), 'context length'),
+);
+```
+
+**Streaming stops failing over as soon as the first fragment is emitted.** Up
+to that point a failure switches provider transparently; after it, the failure
+propagates as-is, because an emitted fragment cannot be un-emitted and a fresh
+provider would restart the answer on top of what the user already sees. The
+caller decides what to do with a truncated response.
+
+`FailoverDriver` composes with `CircuitBreakerDriver`: wrap each candidate in
+one, and a failure recorded during fail-over is already visible to
+`isAvailable()` on the very next iteration.
 
 ### Circuit breaker
 
@@ -212,16 +278,9 @@ $driver = new CachingDriver(new ClaudeDriver($http, anthropicApiKey: $key), ttlS
 ```
 
 State is delegated to a `CacheStoreInterface` (defaults to
-`InMemoryCacheStore`). Use the included `RedisCacheStore` (needs
-`ext-redis`), or implement the interface against your own DB, to share
-the cache across requests or processes.
-
-```php
-use LlmRouter\Cache\RedisCacheStore;
-
-$store = new RedisCacheStore(new Redis()); // connect() it yourself first
-$driver = new CachingDriver(new ClaudeDriver($http, anthropicApiKey: $key), $store, ttlSeconds: 300);
-```
+`InMemoryCacheStore`, which is process-local). See
+[Sharing state across processes](#sharing-state-across-processes) for the
+Redis, PSR-16 and APCu backends and what each does when it goes down.
 
 ### Rate limiting (RPM / TPM)
 
@@ -270,6 +329,106 @@ use LlmRouter\Routing\RoundRobinStrategy;
 $strategy = new RoundRobinStrategy(weights: ['key-a' => 2, 'key-b' => 1]); // key-a offered twice as often
 $driver = $strategy->select($request, $drivers); // cycles, skipping unavailable ones
 ```
+
+## Sharing state across processes
+
+Three decorators keep state between calls: `CachingDriver` (cached responses),
+`CircuitBreakerDriver` (failure counts) and `RateLimitedDriver` (quota
+counters). Each delegates to a store interface, and each defaults to an
+in-memory implementation that lives for exactly one PHP process.
+
+That default is right for a CLI script and wrong for PHP-FPM: with eight
+workers you get eight independent caches, eight breakers that each have to
+rediscover the same outage, and eight quotas that each admit the full limit.
+Pass a shared store instead.
+
+### With Redis
+
+The most complete option — shared across processes *and* machines:
+
+```php
+use LlmRouter\Cache\RedisCacheStore;
+use LlmRouter\CircuitBreaker\RedisCircuitBreakerStore;
+use LlmRouter\RateLimit\RedisRateLimitStore;
+
+$redis = new Redis();
+$redis->connect('127.0.0.1', 6379); // connect it yourself; the stores never do
+
+$driver = new ClaudeDriver($http, anthropicApiKey: $key);
+
+$driver = new CachingDriver($driver, new RedisCacheStore($redis, logger: $logger), ttlSeconds: 300);
+$driver = new CircuitBreakerDriver($driver, new RedisCircuitBreakerStore($redis, logger: $logger));
+$driver = new RateLimitedDriver($driver, new RedisRateLimitStore($redis), maxRequestsPerMinute: 30);
+```
+
+Every store takes a key prefix as its second argument, so several applications
+can share one Redis instance without colliding:
+
+```php
+$store = new RedisCacheStore($redis, prefix: 'myapp:llm:cache:');
+```
+
+`RedisRateLimitStore` counts with `HINCRBY` on a per-window hash, so two
+workers racing for the last slot produce two increments and one of them is
+refused — a read-then-write quota would let both through.
+
+### Without Redis
+
+Any PSR-16 cache works for the response cache and the circuit breaker —
+filesystem, APCu, Memcached, PDO, whatever your framework already configures:
+
+```php
+use LlmRouter\Cache\Psr16CacheStore;
+use LlmRouter\CircuitBreaker\Psr16CircuitBreakerStore;
+use Symfony\Component\Cache\Psr16Cache;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+
+$psr16 = new Psr16Cache(new FilesystemAdapter());
+
+$driver = new CachingDriver($driver, new Psr16CacheStore($psr16), ttlSeconds: 300);
+$driver = new CircuitBreakerDriver($driver, new Psr16CircuitBreakerStore($psr16));
+```
+
+The quota is deliberately **not** available over PSR-16: the interface has no
+atomic increment, so a PSR-16 quota would be a read-modify-write pretending to
+be a shared one. Use APCu instead, which does have an atomic increment:
+
+```php
+use LlmRouter\RateLimit\ApcuRateLimitStore;
+
+$driver = new RateLimitedDriver($driver, new ApcuRateLimitStore(), maxRequestsPerMinute: 30);
+```
+
+`ApcuRateLimitStore` is shared across the PHP-FPM workers of **one machine**.
+With four app servers and a limit of 30/min the provider sees up to 120/min, so
+either divide the ceiling by your server count or use Redis.
+
+Nothing stops you from mixing backends — a Redis quota with a filesystem cache
+is a perfectly reasonable configuration.
+
+### Writing your own
+
+The three interfaces are small (`CacheStoreInterface`,
+`CircuitBreakerStoreInterface`, `RateLimitStoreInterface`), so a DynamoDB or
+Postgres store is a short class. If your backend has a real atomic increment,
+implement `AtomicRateLimitStoreInterface` as well — `RateLimitedDriver` detects
+it and takes the atomic path automatically.
+
+Shared state is only ever stored as JSON or as integers. No store in this
+package calls `unserialize()`, so a corrupted or hostile value can never decide
+which PHP class gets instantiated; it is rejected and read as absent.
+
+### What each store does when it goes down
+
+| Store | Behaviour on backend failure | Why |
+| --- | --- | --- |
+| `RedisCacheStore`, `Psr16CacheStore` | **fail-open** — reads miss, writes are dropped, the LLM call proceeds | A cache is an optimisation. Answering slowly beats not answering. |
+| `RedisCircuitBreakerStore`, `Psr16CircuitBreakerStore` | **fail-open** — reads as closed, the call is attempted | The breaker spares callers a doomed call, it does not authorise them. Failing closed would turn one Redis blip into an outage of every provider at once. |
+| `RedisRateLimitStore`, `ApcuRateLimitStore` | **fail-closed** — the error propagates and the call fails | A quota is a protection mechanism. Silently admitting unlimited traffic because the coordination backend blinked is not a safe degradation. |
+| `InMemory*` | n/a — no backend to lose | |
+
+Fail-open never means failing silently: pass a PSR-3 logger to any of the
+Redis/PSR-16 stores and every degradation is recorded at warning level.
 
 ## MCP and A2A drivers
 
@@ -332,7 +491,7 @@ Four drivers implement `EmbeddingDriverInterface` (`embed()`, `getModels()`,
 `estimateCost()`) for the providers that actually offer an embeddings
 endpoint — `OpenAiEmbeddingDriver`, `GeminiEmbeddingDriver`,
 `MistralEmbeddingDriver`, `OllamaEmbeddingDriver` (Claude/Groq/DeepSeek/Kimi
-don't have one; LiteLLM proxies whichever of these you point it at).
+don't have one).
 
 ```php
 use LlmRouter\Driver\OpenAiEmbeddingDriver;
@@ -380,6 +539,64 @@ echo $response->text;
 `FallbackAudioDriver` wraps them the same way `FallbackEmbeddingDriver` does —
 priority order, falls through on failure/unavailability.
 
+## Failure semantics
+
+What is safe to replay, what is not, and where the line sits.
+
+### Replayable
+
+| Failure | Retried by | Notes |
+| --- | --- | --- |
+| Connection error, DNS failure, timeout | `RetryingDriver` | Nothing reached the provider, or nothing came back. |
+| HTTP 5xx | `RetryingDriver` | The provider's own fault, often transient. |
+| HTTP 429 (`RateLimitException`) | `RetryingDriver` | Waits the provider's `Retry-After` when it sent one, capped by `maxDelaySeconds`; otherwise the jittered exponential backoff. |
+
+Backoff is exponential with decorrelated jitter (50–100% of the computed
+delay), so workers riding out the same outage don't resynchronise onto one
+schedule and hammer the provider in lockstep.
+
+### Not replayable
+
+| Failure | Behaviour |
+| --- | --- |
+| HTTP 4xx other than 429 (401, 400, 404, ...) | Propagates immediately — a bad key or a malformed request fails identically on the second try. |
+| `TypeError`, `Error`, any non-`RuntimeException` | Propagates immediately. A programming or environment defect is not fixed by another provider. |
+| Any failure after the first streamed fragment | Propagates immediately. See below. |
+
+### The streaming rule
+
+Once `stream()` has yielded a single fragment to the caller, **no automatic
+retry or fail-over happens for that call** — not in `RetryingDriver`, not in
+`FailoverDriver`, regardless of attempts or candidates remaining.
+
+An emitted fragment cannot be un-emitted. The user has already seen it, and a
+retry restarts the answer from the top, producing duplicated or contradictory
+output. So the failure is handed to the caller, who has the context to decide:
+show the partial answer as truncated, offer a manual retry, or discard it.
+
+Before the first fragment, nothing is visible yet and both retry and fail-over
+apply normally.
+
+### Rate limits
+
+A 429 is surfaced as `LlmRouter\Exception\RateLimitException`, with the delay
+as a typed property — `getRetryAfterSeconds()` — never as text to be parsed out
+of a message. `Retry-After` is read in both forms RFC 9110 allows (a delay in
+seconds, or an HTTP date); a past date and a negative value both read as 0, and
+anything unparseable reads as `null`, meaning "no usable value, use your own
+backoff" rather than "retry immediately".
+
+`CircuitBreakerDriver` uses the same figure: when the failure that trips the
+breaker carries a `Retry-After`, the circuit stays open for that long instead
+of for the configured `$openSeconds`.
+
+### Exhaustion
+
+When every candidate has failed, `FailoverDriver` throws
+`AllDriversFailedException` carrying each attempt as `['driverId' => string,
+'exception' => RuntimeException]`. Callers are expected to branch on those
+objects; the exception message is a summary for logs, not an API.
+
 ## What this package does *not* do
 
 - **No DB-backed usage/cost tracking.** `LLMResponse::$costUsd` and
@@ -392,10 +609,35 @@ priority order, falls through on failure/unavailability.
 
 ## Requirements
 
-- PHP >= 8.2
-- `guzzlehttp/guzzle` ^7.8
-- `mcp/sdk` ^0.7 (for `McpClientDriver`)
-- `ext-redis` (optional — only for `RedisCacheStore`/`RedisCircuitBreakerStore`/`RedisRateLimitStore`)
+- PHP >= 8.2 (tested on 8.2, 8.3 and 8.4)
+
+### Dependencies
+
+| Package | Required by | Scope |
+| --- | --- | --- |
+| `guzzlehttp/guzzle` ^7.8 | `Http\HttpClient`, every HTTP driver, and `RetryingDriver` (which reads Guzzle exception types to judge retryability) | All LLM, embedding and audio drivers |
+| `psr/log` ^3.0 | `FailoverDriver` and the shared stores, for optional logging | Interfaces only |
+| `psr/simple-cache` ^3.0 | `Psr16CacheStore`, `Psr16CircuitBreakerStore` | Interfaces only |
+| `mcp/sdk` ^0.7 | `Driver\McpClientDriver` — **one file** | Pulls the largest share of the transitive tree (opis/*, symfony/uid, psr/http-server-*) |
+
+Optional extensions:
+
+- `ext-redis` — `RedisCacheStore`, `RedisCircuitBreakerStore`, `RedisRateLimitStore`
+- `ext-apcu` — `ApcuRateLimitStore`
+
+### Known limits
+
+- **`mcp/sdk` is a heavy dependency for one driver.** It is required rather
+  than optional so that `McpClientDriver` either works or doesn't exist —
+  a driver that silently degrades is worse than an unused dependency. If it
+  becomes a problem for your dependency tree, `Driver/McpClientDriver.php` is
+  the only file to remove, and splitting it into a companion package is
+  tracked as the next candidate change.
+- **Streamed token usage is an estimate.** Providers send no usage block over
+  SSE, so `RateLimitedDriver` counts input tokens only for `stream()`.
+- **`ApcuRateLimitStore` enforces a per-machine quota**, not a fleet-wide one.
+- **`RoundRobinStrategy` is stateful per instance.** Its cursor lives in the
+  object, so rotation is per-process unless you keep one instance around.
 
 ## License
 

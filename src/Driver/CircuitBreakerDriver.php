@@ -14,6 +14,7 @@ use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
+use LlmRouter\Exception\RateLimitException;
 use RuntimeException;
 use Throwable;
 
@@ -80,7 +81,7 @@ final class CircuitBreakerDriver implements LLMDriverInterface
         try {
             $response = $this->inner->chat($request);
         } catch (Throwable $e) {
-            $this->recordFailure();
+            $this->recordFailure($e);
             throw $e;
         }
 
@@ -98,7 +99,7 @@ final class CircuitBreakerDriver implements LLMDriverInterface
         try {
             $toolCalls = yield from $this->inner->stream($request);
         } catch (Throwable $e) {
-            $this->recordFailure();
+            $this->recordFailure($e);
             throw $e;
         }
 
@@ -154,12 +155,28 @@ final class CircuitBreakerDriver implements LLMDriverInterface
         }
     }
 
-    private function recordFailure(): void
+    /**
+     * When the provider told us how long to stay away (a 429 carrying
+     * Retry-After, surfaced as RateLimitException), that delay wins over the
+     * configured $openSeconds: reopening the circuit before the provider is
+     * ready just burns another rejected call, and staying shut longer than it
+     * asked wastes availability. Any other failure keeps $openSeconds.
+     */
+    private function recordFailure(?Throwable $error = null): void
     {
         $id = $this->inner->getId();
+        $retryAfterSeconds = $error instanceof RateLimitException
+            ? $error->getRetryAfterSeconds()
+            : null;
+
         $this->store->saveState(
             $id,
-            $this->store->getState($id)->withFailure($this->failureThreshold, $this->openSeconds, new DateTimeImmutable())
+            $this->store->getState($id)->withFailure(
+                $this->failureThreshold,
+                $this->openSeconds,
+                new DateTimeImmutable(),
+                $retryAfterSeconds
+            )
         );
     }
 

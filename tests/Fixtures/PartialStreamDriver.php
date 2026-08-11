@@ -22,6 +22,9 @@ use Throwable;
  */
 final class PartialStreamDriver implements LLMDriverInterface
 {
+    /** How many times stream() was entered — lets a test prove no retry happened. */
+    public int $callCount = 0;
+
     /**
      * @param string[] $chunks
      */
@@ -82,6 +85,8 @@ final class PartialStreamDriver implements LLMDriverInterface
 
     public function stream(LLMRequest $request): Generator
     {
+        $this->callCount++;
+
         foreach ($this->chunks as $chunk) {
             yield $chunk;
         }

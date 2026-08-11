@@ -12,6 +12,7 @@ use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
+use LlmRouter\RateLimit\AtomicRateLimitStoreInterface;
 use LlmRouter\RateLimit\InMemoryRateLimitStore;
 use LlmRouter\RateLimit\RateLimitStoreInterface;
 use LlmRouter\RateLimit\RateLimitWindow;
@@ -126,7 +127,7 @@ final class RateLimitedDriver implements LLMDriverInterface
     private function waitForCapacity(): void
     {
         $elapsed = 0.0;
-        while (!$this->hasCapacity()) {
+        while (!$this->acquire()) {
             if ($elapsed >= $this->maxWaitSeconds) {
                 throw new RuntimeException(sprintf(
                     'Rate limit exceeded for driver "%s" and the %.1fs wait budget ran out',
@@ -137,6 +138,29 @@ final class RateLimitedDriver implements LLMDriverInterface
             $this->sleep($this->pollIntervalSeconds);
             $elapsed += $this->pollIntervalSeconds;
         }
+    }
+
+    /**
+     * Claims one request slot, returning false when the quota is currently full.
+     *
+     * On a store that offers a real atomic increment, the slot is reserved in
+     * the same operation that checks the ceiling, so two workers can't both
+     * read "one slot left" and both take it. Stores implementing only the base
+     * interface keep the original check-then-count path — they are process-local
+     * by construction, where that race can't happen anyway.
+     */
+    private function acquire(): bool
+    {
+        if ($this->store instanceof AtomicRateLimitStoreInterface) {
+            return $this->store->tryAcquire(
+                $this->inner->getId(),
+                $this->windowSeconds,
+                $this->maxRequestsPerMinute,
+                $this->maxTokensPerMinute,
+            ) !== null;
+        }
+
+        return $this->hasCapacity();
     }
 
     private function hasCapacity(): bool
@@ -161,9 +185,20 @@ final class RateLimitedDriver implements LLMDriverInterface
         return $window;
     }
 
+    /**
+     * Records what the call actually consumed. The request itself was already
+     * counted when its slot was reserved on the atomic path, so only the token
+     * count is added there; the legacy path still counts both at once.
+     */
     private function recordUsage(int $tokens): void
     {
         $id = $this->inner->getId();
+
+        if ($this->store instanceof AtomicRateLimitStoreInterface) {
+            $this->store->addTokens($id, $this->windowSeconds, $tokens);
+            return;
+        }
+
         $this->store->saveWindow($id, $this->currentWindow()->withUsage($tokens));
     }
 

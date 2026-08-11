@@ -53,6 +53,9 @@ jobs:
       - name: Run tests
         run: composer test
 
+      - name: Run security tests
+        run: composer test:security
+
   static-analysis:
     name: PHPStan
     runs-on: ubuntu-latest

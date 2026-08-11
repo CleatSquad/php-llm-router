@@ -6,28 +6,32 @@ namespace LlmRouter\CircuitBreaker;
 
 use LlmRouter\Serialization\CircuitBreakerStateCodec;
 use Psr\Log\LoggerInterface;
-use Redis;
+use Psr\SimpleCache\CacheInterface;
 use Throwable;
 
 /**
- * CircuitBreakerStoreInterface backed by Redis, sharing failure state across requests and workers.
- * Keys self-expire after $ttlSeconds (refreshed on write); keep it comfortably larger than $openSeconds, or the breaker can read as closed before it should.
+ * CircuitBreakerStoreInterface on top of any PSR-16 cache, for deployments
+ * without Redis (APCu, filesystem, Memcached, ... via Symfony Cache, Laravel,
+ * or any other PSR-16 implementation).
  *
- * Encoding: JSON — a failure count and a Unix timestamp — rebuilt field by field into a
- * CircuitBreakerState. The store never calls unserialize(), so a tampered-with value cannot
- * drive class instantiation; it can only fail validation.
+ * The breaker tolerates a store that is only shared per-machine: the worst a
+ * partially-shared view costs is that one machine's workers rediscover an
+ * outage another machine already knows about.
  *
- * Failure semantics: fail-open. When Redis is unreachable or the stored value is unusable, the
- * breaker reads as closed and the LLM call is attempted. The breaker exists to spare callers a
- * call that is likely to fail, not to authorise them — losing it costs latency on an outage,
- * whereas failing closed would turn a Redis blip into a total outage of every provider at once.
- * Failed writes are dropped the same way. Both are logged at warning level when a logger is given.
+ * Encoding: JSON via CircuitBreakerStateCodec, never PHP serialization — see
+ * that class for why a value read back from a shared backend must not be able
+ * to choose which class gets instantiated.
+ *
+ * Failure semantics: fail-open, identical to RedisCircuitBreakerStore. An
+ * unreachable backend or an unusable value reads as "closed" and the call is
+ * attempted, because the breaker exists to spare callers a doomed call, not to
+ * authorise them — failing closed would turn a cache blip into a total outage.
  */
-final class RedisCircuitBreakerStore implements CircuitBreakerStoreInterface
+final class Psr16CircuitBreakerStore implements CircuitBreakerStoreInterface
 {
     public function __construct(
-        private readonly Redis $redis,
-        private readonly string $prefix = 'llm_router:circuit_breaker:',
+        private readonly CacheInterface $cache,
+        private readonly string $prefix = 'llm_router.circuit_breaker.',
         private readonly int $ttlSeconds = 3600,
         private readonly ?LoggerInterface $logger = null,
     ) {}
@@ -35,7 +39,8 @@ final class RedisCircuitBreakerStore implements CircuitBreakerStoreInterface
     public function getState(string $driverId): CircuitBreakerState
     {
         try {
-            $raw = $this->redis->get($this->prefix . $driverId);
+            /** @var mixed $raw */
+            $raw = $this->cache->get($this->key($driverId));
         } catch (Throwable $e) {
             $this->logger?->warning('llm_router.circuit_breaker.store_unavailable', [
                 'operation' => 'get',
@@ -63,11 +68,7 @@ final class RedisCircuitBreakerStore implements CircuitBreakerStoreInterface
     public function saveState(string $driverId, CircuitBreakerState $state): void
     {
         try {
-            $this->redis->setex(
-                $this->prefix . $driverId,
-                $this->ttlSeconds,
-                CircuitBreakerStateCodec::encode($state)
-            );
+            $this->cache->set($this->key($driverId), CircuitBreakerStateCodec::encode($state), $this->ttlSeconds);
         } catch (Throwable $e) {
             $this->logger?->warning('llm_router.circuit_breaker.store_unavailable', [
                 'operation' => 'set',
@@ -77,4 +78,8 @@ final class RedisCircuitBreakerStore implements CircuitBreakerStoreInterface
         }
     }
 
+    private function key(string $driverId): string
+    {
+        return str_replace(['{', '}', '(', ')', '/', '\\', '@', ':'], '_', $this->prefix . $driverId);
+    }
 }

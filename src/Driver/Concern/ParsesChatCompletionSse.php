@@ -33,7 +33,7 @@ trait ParsesChatCompletionSse
 
                 $jsonStr = trim(substr($line, 5));
                 if ($jsonStr === '[DONE]') {
-                    return $toolCalls === [] ? null : array_values($toolCalls);
+                    return self::finishToolCalls($toolCalls);
                 }
 
                 $data = json_decode($jsonStr, true);
@@ -70,6 +70,28 @@ trait ParsesChatCompletionSse
             }
         }
 
-        return $toolCalls === [] ? null : array_values($toolCalls);
+        return self::finishToolCalls($toolCalls);
+    }
+
+    /**
+     * Flattens the accumulator into the returned list.
+     *
+     * Sorted by index, not by arrival: a provider is free to open call #1
+     * before call #0, and array_values() alone would then hand the caller the
+     * calls in arrival order, silently swapping which id and which arguments
+     * belong to which position.
+     *
+     * @param array<int, array{id: string, type: string, function: array{name: string, arguments: string}}> $toolCalls
+     * @return array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|null
+     */
+    private static function finishToolCalls(array $toolCalls): ?array
+    {
+        if ($toolCalls === []) {
+            return null;
+        }
+
+        ksort($toolCalls);
+
+        return array_values($toolCalls);
     }
 }
