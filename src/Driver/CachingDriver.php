@@ -128,6 +128,11 @@ final class CachingDriver implements LLMDriverInterface
             $request->maxTokens,
             $request->tools,
             $request->preferQuality,
+            // Two requests differing only in reasoning effort are different
+            // requests: one answer was thought through and one was not, and
+            // only one of them carries a trace.
+            $request->reasoningEffort?->value,
+            $request->includeReasoning,
         ], JSON_THROW_ON_ERROR));
     }
 }

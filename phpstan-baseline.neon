@@ -1,42 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Call to function is_array\(\) with string will always evaluate to false\.$#'
-			identifier: function.impossibleType
-			count: 1
-			path: src/DTO/LLMRequest.php
-
-		-
-			message: '#^Offset ''content'' on array\{role\: string, content\: string\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: src/DTO/LLMRequest.php
-
-		-
-			message: '#^Offset ''text'' on \*NEVER\* on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: src/DTO/LLMRequest.php
-
-		-
-			message: '#^Offset ''type'' on \*NEVER\* in isset\(\) always exists and is not nullable\.$#'
-			identifier: isset.offset
-			count: 2
-			path: src/DTO/LLMRequest.php
-
-		-
-			message: '#^Offset ''role'' on array\{role\: string, content\: mixed\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: src/Driver/ClaudeDriver.php
-
-		-
-			message: '#^Offset ''role'' on array\{role\: string, content\: mixed\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: src/Driver/GeminiDriver.php
-
-		-
 			message: '#^Method LlmRouter\\Driver\\KimiDriver\:\:stream\(\) with return type void returns array\<int, array\<string, array\<string, string\>\|string\>\>\|null but should not return anything\.$#'
 			identifier: return.void
 			count: 1

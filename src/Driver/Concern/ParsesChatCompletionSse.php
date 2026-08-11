@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace LlmRouter\Driver\Concern;
 
 use Generator;
+use LlmRouter\DTO\LLMRequest;
 use Psr\Http\Message\StreamInterface;
 
 /**
  * Shared by drivers using the OpenAI Chat Completions SSE format (LiteLLM, OpenAI, Kimi/Moonshot): "data: {json}" lines ending in "data: [DONE]".
  * Streamed tool_calls deltas are accumulated by index, since each call's id/name/arguments arrive fragmented across multiple deltas.
+ *
+ * Reasoning deltas (DeepSeek and Kimi call the field `reasoning_content`, Groq
+ * calls it `reasoning`) are handed to the request's onReasoning callback rather
+ * than yielded: the generator's values are the visible answer, and an
+ * application echoing them must not print the model's scratch work to a user.
  */
 trait ParsesChatCompletionSse
 {
     /**
      * @return Generator<int, string, mixed, ?array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>>
      */
-    private static function readChatCompletionSse(StreamInterface $body): Generator
+    private static function readChatCompletionSse(StreamInterface $body, ?LLMRequest $request = null): Generator
     {
         $buffer = '';
         $toolCalls = [];
@@ -42,6 +48,11 @@ trait ParsesChatCompletionSse
                 }
 
                 $delta = $data['choices'][0]['delta'] ?? [];
+
+                $reasoning = $delta['reasoning_content'] ?? $delta['reasoning'] ?? '';
+                if (is_string($reasoning) && $reasoning !== '') {
+                    $request?->emitReasoning($reasoning);
+                }
 
                 $content = $delta['content'] ?? '';
                 if ($content !== '') {

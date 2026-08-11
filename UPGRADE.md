@@ -1,5 +1,71 @@
 # Upgrade guide
 
+## 2.0.x → 2.1.0
+
+**Nothing is required.** Every addition is opt-in: omit `reasoningEffort` and
+the requests this library sends are byte-identical to 2.0.x.
+
+### Asking a model to think
+
+```php
+use LlmRouter\Enum\ReasoningEffort;
+
+$response = $driver->chat(new LLMRequest(
+    messages: $messages,
+    reasoningEffort: ReasoningEffort::High,
+    includeReasoning: true,
+));
+
+$response->reasoning; // the trace, or null
+```
+
+Two things are worth knowing before you switch it on:
+
+- **`supportsReasoning()` describes the driver, not your model.** Sending
+  `reasoning_effort` to `gpt-4o` earns a 400 from OpenAI. Check that the model
+  you named is a reasoning model — and remember that since 2.0.0 the shipped
+  pricing tables only know a handful, so a reasoning model may need registering
+  through `$extraModelPricing` first.
+- **OpenAI never returns its trace.** `$reasoning` stays null there; you are
+  paying for thinking tokens you cannot read. That is the provider's design,
+  not a gap in this library.
+
+### If you use tools across several turns, replay the trace
+
+Anthropic, Mistral and Moonshot require the reasoning trace to come back on the
+next turn. Moonshot documents that dropping it during a tool-calling loop
+degrades the model, and nothing in the response reveals that it happened.
+
+```php
+// before — fine without reasoning, lossy with it
+$messages[] = ['role' => 'assistant', 'content' => $response->content];
+
+// after — carries the trace, and each driver re-emits it natively
+$messages[] = $response->toMessage();
+```
+
+### Streaming
+
+Reasoning does not arrive through the yielded values, so existing loops are
+untouched. Opt in with a callback:
+
+```php
+$request = new LLMRequest(
+    messages: $messages,
+    reasoningEffort: ReasoningEffort::High,
+    includeReasoning: true,
+    onReasoning: fn (string $fragment) => $ui->showThinking($fragment),
+);
+```
+
+### Cache keys changed shape
+
+`CachingDriver` now folds the reasoning settings into its key, so entries
+written by 2.0.x will not be hit after the upgrade. They expire on their own;
+a one-off cold cache, nothing to do.
+
+---
+
 ## 1.14.x → 2.0.0
 
 **This major release carries exactly one breaking change.** Nothing else moved:

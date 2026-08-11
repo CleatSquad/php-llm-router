@@ -9,6 +9,7 @@ use Generator;
 use GuzzleHttp\Exception\RequestException;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
+use LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
 use LlmRouter\Driver\Concern\ResolvesPricedModel;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
@@ -16,6 +17,7 @@ use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
+use LlmRouter\Enum\ReasoningEffort;
 use LlmRouter\Http\HttpClient;
 use RuntimeException;
 
@@ -34,6 +36,7 @@ class GroqDriver implements LLMDriverInterface
 
     use Concern\HandlesHttpRateLimit;
     use ParsesChatCompletionSse;
+    use ReplaysChatCompletionReasoning;
 
     private string $groqUrl;
     private string $groqApiKey;
@@ -144,7 +147,7 @@ class GroqDriver implements LLMDriverInterface
 
         $payload = [
             'model' => $model,
-            'messages' => $request->messages,
+            'messages' => self::withReplayedReasoning($request->messages, 'reasoning'),
             'stream' => $request->stream,
         ];
 
@@ -158,6 +161,18 @@ class GroqDriver implements LLMDriverInterface
 
         if ($request->tools !== null) {
             $payload['tools'] = $request->tools;
+        }
+
+        // Groq returns the trace only when asked to parse it into its own
+        // field; the default folds it into the answer as <think> tags.
+        if ($request->reasoningEffort !== null) {
+            $payload['reasoning_effort'] = $request->reasoningEffort === ReasoningEffort::None
+                ? 'none'
+                : 'default';
+        }
+
+        if ($request->includeReasoning) {
+            $payload['reasoning_format'] = 'parsed';
         }
 
         $startTime = microtime(true);
@@ -187,6 +202,7 @@ class GroqDriver implements LLMDriverInterface
         }
 
         $content = $data['choices'][0]['message']['content'] ?? '';
+        $reasoning = $data['choices'][0]['message']['reasoning'] ?? null;
         if (is_array($content)) {
             $textParts = [];
             foreach ($content as $part) {
@@ -218,7 +234,8 @@ class GroqDriver implements LLMDriverInterface
             costUsd: $costUsd,
             latencyMs: $latencyMs,
             toolCalls: $toolCalls,
-            finishReason: $finishReason
+            finishReason: $finishReason,
+            reasoning: is_string($reasoning) && $reasoning !== '' ? $reasoning : null,
         );
     }
 
@@ -231,7 +248,7 @@ class GroqDriver implements LLMDriverInterface
 
         $payload = [
             'model' => $model,
-            'messages' => $request->messages,
+            'messages' => self::withReplayedReasoning($request->messages, 'reasoning'),
             'stream' => true,
         ];
 
@@ -245,6 +262,18 @@ class GroqDriver implements LLMDriverInterface
 
         if ($request->tools !== null) {
             $payload['tools'] = $request->tools;
+        }
+
+        // Groq returns the trace only when asked to parse it into its own
+        // field; the default folds it into the answer as <think> tags.
+        if ($request->reasoningEffort !== null) {
+            $payload['reasoning_effort'] = $request->reasoningEffort === ReasoningEffort::None
+                ? 'none'
+                : 'default';
+        }
+
+        if ($request->includeReasoning) {
+            $payload['reasoning_format'] = 'parsed';
         }
 
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
@@ -263,7 +292,7 @@ class GroqDriver implements LLMDriverInterface
             throw new RuntimeException('Groq stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        return yield from self::readChatCompletionSse($response->getBody());
+        return yield from self::readChatCompletionSse($response->getBody(), $request);
     }
 
     /**
@@ -291,7 +320,7 @@ class GroqDriver implements LLMDriverInterface
 
     public function supportsReasoning(): bool
     {
-        return false;
+        return true;
     }
 
     public function estimateCost(LLMRequest $request): CostEstimate

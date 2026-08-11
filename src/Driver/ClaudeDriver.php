@@ -9,6 +9,7 @@ use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\NormalizesVisionContent;
 use LlmRouter\Driver\Concern\ResolvesPricedModel;
+use LlmRouter\Enum\ReasoningEffort;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\HealthStatus;
@@ -168,6 +169,8 @@ class ClaudeDriver implements LLMDriverInterface
             $payload['tools'] = $request->tools;
         }
 
+        $payload = $this->applyReasoning($payload, $request);
+
         $startTime = microtime(true);
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
         try {
@@ -196,10 +199,18 @@ class ClaudeDriver implements LLMDriverInterface
         }
 
         $textContent = '';
+        $reasoning = '';
+        $reasoningSignature = null;
         $toolCalls = [];
         foreach ($data['content'] ?? [] as $block) {
             if (($block['type'] ?? null) === 'text') {
                 $textContent .= $block['text'] ?? '';
+            } elseif (($block['type'] ?? null) === 'thinking') {
+                // With display "omitted" the block still arrives, carrying a
+                // signature but an empty thinking field. The signature is what
+                // has to survive to the next turn either way.
+                $reasoning .= $block['thinking'] ?? '';
+                $reasoningSignature = $block['signature'] ?? $reasoningSignature;
             } elseif (($block['type'] ?? null) === 'tool_use') {
                 $toolCalls[] = [
                     'id' => $block['id'] ?? '',
@@ -228,7 +239,12 @@ class ClaudeDriver implements LLMDriverInterface
             costUsd: $costUsd,
             latencyMs: $latencyMs,
             toolCalls: !empty($toolCalls) ? $toolCalls : null,
-            finishReason: $data['stop_reason'] ?? 'stop'
+            finishReason: $data['stop_reason'] ?? 'stop',
+            reasoning: $reasoning !== '' ? $reasoning : null,
+            reasoningTokens: isset($data['usage']['output_tokens_details']['thinking_tokens'])
+                ? (int) $data['usage']['output_tokens_details']['thinking_tokens']
+                : null,
+            reasoningSignature: $reasoningSignature,
         );
     }
 
@@ -258,6 +274,8 @@ class ClaudeDriver implements LLMDriverInterface
         if ($request->tools !== null) {
             $payload['tools'] = $request->tools;
         }
+
+        $payload = $this->applyReasoning($payload, $request);
 
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
 
@@ -316,7 +334,12 @@ class ClaudeDriver implements LLMDriverInterface
                 if ($eventType === 'content_block_delta') {
                     $deltaType = $data['delta']['type'] ?? '';
 
-                    if ($deltaType === 'text_delta') {
+                    if ($deltaType === 'thinking_delta') {
+                        // Never yielded: the generator's values are the visible
+                        // answer, and an application echoing them must not end
+                        // up printing the model's scratch work to a user.
+                        $request->emitReasoning((string) ($data['delta']['thinking'] ?? ''));
+                    } elseif ($deltaType === 'text_delta') {
                         $text = $data['delta']['text'] ?? '';
                         if ($text !== '') {
                             yield $text;
@@ -327,12 +350,12 @@ class ClaudeDriver implements LLMDriverInterface
                 }
 
                 if ($eventType === 'message_stop') {
-                    return $toolCalls === [] ? null : array_values($toolCalls);
+                    return self::orderedToolCalls($toolCalls);
                 }
             }
         }
 
-        return $toolCalls === [] ? null : array_values($toolCalls);
+        return self::orderedToolCalls($toolCalls);
     }
 
     /**
@@ -381,8 +404,79 @@ class ClaudeDriver implements LLMDriverInterface
      * Splits OpenAI-style messages (may include a "system" role) into Anthropic's system prompt + message list.
      * Non-system content is translated via convertContentForClaude() — a 2026-08-01 fix, since passing OpenAI's vision shape straight through silently broke every vision request to Claude.
      *
-     * @param array<int, array{role: string, content: mixed}> $messages
+     * @param array<int, array<string, mixed>> $messages
      * @return array{0: string, 1: array<int, array{role: string, content: mixed}>}
+     */
+
+    /**
+     * Flattens streamed tool calls in content-block index order.
+     *
+     * Sorted, not merely re-indexed: array_values() preserves insertion order,
+     * which is arrival order, and a block opened out of sequence would pair
+     * each id with another call's arguments.
+     *
+     * @param array<int, array{id: string, type: string, function: array{name: string, arguments: string}}> $toolCalls
+     * @return array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|null
+     */
+    private static function orderedToolCalls(array $toolCalls): ?array
+    {
+        if ($toolCalls === []) {
+            return null;
+        }
+
+        ksort($toolCalls);
+
+        return array_values($toolCalls);
+    }
+
+    /**
+     * Adds Anthropic's thinking configuration to a payload.
+     *
+     * Uses adaptive thinking (`thinking: {type: "adaptive"}` plus
+     * `output_config.effort`), not the older `{type: "enabled", budget_tokens}`
+     * manual mode: that mode is deprecated on Claude 4.6 and returns a 400 on
+     * Claude 4.7 and later, so a budget-based implementation would fail on
+     * every current model.
+     *
+     * `display` matters more than it looks. On the newest models it defaults to
+     * "omitted", meaning thinking blocks come back with an empty `thinking`
+     * field — billed the same, just unreadable. Asking for the trace therefore
+     * has to opt into "summarized" explicitly.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function applyReasoning(array $payload, LLMRequest $request): array
+    {
+        if ($request->reasoningEffort === null) {
+            return $payload; // Leave the model's own default alone.
+        }
+
+        if ($request->reasoningEffort === ReasoningEffort::None) {
+            $payload['thinking'] = ['type' => 'disabled'];
+            return $payload;
+        }
+
+        $payload['thinking'] = [
+            'type' => 'adaptive',
+            'display' => $request->includeReasoning ? 'summarized' : 'omitted',
+        ];
+        $payload['output_config'] = ['effort' => $request->reasoningEffort->clampTo([
+            ReasoningEffort::Low,
+            ReasoningEffort::Medium,
+            ReasoningEffort::High,
+            ReasoningEffort::XHigh,
+            ReasoningEffort::Max,
+        ])->value];
+
+        return $payload;
+    }
+
+    /**
+     * Splits the system prompt out and converts the rest to Anthropic's shape.
+     *
+     * @param array<int, array<string, mixed>> $messages
+     * @return array{0: string, 1: array<int, array<string, mixed>>}
      */
     private function splitSystemMessages(array $messages): array
     {
@@ -394,9 +488,23 @@ class ClaudeDriver implements LLMDriverInterface
                 $content = $message['content'] ?? '';
                 $system[] = is_string($content) ? $content : $this->extractVisionParts($content)[0];
             } else {
+                $content = $this->convertContentForClaude($message['content'] ?? '');
+
+                // Anthropic requires a thinking-enabled assistant turn to begin
+                // with its thinking block, and rejects a replayed trace whose
+                // signature is missing. LLMResponse::toMessage() carries both.
+                $reasoning = $message['reasoning'] ?? null;
+                $signature = $message['reasoning_signature'] ?? null;
+                if ($message['role'] === 'assistant' && is_string($reasoning) && is_string($signature)) {
+                    $thinkingBlock = ['type' => 'thinking', 'thinking' => $reasoning, 'signature' => $signature];
+                    $content = is_array($content)
+                        ? array_merge([$thinkingBlock], $content)
+                        : [$thinkingBlock, ['type' => 'text', 'text' => (string) $content]];
+                }
+
                 $rest[] = [
                     'role' => $message['role'],
-                    'content' => $this->convertContentForClaude($message['content'] ?? ''),
+                    'content' => $content,
                 ];
             }
         }

@@ -12,6 +12,62 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
+## [2.1.0] — 2026-08-11
+
+### Added
+
+- **Reasoning support across all eight LLM drivers.** `supportsReasoning()`
+  previously returned true for Claude and DeepSeek while nothing was sent and
+  nothing was read: Claude's `thinking` blocks were dropped by the response
+  parser and DeepSeek's `reasoning_content` was never looked at, so callers
+  paid for thinking tokens and saw none of it.
+
+  `LLMRequest` gains `$reasoningEffort` (a neutral `ReasoningEffort` enum),
+  `$includeReasoning`, and `$onReasoning` for streaming. `LLMResponse` gains
+  `$reasoning`, `$reasoningTokens`, `$reasoningSignature`, `hasReasoning()`
+  and `toMessage()`.
+
+  Effort — not a token budget — is the portable abstraction: OpenAI, DeepSeek
+  and Groq all spell it `reasoning_effort` and Anthropic `output_config.effort`,
+  whereas `thinking.budget_tokens` is deprecated on Claude 4.6 and returns a
+  400 on Claude 4.7 and later.
+
+  Omitting `$reasoningEffort` sends nothing, so existing requests are
+  byte-identical to before.
+
+- **`LLMResponse::toMessage()`** builds the assistant history entry, carrying
+  the reasoning trace so drivers can replay it. Anthropic, Mistral and Moonshot
+  all require this on the following turn; Moonshot documents that dropping it
+  during a tool-calling loop degrades the model.
+
+- Reasoning while streaming reaches the caller through `$onReasoning`, never
+  through the yielded values, so existing `foreach` loops keep receiving only
+  the visible answer.
+
+### Fixed
+
+- **Gemini spliced its reasoning into the answer.** A Gemini thought is an
+  ordinary text part flagged `thought: true`, and `extractParts()` concatenated
+  every text part — so enabling thinking would have put the model's scratch
+  work in `$content`.
+- **Claude returned streamed tool calls in arrival order.** Same defect fixed
+  in `ParsesChatCompletionSse` in 1.14.0, still present in `ClaudeDriver`:
+  `array_values()` over an index-keyed accumulator preserves insertion order,
+  so a block opened out of sequence paired each id with another call's
+  arguments.
+- `CachingDriver`'s key now includes the reasoning settings; without it a
+  reasoned answer could be served to a request that asked for no reasoning.
+
+### Changed
+
+- `supportsReasoning()` now returns true on all eight drivers. It describes
+  what the driver can express, not what your chosen model accepts — the four
+  tests that pinned it to false were updated, with that distinction recorded.
+- PHPStan baseline reduced from 12 entries to 6: widening the `$messages` type
+  made four of them obsolete, and two more resolved with it.
+
+---
+
 ## [2.0.0] — 2026-08-11
 
 Single-change major: the only breaking item is model resolution. Everything

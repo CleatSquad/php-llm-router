@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
+use LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
 use LlmRouter\Driver\Concern\ResolvesPricedModel;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
@@ -15,6 +16,7 @@ use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
+use LlmRouter\Enum\ReasoningEffort;
 use LlmRouter\Http\HttpClient;
 use RuntimeException;
 
@@ -36,6 +38,7 @@ class DeepSeekDriver implements LLMDriverInterface
     ];
 
     use ParsesChatCompletionSse;
+    use ReplaysChatCompletionReasoning;
 
     private string $deepSeekUrl;
     private string $deepSeekApiKey;
@@ -146,7 +149,7 @@ class DeepSeekDriver implements LLMDriverInterface
 
         $payload = [
             'model' => $model,
-            'messages' => $request->messages,
+            'messages' => self::withReplayedReasoning($request->messages, 'reasoning_content'),
             'stream' => $request->stream,
         ];
 
@@ -160,6 +163,21 @@ class DeepSeekDriver implements LLMDriverInterface
 
         if ($request->tools !== null) {
             $payload['tools'] = $request->tools;
+        }
+
+        // DeepSeek gates thinking behind an explicit switch and takes the same
+        // effort vocabulary as OpenAI.
+        if ($request->reasoningEffort !== null) {
+            if ($request->reasoningEffort === ReasoningEffort::None) {
+                $payload['thinking'] = ['type' => 'disabled'];
+            } else {
+                $payload['thinking'] = ['type' => 'enabled'];
+                $payload['reasoning_effort'] = $request->reasoningEffort->clampTo([
+                    ReasoningEffort::Low,
+                    ReasoningEffort::Medium,
+                    ReasoningEffort::High,
+                ])->value;
+            }
         }
 
         $startTime = microtime(true);
@@ -187,6 +205,7 @@ class DeepSeekDriver implements LLMDriverInterface
         }
 
         $content = $data['choices'][0]['message']['content'] ?? '';
+        $reasoning = $data['choices'][0]['message']['reasoning_content'] ?? null;
         if (is_array($content)) {
             $textParts = [];
             foreach ($content as $part) {
@@ -218,7 +237,8 @@ class DeepSeekDriver implements LLMDriverInterface
             costUsd: $costUsd,
             latencyMs: $latencyMs,
             toolCalls: $toolCalls,
-            finishReason: $finishReason
+            finishReason: $finishReason,
+            reasoning: is_string($reasoning) && $reasoning !== '' ? $reasoning : null,
         );
     }
 
@@ -231,7 +251,7 @@ class DeepSeekDriver implements LLMDriverInterface
 
         $payload = [
             'model' => $model,
-            'messages' => $request->messages,
+            'messages' => self::withReplayedReasoning($request->messages, 'reasoning_content'),
             'stream' => true,
         ];
 
@@ -245,6 +265,21 @@ class DeepSeekDriver implements LLMDriverInterface
 
         if ($request->tools !== null) {
             $payload['tools'] = $request->tools;
+        }
+
+        // DeepSeek gates thinking behind an explicit switch and takes the same
+        // effort vocabulary as OpenAI.
+        if ($request->reasoningEffort !== null) {
+            if ($request->reasoningEffort === ReasoningEffort::None) {
+                $payload['thinking'] = ['type' => 'disabled'];
+            } else {
+                $payload['thinking'] = ['type' => 'enabled'];
+                $payload['reasoning_effort'] = $request->reasoningEffort->clampTo([
+                    ReasoningEffort::Low,
+                    ReasoningEffort::Medium,
+                    ReasoningEffort::High,
+                ])->value;
+            }
         }
 
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
@@ -261,7 +296,7 @@ class DeepSeekDriver implements LLMDriverInterface
             throw new RuntimeException('DeepSeek stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        return yield from self::readChatCompletionSse($response->getBody());
+        return yield from self::readChatCompletionSse($response->getBody(), $request);
     }
 
     /**

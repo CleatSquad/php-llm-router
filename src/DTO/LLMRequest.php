@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace LlmRouter\DTO;
 
+use Closure;
+use LlmRouter\Enum\ReasoningEffort;
+
 /**
  * Represents a request to an LLM driver.
  */
 final readonly class LLMRequest
 {
     /**
-     * @param array<int, array{role: string, content: string}> $messages
+     * @param array<int, array<string, mixed>> $messages Chat history. Beyond
+     *   role/content, an assistant entry produced by LLMResponse::toMessage()
+     *   may carry a `reasoning` trace, which drivers that require it replay to
+     *   the provider in its native shape.
      * @param string|null $model
      * @param float|null $temperature
      * @param int|null $maxTokens
@@ -26,6 +32,20 @@ final readonly class LLMRequest
      *   quality-aware routing strategy is actually in play). Signals that
      *   reasoning/tool-use quality matters more than raw speed/cost for
      *   this request.
+     * @param ReasoningEffort|null $reasoningEffort How hard the model should
+     *   think before answering. Null leaves the provider's own default alone,
+     *   which is what every request did before this parameter existed, so
+     *   omitting it changes nothing. Drivers that cannot reason ignore it, and
+     *   drivers supporting fewer levels clamp to their nearest one.
+     * @param bool $includeReasoning Ask the provider to return the reasoning
+     *   text, not merely to spend tokens on it. Off by default: it costs
+     *   latency, and on Claude it is billed either way. OpenAI never returns
+     *   its reasoning, so there this changes nothing.
+     * @param Closure(string): void|null $onReasoning Receives each reasoning
+     *   fragment while streaming. Reasoning never reaches the caller through
+     *   the yielded values — those stay pure visible text, so existing loops
+     *   keep working and no application accidentally prints a model's scratch
+     *   work to a user. Requires $includeReasoning.
      */
     public function __construct(
         public array $messages,
@@ -36,7 +56,28 @@ final readonly class LLMRequest
         public bool $stream = false,
         public ?float $timeoutSeconds = null,
         public bool $preferQuality = false,
+        public ?ReasoningEffort $reasoningEffort = null,
+        public bool $includeReasoning = false,
+        public ?Closure $onReasoning = null,
     ) {}
+
+    /**
+     * Whether this request asks the model to think at all.
+     */
+    public function wantsReasoning(): bool
+    {
+        return $this->reasoningEffort !== null && $this->reasoningEffort !== ReasoningEffort::None;
+    }
+
+    /**
+     * Hands a reasoning fragment to the caller's callback, when one was given.
+     */
+    public function emitReasoning(string $fragment): void
+    {
+        if ($fragment !== '' && $this->onReasoning !== null) {
+            ($this->onReasoning)($fragment);
+        }
+    }
 
     /**
      * Estimate the total input token count (rough: 1 token ≈ 4 chars).

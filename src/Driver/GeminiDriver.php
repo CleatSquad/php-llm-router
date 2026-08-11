@@ -15,6 +15,7 @@ use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
+use LlmRouter\Enum\ReasoningEffort;
 use LlmRouter\Http\HttpClient;
 use RuntimeException;
 
@@ -182,6 +183,16 @@ class GeminiDriver implements LLMDriverInterface
         $parts = $data['candidates'][0]['content']['parts'] ?? [];
         [$textContent, $toolCalls] = $this->extractParts($parts);
 
+        // Gemini has no dedicated thought block: a thinking part is an ordinary
+        // text part flagged thought:true, so it must be filtered out of the
+        // answer rather than concatenated into it.
+        $reasoning = '';
+        foreach ($parts as $part) {
+            if (($part['thought'] ?? false) === true) {
+                $reasoning .= $part['text'] ?? '';
+            }
+        }
+
         $finishReason = $data['candidates'][0]['finishReason'] ?? 'STOP';
         $promptTokens = (int) ($data['usageMetadata']['promptTokenCount'] ?? 0);
         $completionTokens = (int) ($data['usageMetadata']['candidatesTokenCount'] ?? 0);
@@ -199,7 +210,8 @@ class GeminiDriver implements LLMDriverInterface
             costUsd: $costUsd,
             latencyMs: $latencyMs,
             toolCalls: $toolCalls === [] ? null : $toolCalls,
-            finishReason: $finishReason
+            finishReason: $finishReason,
+            reasoning: $reasoning !== '' ? $reasoning : null,
         );
     }
 
@@ -296,7 +308,7 @@ class GeminiDriver implements LLMDriverInterface
 
     public function supportsReasoning(): bool
     {
-        return false;
+        return true;
     }
 
     public function estimateCost(LLMRequest $request): CostEstimate
@@ -333,6 +345,23 @@ class GeminiDriver implements LLMDriverInterface
         if ($request->maxTokens !== null) {
             $generationConfig['maxOutputTokens'] = $request->maxTokens;
         }
+        // Gemini takes a thinking *budget* rather than an effort, with 0
+        // meaning off and -1 letting the model decide. The neutral effort is
+        // mapped onto that scale; includeThoughts is what actually returns the
+        // summary, which otherwise costs tokens invisibly.
+        if ($request->reasoningEffort !== null) {
+            $generationConfig['thinkingConfig'] = [
+                'thinkingBudget' => match ($request->reasoningEffort) {
+                    ReasoningEffort::None => 0,
+                    ReasoningEffort::Low => 2048,
+                    ReasoningEffort::Medium => 8192,
+                    ReasoningEffort::High => 16384,
+                    ReasoningEffort::XHigh, ReasoningEffort::Max => -1,
+                },
+                'includeThoughts' => $request->includeReasoning,
+            ];
+        }
+
         if ($generationConfig !== []) {
             $payload['generationConfig'] = $generationConfig;
         }
@@ -349,7 +378,7 @@ class GeminiDriver implements LLMDriverInterface
      * Splits OpenAI-style messages into Gemini's system instruction + "contents" (role: user/model).
      * Bug fixed 2026-08-01: casting content to string silently dropped every image behind a multi-part vision array.
      *
-     * @param array<int, array{role: string, content: mixed}> $messages
+     * @param array<int, array<string, mixed>> $messages
      * @return array{0: string, 1: array<int, array{role: string, parts: array<int, array<string, mixed>>}>}
      */
     private function splitSystemAndConvert(array $messages): array
@@ -438,6 +467,13 @@ class GeminiDriver implements LLMDriverInterface
         $toolCalls = [];
 
         foreach ($parts as $part) {
+            if (($part['thought'] ?? false) === true) {
+                // Gemini has no dedicated thought block: a thinking part is an
+                // ordinary text part flagged thought:true. Concatenating it
+                // would splice the model's scratch work into the answer.
+                continue;
+            }
+
             if (isset($part['text'])) {
                 $text .= (string)$part['text'];
             } elseif (isset($part['functionCall'])) {

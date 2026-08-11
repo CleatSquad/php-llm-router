@@ -8,12 +8,14 @@ use DateTimeImmutable;
 use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
+use LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
+use LlmRouter\Enum\ReasoningEffort;
 use LlmRouter\Http\HttpClient;
 use RuntimeException;
 
@@ -23,6 +25,7 @@ use RuntimeException;
 class KimiDriver implements LLMDriverInterface
 {
     use ParsesChatCompletionSse;
+    use ReplaysChatCompletionReasoning;
 
     private string $moonshotUrl;
     private string $moonshotApiKey;
@@ -153,7 +156,7 @@ class KimiDriver implements LLMDriverInterface
 
         $payload = [
             'model' => $model,
-            'messages' => $request->messages,
+            'messages' => self::withReplayedReasoning($request->messages, 'reasoning_content'),
             'stream' => $request->stream,
         ];
 
@@ -168,6 +171,10 @@ class KimiDriver implements LLMDriverInterface
         if ($request->tools !== null) {
             $payload['tools'] = $request->tools;
         }
+
+        // Moonshot has no switch: reasoning is a property of the k2-thinking
+        // family, so an effort here only documents intent. The trace still
+        // comes back, and still has to be replayed on the next turn.
 
         $startTime = microtime(true);
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
@@ -189,6 +196,7 @@ class KimiDriver implements LLMDriverInterface
         }
 
         $content = $data['choices'][0]['message']['content'] ?? '';
+        $reasoning = $data['choices'][0]['message']['reasoning_content'] ?? null;
         if (is_array($content)) {
             $textParts = [];
             foreach ($content as $part) {
@@ -227,7 +235,8 @@ class KimiDriver implements LLMDriverInterface
             costUsd: $costUsd,
             latencyMs: $latencyMs,
             toolCalls: $toolCalls,
-            finishReason: $finishReason
+            finishReason: $finishReason,
+            reasoning: is_string($reasoning) && $reasoning !== '' ? $reasoning : null,
         );
     }
 
@@ -240,7 +249,7 @@ class KimiDriver implements LLMDriverInterface
 
         $payload = [
             'model' => $model,
-            'messages' => $request->messages,
+            'messages' => self::withReplayedReasoning($request->messages, 'reasoning_content'),
             'stream' => true,
         ];
 
@@ -256,6 +265,10 @@ class KimiDriver implements LLMDriverInterface
             $payload['tools'] = $request->tools;
         }
 
+        // Moonshot has no switch: reasoning is a property of the k2-thinking
+        // family, so an effort here only documents intent. The trace still
+        // comes back, and still has to be replayed on the next turn.
+
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
 
         try {
@@ -270,7 +283,7 @@ class KimiDriver implements LLMDriverInterface
             throw new RuntimeException('Kimi stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        return yield from self::readChatCompletionSse($response->getBody());
+        return yield from self::readChatCompletionSse($response->getBody(), $request);
     }
 
     /**
@@ -298,7 +311,7 @@ class KimiDriver implements LLMDriverInterface
 
     public function supportsReasoning(): bool
     {
-        return false;
+        return true;
     }
 
     public function estimateCost(LLMRequest $request): CostEstimate
