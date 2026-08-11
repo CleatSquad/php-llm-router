@@ -55,8 +55,8 @@ final class ModelResolutionTest extends TestCase
         return [
             'Claude' => [ClaudeDriver::class, 'claude-sonnet-5', 'claude-does-not-exist'],
             'OpenAI' => [OpenAiDriver::class, 'gpt-4o-mini', 'gpt-5'],
-            'Gemini' => [GeminiDriver::class, 'gemini-flash-lite-latest', 'gemini-9-ultra'],
-            'DeepSeek' => [DeepSeekDriver::class, 'deepseek-chat', 'deepseek-reasoner-v9'],
+            'Gemini' => [GeminiDriver::class, 'gemini-2.5-flash-lite', 'gemini-9-ultra'],
+            'DeepSeek' => [DeepSeekDriver::class, 'deepseek-v4-flash', 'deepseek-reasoner-v9'],
             'Groq' => [GroqDriver::class, 'llama-3.1-8b-instant', 'llama-99b'],
             'Mistral' => [MistralDriver::class, 'mistral-small-latest', 'mistral-enormous'],
         ];
@@ -143,6 +143,32 @@ final class ModelResolutionTest extends TestCase
         $this->assertGreaterThanOrEqual(
             0.0,
             $driver->estimateCost($this->request('anthropic/claude-sonnet-5'))->estimatedCostUsd
+        );
+    }
+
+    public function testAModelIdThatLegitimatelyContainsASlashIsNotTruncated(): void
+    {
+        // Groq serves "openai/gpt-oss-120b" — the slash is part of the name,
+        // not a provider prefix. Stripping eagerly turned a known model into
+        // an unknown one and raised UnknownModelException.
+        $driver = new \LlmRouter\Driver\GroqDriver($this->http());
+
+        $this->assertContains('openai/gpt-oss-120b', $driver->getModels());
+        $this->assertGreaterThan(
+            0.0,
+            $driver->estimateCost($this->request('openai/gpt-oss-120b'))->estimatedCostUsd
+        );
+    }
+
+    public function testAProviderPrefixIsStillStrippedWhenTheFullNameIsUnknown(): void
+    {
+        $driver = new \LlmRouter\Driver\GroqDriver($this->http());
+
+        // "groq/llama-3.1-8b-instant" isn't a catalogue entry, but the part
+        // after the prefix is — proxied setups depend on this.
+        $this->assertGreaterThan(
+            0.0,
+            $driver->estimateCost($this->request('groq/llama-3.1-8b-instant'))->estimatedCostUsd
         );
     }
 

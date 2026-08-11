@@ -30,7 +30,7 @@ final class DeepSeekDriverTest extends TestCase
         return new DeepSeekDriver(new HttpClient($client), deepSeekApiKey: $deepSeekApiKey);
     }
 
-    private function chatResponse(string $content = 'Bonjour !', string $model = 'deepseek-chat'): Response
+    private function chatResponse(string $content = 'Bonjour !', string $model = 'deepseek-v4-flash'): Response
     {
         return new Response(200, [], json_encode([
             'choices' => [['message' => ['content' => $content], 'finish_reason' => 'stop']],
@@ -41,19 +41,19 @@ final class DeepSeekDriverTest extends TestCase
 
     public function testChatMapsResponseAndComputesCostFromPricingTable(): void
     {
-        $driver = $this->driverWithMockedResponses([$this->chatResponse('Bonjour !', 'deepseek-reasoner')]);
+        $driver = $this->driverWithMockedResponses([$this->chatResponse('Bonjour !', 'deepseek-v4-pro')]);
 
         $response = $driver->chat(new LLMRequest(
             messages: [['role' => 'user', 'content' => 'Salut']],
-            model: 'deepseek-reasoner'
+            model: 'deepseek-v4-pro'
         ));
 
         $this->assertSame('Bonjour !', $response->content);
         $this->assertSame(10, $response->promptTokens);
         $this->assertSame(5, $response->completionTokens);
         $this->assertSame(15, $response->totalTokens);
-        // (10 * 0.00055 + 5 * 0.00219) / 1000
-        $this->assertEqualsWithDelta(0.00001645, $response->costUsd, 1e-9);
+        // (10 * 0.000435 + 5 * 0.00087) / 1000
+        $this->assertEqualsWithDelta(0.0000087, $response->costUsd, 1e-9);
     }
 
     public function testChatSendsBearerAuthorizationHeader(): void
@@ -116,7 +116,7 @@ final class DeepSeekDriverTest extends TestCase
         $this->assertTrue($driver->supportsTools());
         $this->assertFalse($driver->supportsVision());
         // DeepSeek is the only OpenAI-compatible direct driver in this set
-        // that flags reasoning support (deepseek-reasoner).
+        // that flags reasoning support (deepseek-v4-pro).
         $this->assertTrue($driver->supportsReasoning());
     }
 
@@ -127,15 +127,15 @@ final class DeepSeekDriverTest extends TestCase
         // 16 chars => ceil(16/4) = 4 input tokens.
         $request = new LLMRequest(
             messages: [['role' => 'user', 'content' => 'a message of 16c']],
-            model: 'deepseek-reasoner'
+            model: 'deepseek-v4-pro'
         );
 
         $estimate = $driver->estimateCost($request);
 
-        $this->assertSame(0.00055, $estimate->inputCostPer1k);
-        $this->assertSame(0.00219, $estimate->outputCostPer1k);
+        $this->assertSame(0.000435, $estimate->inputCostPer1k);
+        $this->assertSame(0.00087, $estimate->outputCostPer1k);
         $this->assertSame(4 + 200, $estimate->estimatedTokens);
-        $expectedCost = ((4 * 0.00055) + (200 * 0.00219)) / 1000;
+        $expectedCost = ((4 * 0.000435) + (200 * 0.00087)) / 1000;
         $this->assertEqualsWithDelta($expectedCost, $estimate->estimatedCostUsd, 1e-9);
     }
 
@@ -143,6 +143,6 @@ final class DeepSeekDriverTest extends TestCase
     {
         $driver = $this->driverWithMockedResponses([]);
 
-        $this->assertSame(['deepseek-chat', 'deepseek-reasoner'], $driver->getModels());
+        $this->assertSame(['deepseek-v4-flash', 'deepseek-v4-pro'], $driver->getModels());
     }
 }

@@ -30,11 +30,14 @@ class DeepSeekDriver implements LLMDriverInterface
     use ResolvesPricedModel;
 
     /** Used when a request names no model at all — a caller declining to choose. */
-    private const DEFAULT_MODEL = 'deepseek-chat';
+    private const DEFAULT_MODEL = 'deepseek-v4-flash';
 
     private const PRICING = [
-        'deepseek-chat' => ['input' => 0.00027, 'output' => 0.0011],
-        'deepseek-reasoner' => ['input' => 0.00055, 'output' => 0.00219],
+        // USD per 1k tokens, cache-miss input rate. DeepSeek also bills a much
+        // lower cache-hit input rate; estimates use the miss rate, so a
+        // cache-heavy workload costs less than estimated, never more.
+        'deepseek-v4-flash' => ['input' => 0.00014, 'output' => 0.00028],
+        'deepseek-v4-pro' => ['input' => 0.000435, 'output' => 0.00087],
     ];
 
     use ParsesChatCompletionSse;

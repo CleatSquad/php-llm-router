@@ -32,9 +32,14 @@ class MistralDriver implements LLMDriverInterface
     private const DEFAULT_MODEL = 'mistral-small-latest';
 
     private const PRICING = [
-        'mistral-large-latest' => ['input' => 0.002, 'output' => 0.006],
-        'mistral-small-latest' => ['input' => 0.0002, 'output' => 0.0006],
+        // USD per 1k tokens = Mistral's published per-million rate / 1000.
+        'mistral-medium-latest' => ['input' => 0.0015, 'output' => 0.0075],
+        'mistral-large-latest' => ['input' => 0.0005, 'output' => 0.0015],
+        'mistral-small-latest' => ['input' => 0.00015, 'output' => 0.0006],
         'codestral-latest' => ['input' => 0.0003, 'output' => 0.0009],
+        'ministral-8b-latest' => ['input' => 0.00015, 'output' => 0.00015],
+        // Kept for callers still naming it, though it no longer appears on
+        // Mistral's pricing page — the rate below is the last one published.
         'open-mistral-nemo' => ['input' => 0.00015, 'output' => 0.00015],
     ];
 

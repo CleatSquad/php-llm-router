@@ -12,6 +12,52 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
+## [2.3.0] — 2026-08-11
+
+### Fixed
+
+- **Two drivers defaulted to a model that no longer exists.** `DeepSeekDriver`
+  defaulted to `deepseek-chat` and `GeminiDriver` to `gemini-flash-lite-latest`;
+  both were retired by their providers (DeepSeek's aliases on 2026-07-24). Every
+  call that named no model was failing at the provider. Defaults are now
+  `deepseek-v4-flash` and `gemini-2.5-flash-lite`.
+- **Mistral Large was priced at four times its real rate.** The table claimed
+  $2/$6 per million tokens; Mistral Large 3 is $0.5/$1.5. `mistral-small-latest`
+  input was also overstated ($0.2 vs $0.15). Cost estimates for those models
+  were wrong by a wide margin, reported with full confidence.
+- **A model ID containing a slash was truncated.** `resolveModel()` treated
+  everything before a `/` as a provider prefix, so Groq's `openai/gpt-oss-120b`
+  became `gpt-oss-120b` and raised `UnknownModelException`. The full name is now
+  tried first, and the prefix stripped only if that fails — so
+  `anthropic/claude-sonnet-5` still resolves.
+- Retired catalogue entries removed: `deepseek-chat`, `deepseek-reasoner`,
+  `gemini-2.0-flash` (shut down 2026-06-01), `gemini-1.5-flash`,
+  `gemini-flash-lite-latest`.
+
+### Added
+
+- Current models across four providers, priced from each provider's published
+  per-million rates: Gemini 3.6/3.5/3.1 and 2.5 Flash-Lite; `deepseek-v4-flash`
+  and `deepseek-v4-pro`; `mistral-medium-latest` and `ministral-8b-latest`;
+  Groq's `openai/gpt-oss-120b` and `openai/gpt-oss-20b`.
+- **`bin/check-model-drift.php` and a weekly `model-drift` workflow.** Compares
+  each driver's catalogue against the provider's own `/models` endpoint and
+  opens (or updates, or closes) a single issue describing the drift. It reports
+  and never edits: model existence is checkable, pricing is not exposed by any
+  provider's API, and a scraped rate that turned out wrong would make
+  `estimateCost()` confidently incorrect — worse than a stale figure.
+
+### Note on verification
+
+Groq's `llama-3.3-70b-versatile` and `llama-3.1-8b-instant`, Gemini's
+`gemini-2.5-pro` and `gemini-2.5-flash`, Mistral's `codestral-latest`, and all
+Anthropic rates were checked against the providers' published pricing and were
+already correct. `gemma2-9b-it` and `open-mistral-nemo` no longer appear on
+their providers' pages but were kept rather than removed, since callers may
+still name them; their last published rates stand.
+
+---
+
 ## [2.2.0] — 2026-08-11
 
 ### Added

@@ -111,20 +111,30 @@ trait ResolvesPricedModel
             return self::DEFAULT_MODEL;
         }
 
-        // "anthropic/claude-sonnet-5" and "claude-sonnet-5" name the same
-        // model; callers routing through a proxy often carry the prefix.
-        if (str_contains($model, '/')) {
-            $model = explode('/', $model)[1];
+        $pricing = $this->modelPricing();
+
+        // Check the name as given first: some model IDs genuinely contain a
+        // slash (Groq serves "openai/gpt-oss-120b"), and stripping eagerly
+        // would turn a known model into an unknown one.
+        if (isset($pricing[$model])) {
+            return $model;
         }
 
-        if (isset($this->modelPricing()[$model])) {
-            return $model;
+        // Otherwise treat a slash as a provider prefix — "anthropic/claude-sonnet-5"
+        // and "claude-sonnet-5" name the same model, and callers routing through
+        // a proxy often carry the prefix.
+        if (str_contains($model, '/')) {
+            $withoutPrefix = explode('/', $model, 2)[1];
+
+            if (isset($pricing[$withoutPrefix])) {
+                return $withoutPrefix;
+            }
         }
 
         throw new UnknownModelException(
             static::class,
             $model,
-            array_keys($this->modelPricing()),
+            array_keys($pricing),
         );
     }
 }

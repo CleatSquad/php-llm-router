@@ -1,0 +1,134 @@
+name: Model drift
+
+# Watches for the failure mode that shipped in v2.2.0 and was only caught by
+# hand: a catalogue entry the provider had already retired (DeepSeek's and
+# Gemini's default models had been gone for months), or a new model the
+# catalogue doesn't know about.
+#
+# It reports; it does not edit. Model *existence* is checkable against each
+# provider's /models endpoint, but pricing is not exposed by any of them — so a
+# bot that "fixed" the table would have to invent rates, and a confidently
+# wrong price is worse than a stale one. The issue this opens carries the facts;
+# a human looks up the rates and opens the PR.
+
+on:
+  schedule:
+    # Mondays, 06:00 UTC — a week's drift is caught before it reaches a release.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    name: Compare catalogues against provider APIs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Check for drift
+        id: check
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set +e
+          php bin/check-model-drift.php > drift.md 2> drift.log
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat drift.log
+
+      - name: Open or update the drift issue
+        if: steps.check.outputs.status == '1'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = [
+              'The shipped model catalogues no longer match what the providers serve.',
+              '',
+              fs.readFileSync('drift.md', 'utf8'),
+              '',
+              '---',
+              '',
+              '**Pricing is deliberately not checked here.** No provider exposes rates over its API,',
+              'and a scraped price that turns out wrong would make `estimateCost()` confidently',
+              'incorrect — worse than a stale figure. Look the rates up against the provider\'s',
+              'pricing page before adding or correcting an entry.',
+              '',
+              '_Opened by the weekly `model-drift` workflow._',
+            ].join('\n');
+
+            const title = 'Model catalogue drift';
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'model-drift',
+            });
+
+            if (existing.data.length > 0) {
+              // Rewrite rather than comment: the current state is what matters,
+              // and a thread of weekly deltas is harder to act on than one
+              // accurate list.
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                title,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['model-drift'],
+              });
+            }
+
+      - name: Close the drift issue once the catalogues match
+        if: steps.check.outputs.status == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'model-drift',
+            });
+
+            for (const issue of open.data) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+              });
+            }
+
+      - name: Fail if no provider could be checked
+        if: steps.check.outputs.status == '2'
+        run: |
+          echo "::warning::No provider API key is configured — the drift check ran blind."
+          exit 0

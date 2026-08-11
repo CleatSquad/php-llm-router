@@ -52,8 +52,9 @@ final class MistralDriverTest extends TestCase
         $this->assertSame(10, $response->promptTokens);
         $this->assertSame(5, $response->completionTokens);
         $this->assertSame(15, $response->totalTokens);
-        // (10 * 0.002 + 5 * 0.006) / 1000
-        $this->assertEqualsWithDelta(0.00005, $response->costUsd, 1e-9);
+        // (10 * 0.0005 + 5 * 0.0015) / 1000 — Mistral Large 3 is $0.5/$1.5 per
+        // million tokens; the table previously claimed four times that.
+        $this->assertEqualsWithDelta(0.0000125, $response->costUsd, 1e-9);
     }
 
     public function testChatSendsBearerAuthorizationHeader(): void
@@ -151,7 +152,14 @@ final class MistralDriverTest extends TestCase
         $driver = $this->driverWithMockedResponses([]);
 
         $this->assertSame(
-            ['mistral-large-latest', 'mistral-small-latest', 'codestral-latest', 'open-mistral-nemo'],
+            [
+                'mistral-medium-latest',
+                'mistral-large-latest',
+                'mistral-small-latest',
+                'codestral-latest',
+                'ministral-8b-latest',
+                'open-mistral-nemo',
+            ],
             $driver->getModels()
         );
     }
