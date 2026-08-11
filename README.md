@@ -330,6 +330,62 @@ $strategy = new RoundRobinStrategy(weights: ['key-a' => 2, 'key-b' => 1]); // ke
 $driver = $strategy->select($request, $drivers); // cycles, skipping unavailable ones
 ```
 
+## Model selection
+
+Each provider driver ships a pricing table that doubles as its model
+catalogue — `getModels()` returns exactly what it can serve and cost.
+
+```php
+$driver->getModels(); // ['gpt-4o', 'gpt-4o-mini']
+```
+
+**A model you name explicitly is either used or refused.** Asking for one the
+driver has no pricing for throws `UnknownModelException` rather than quietly
+answering with the driver's default, which is what earlier versions did — you
+asked for `gpt-5`, got `gpt-4o-mini`, and were billed for `gpt-4o-mini` with
+nothing saying so.
+
+```php
+use LlmRouter\Exception\UnknownModelException;
+
+try {
+    $response = $driver->chat(new LLMRequest($messages, model: 'gpt-5'));
+} catch (UnknownModelException $e) {
+    $e->requestedModel; // 'gpt-5'
+    $e->knownModels;    // ['gpt-4o', 'gpt-4o-mini']
+}
+```
+
+Passing no model at all is unchanged — that is declining to choose, not being
+overruled, and resolves to the driver's default.
+
+### Models newer than this release
+
+The tables lag behind the providers. Register a model with its pricing instead
+of waiting for a new version of the package:
+
+```php
+$driver = new OpenAiDriver($http, openAiApiKey: $key, extraModelPricing: [
+    'gpt-5' => ['input' => 0.00125, 'output' => 0.01], // USD per 1k tokens
+]);
+```
+
+Your entries win over the shipped table, so this also corrects a stale price,
+and they show up in `getModels()`.
+
+### In a fail-over chain
+
+`UnknownModelException` is a `RuntimeException`, so `FailoverDriver` fails over
+on it: a chain asking for `gpt-5` skips the drivers that don't know it and
+lands on the one that does — the routing the silent substitution used to hide.
+
+### Two drivers resolve differently
+
+- **`KimiDriver`** has no pricing table and forwards whatever name it is given.
+- **`OllamaDriver`** resolves against the models actually installed on your
+  local server, fuzzy-matching the closest one and never picking an embedding
+  model as a chat fallback.
+
 ## Sharing state across processes
 
 Three decorators keep state between calls: `CachingDriver` (cached responses),

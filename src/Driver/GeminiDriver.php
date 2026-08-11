@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\NormalizesVisionContent;
+use LlmRouter\Driver\Concern\ResolvesPricedModel;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\HealthStatus;
@@ -25,6 +26,11 @@ class GeminiDriver implements LLMDriverInterface
 {
     use NormalizesVisionContent;
 
+    use ResolvesPricedModel;
+
+    /** Used when a request names no model at all — a caller declining to choose. */
+    private const DEFAULT_MODEL = 'gemini-flash-lite-latest';
+
     private const PRICING = [
         'gemini-2.5-pro' => ['input' => 0.00125, 'output' => 0.01],
         'gemini-2.5-flash' => ['input' => 0.0003, 'output' => 0.0025],
@@ -38,12 +44,20 @@ class GeminiDriver implements LLMDriverInterface
     private string $geminiUrl;
     private string $geminiApiKey;
 
+    /**
+     * @param array<string, array{input: float, output: float}> $extraModelPricing
+     *   Pricing per 1k tokens for models this release predates, merged over the
+     *   shipped table. Without an entry here, an unknown model is rejected
+     *   rather than silently served by the default one.
+     */
     public function __construct(
         private readonly HttpClient $httpClient,
         string $geminiUrl = 'https://generativelanguage.googleapis.com/v1beta',
         string $geminiApiKey = '',
-        private readonly float $localLlmTimeout = 30.0
+        private readonly float $localLlmTimeout = 30.0,
+        array $extraModelPricing = [],
     ) {
+        $this->extraModelPricing = $extraModelPricing;
         $this->geminiUrl = rtrim($geminiUrl, '/');
         $this->geminiApiKey = $geminiApiKey;
     }
@@ -173,7 +187,7 @@ class GeminiDriver implements LLMDriverInterface
         $completionTokens = (int) ($data['usageMetadata']['candidatesTokenCount'] ?? 0);
         $totalTokens = (int) ($data['usageMetadata']['totalTokenCount'] ?? ($promptTokens + $completionTokens));
 
-        $pricing = self::PRICING[$model] ?? self::PRICING['gemini-flash-lite-latest'];
+        $pricing = $this->pricingFor($model);
         $costUsd = (($promptTokens * $pricing['input']) + ($completionTokens * $pricing['output'])) / 1000;
 
         return new LLMResponse(
@@ -262,7 +276,7 @@ class GeminiDriver implements LLMDriverInterface
      */
     public function getModels(): array
     {
-        return array_keys(self::PRICING);
+        return array_keys($this->modelPricing());
     }
 
     public function supportsStreaming(): bool
@@ -289,7 +303,7 @@ class GeminiDriver implements LLMDriverInterface
     {
         $model = $this->resolveModel($request->model);
         $inputTokens = $request->estimateInputTokens();
-        $pricing = self::PRICING[$model] ?? self::PRICING['gemini-flash-lite-latest'];
+        $pricing = $this->pricingFor($model);
 
         $estimatedOutputTokens = $request->maxTokens ?? 200;
         $estimatedTokens = $inputTokens + $estimatedOutputTokens;
@@ -298,16 +312,6 @@ class GeminiDriver implements LLMDriverInterface
         return new CostEstimate($pricing['input'], $pricing['output'], $estimatedTokens, $estimatedCostUsd);
     }
 
-    private function resolveModel(?string $model): string
-    {
-        $model = $model ?? 'gemini-flash-lite-latest';
-
-        if (str_contains($model, '/')) {
-            $model = explode('/', $model)[1];
-        }
-
-        return isset(self::PRICING[$model]) ? $model : 'gemini-flash-lite-latest';
-    }
 
     /**
      * @return array<string, mixed>

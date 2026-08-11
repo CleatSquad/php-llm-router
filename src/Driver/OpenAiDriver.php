@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
+use LlmRouter\Driver\Concern\ResolvesPricedModel;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\HealthStatus;
@@ -22,6 +23,11 @@ use RuntimeException;
  */
 class OpenAiDriver implements LLMDriverInterface
 {
+    use ResolvesPricedModel;
+
+    /** Used when a request names no model at all — a caller declining to choose. */
+    private const DEFAULT_MODEL = 'gpt-4o-mini';
+
     private const PRICING = [
         'gpt-4o' => ['input' => 0.0025, 'output' => 0.01],
         'gpt-4o-mini' => ['input' => 0.00015, 'output' => 0.0006],
@@ -32,12 +38,20 @@ class OpenAiDriver implements LLMDriverInterface
     private string $openAiUrl;
     private string $openAiApiKey;
 
+    /**
+     * @param array<string, array{input: float, output: float}> $extraModelPricing
+     *   Pricing per 1k tokens for models this release predates, merged over the
+     *   shipped table. Without an entry here, an unknown model is rejected
+     *   rather than silently served by the default one.
+     */
     public function __construct(
         private readonly HttpClient $httpClient,
         string $openAiUrl = 'https://api.openai.com/v1',
         string $openAiApiKey = '',
-        private readonly float $localLlmTimeout = 30.0
+        private readonly float $localLlmTimeout = 30.0,
+        array $extraModelPricing = [],
     ) {
+        $this->extraModelPricing = $extraModelPricing;
         $this->openAiUrl = rtrim($openAiUrl, '/');
         $this->openAiApiKey = $openAiApiKey;
     }
@@ -190,7 +204,7 @@ class OpenAiDriver implements LLMDriverInterface
         $completionTokens = (int) ($data['usage']['completion_tokens'] ?? 0);
         $totalTokens = (int) ($data['usage']['total_tokens'] ?? 0);
 
-        $pricing = self::PRICING[$model] ?? self::PRICING['gpt-4o-mini'];
+        $pricing = $this->pricingFor($model);
         $costUsd = (($promptTokens * $pricing['input']) + ($completionTokens * $pricing['output'])) / 1000;
 
         return new LLMResponse(
@@ -253,7 +267,7 @@ class OpenAiDriver implements LLMDriverInterface
      */
     public function getModels(): array
     {
-        return array_keys(self::PRICING);
+        return array_keys($this->modelPricing());
     }
 
     public function supportsStreaming(): bool
@@ -280,7 +294,7 @@ class OpenAiDriver implements LLMDriverInterface
     {
         $model = $this->resolveModel($request->model);
         $inputTokens = $request->estimateInputTokens();
-        $pricing = self::PRICING[$model] ?? self::PRICING['gpt-4o-mini'];
+        $pricing = $this->pricingFor($model);
 
         $estimatedOutputTokens = $request->maxTokens ?? 200;
         $estimatedTokens = $inputTokens + $estimatedOutputTokens;
@@ -289,16 +303,6 @@ class OpenAiDriver implements LLMDriverInterface
         return new CostEstimate($pricing['input'], $pricing['output'], $estimatedTokens, $estimatedCostUsd);
     }
 
-    private function resolveModel(?string $model): string
-    {
-        $model = $model ?? 'gpt-4o-mini';
-
-        if (str_contains($model, '/')) {
-            $model = explode('/', $model)[1];
-        }
-
-        return isset(self::PRICING[$model]) ? $model : 'gpt-4o-mini';
-    }
 
     /**
      * @return array<string, string>

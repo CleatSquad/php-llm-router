@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\NormalizesVisionContent;
+use LlmRouter\Driver\Concern\ResolvesPricedModel;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\HealthStatus;
@@ -26,6 +27,11 @@ class ClaudeDriver implements LLMDriverInterface
 
     private const ANTHROPIC_VERSION = '2023-06-01';
 
+    use ResolvesPricedModel;
+
+    /** Used when a request names no model at all — a caller declining to choose. */
+    private const DEFAULT_MODEL = 'claude-sonnet-5';
+
     /** @var array<string, array{input: float, output: float}> Cost per 1k tokens in USD */
     private const PRICING = [
         'claude-opus-4-8' => ['input' => 0.005, 'output' => 0.025],
@@ -38,12 +44,20 @@ class ClaudeDriver implements LLMDriverInterface
     private string $anthropicUrl;
     private string $anthropicApiKey;
 
+    /**
+     * @param array<string, array{input: float, output: float}> $extraModelPricing
+     *   Pricing per 1k tokens for models this release predates, merged over the
+     *   shipped table. Without an entry here, an unknown model is rejected
+     *   rather than silently served by the default one.
+     */
     public function __construct(
         private readonly HttpClient $httpClient,
         string $anthropicUrl = 'https://api.anthropic.com/v1',
         string $anthropicApiKey = '',
-        private readonly float $localLlmTimeout = 30.0
+        private readonly float $localLlmTimeout = 30.0,
+        array $extraModelPricing = [],
     ) {
+        $this->extraModelPricing = $extraModelPricing;
         $this->anthropicUrl = rtrim($anthropicUrl, '/');
         $this->anthropicApiKey = $anthropicApiKey;
     }
@@ -202,7 +216,7 @@ class ClaudeDriver implements LLMDriverInterface
         $completionTokens = (int) ($data['usage']['output_tokens'] ?? 0);
         $totalTokens = $promptTokens + $completionTokens;
 
-        $pricing = self::PRICING[$model] ?? self::PRICING['claude-sonnet-5'];
+        $pricing = $this->pricingFor($model);
         $costUsd = (($promptTokens * $pricing['input']) + ($completionTokens * $pricing['output'])) / 1000;
 
         return new LLMResponse(
@@ -326,7 +340,7 @@ class ClaudeDriver implements LLMDriverInterface
      */
     public function getModels(): array
     {
-        return array_keys(self::PRICING);
+        return array_keys($this->modelPricing());
     }
 
     public function supportsStreaming(): bool
@@ -353,7 +367,7 @@ class ClaudeDriver implements LLMDriverInterface
     {
         $model = $this->resolveModel($request->model);
         $inputTokens = $request->estimateInputTokens();
-        $pricing = self::PRICING[$model] ?? self::PRICING['claude-sonnet-5'];
+        $pricing = $this->pricingFor($model);
 
         $estimatedOutputTokens = $request->maxTokens ?? 200;
         $estimatedTokens = $inputTokens + $estimatedOutputTokens;
@@ -362,17 +376,6 @@ class ClaudeDriver implements LLMDriverInterface
         return new CostEstimate($pricing['input'], $pricing['output'], $estimatedTokens, $estimatedCostUsd);
     }
 
-    private function resolveModel(?string $model): string
-    {
-        $model = $model ?? 'claude-sonnet-5';
-
-        // Strip provider prefix if present
-        if (str_contains($model, '/')) {
-            $model = explode('/', $model)[1];
-        }
-
-        return isset(self::PRICING[$model]) ? $model : 'claude-sonnet-5';
-    }
 
     /**
      * Splits OpenAI-style messages (may include a "system" role) into Anthropic's system prompt + message list.
