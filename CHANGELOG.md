@@ -12,7 +12,7 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
-## [Unreleased]
+## [2.1.0] — 2026-08-11
 
 ### Added
 
