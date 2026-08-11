@@ -37,14 +37,14 @@ use LlmRouter\Exception\UnsupportedReasoningException;
  */
 trait ResolvesPricedModel
 {
-    /** @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> */
+    /** @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}> */
     private array $extraModelPricing = [];
 
     /**
      * Every model this driver can serve and price: the shipped table, plus
      * whatever the caller registered.
      *
-     * @return array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}>
+     * @return array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}>
      */
     private function modelPricing(): array
     {
@@ -56,9 +56,11 @@ trait ResolvesPricedModel
     /**
      * Entries may carry capability flags beside the rates: `reasoning => false`
      * marks a model that cannot reason, `thinkingAlwaysOn => true` one whose
-     * thinking cannot be switched off. Absent flags take the driver's default.
+     * thinking cannot be switched off, and `reasoningEffort`/`reasoningFormat`
+     * record which spelling of the reasoning parameters a model accepts where
+     * a provider serves more than one. Absent flags take the driver's default.
      *
-     * @return array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}
+     * @return array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}
      */
     private function pricingFor(string $model): array
     {

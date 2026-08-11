@@ -80,10 +80,14 @@ final class ReasoningAcrossDriversTest extends TestCase
         );
     }
 
-    private function request(ReasoningEffort $effort = ReasoningEffort::High, bool $include = true): LLMRequest
-    {
+    private function request(
+        ReasoningEffort $effort = ReasoningEffort::High,
+        bool $include = true,
+        ?string $model = null,
+    ): LLMRequest {
         return new LLMRequest(
             messages: [['role' => 'user', 'content' => 'hi']],
+            model: $model,
             reasoningEffort: $effort,
             includeReasoning: $include,
         );
@@ -105,7 +109,7 @@ final class ReasoningAcrossDriversTest extends TestCase
     }
 
     /**
-     * @return array<string, array{0: callable(HttpClient): LLMDriverInterface, 1: Response, 2: string}>
+     * @return array<string, array{0: callable(HttpClient): LLMDriverInterface, 1: string, 2?: string}>
      */
     public static function tracingDrivers(): array
     {
@@ -125,6 +129,7 @@ final class ReasoningAcrossDriversTest extends TestCase
             'Groq' => [
                 static fn (HttpClient $h): LLMDriverInterface => new GroqDriver($h),
                 'reasoning',
+                'qwen/qwen3.6-27b',
             ],
         ];
     }
@@ -133,9 +138,10 @@ final class ReasoningAcrossDriversTest extends TestCase
      * @param callable(HttpClient): LLMDriverInterface $make
      */
     #[DataProvider('tracingDrivers')]
-    public function testTheTraceComesBackSeparatelyFromTheAnswer(callable $make, string $field): void
+    public function testTheTraceComesBackSeparatelyFromTheAnswer(callable $make, string $field, ?string $model = null): void
     {
-        $response = $make($this->http($this->chatCompletion($field)))->chat($this->request());
+        $response = $make($this->http($this->chatCompletion($field)))
+            ->chat($this->request(model: $model));
 
         $this->assertSame('The answer.', $response->content, 'reasoning must not leak into the answer');
         $this->assertSame('The reasoning.', $response->reasoning);
@@ -146,13 +152,14 @@ final class ReasoningAcrossDriversTest extends TestCase
      * @param callable(HttpClient): LLMDriverInterface $make
      */
     #[DataProvider('tracingDrivers')]
-    public function testTheTraceIsReplayedUnderTheProviderOwnKey(callable $make, string $field): void
+    public function testTheTraceIsReplayedUnderTheProviderOwnKey(callable $make, string $field, ?string $model = null): void
     {
         $driver = $make($this->http($this->chatCompletion($field)));
 
-        $first = $driver->chat($this->request());
+        $first = $driver->chat($this->request(model: $model));
         $driver->chat(new LLMRequest(
             messages: [['role' => 'user', 'content' => 'hi'], $first->toMessage()],
+            model: $model,
             reasoningEffort: ReasoningEffort::High,
             includeReasoning: true,
         ));
@@ -220,7 +227,8 @@ final class ReasoningAcrossDriversTest extends TestCase
 
     public function testGroqAsksForTheTraceToBeParsedIntoItsOwnField(): void
     {
-        (new GroqDriver($this->http($this->chatCompletion('reasoning'))))->chat($this->request());
+        (new GroqDriver($this->http($this->chatCompletion('reasoning'))))
+            ->chat($this->request(model: 'qwen/qwen3.6-27b'));
 
         $payload = $this->lastPayload();
 
@@ -232,7 +240,7 @@ final class ReasoningAcrossDriversTest extends TestCase
     public function testGroqEffortNoneTurnsThinkingOff(): void
     {
         (new GroqDriver($this->http($this->chatCompletion('reasoning'))))
-            ->chat($this->request(ReasoningEffort::None, include: false));
+            ->chat($this->request(ReasoningEffort::None, include: false, model: 'qwen/qwen3.6-27b'));
 
         $this->assertSame('none', $this->lastPayload()['reasoning_effort']);
     }

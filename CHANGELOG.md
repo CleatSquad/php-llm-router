@@ -12,6 +12,35 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
+## [3.1.0] — 2026-08-11
+
+### Fixed
+
+- **Groq's two reasoning dialects were conflated.** Groq serves both, and they
+  are not interchangeable: Qwen takes `reasoning_effort: none|default` and
+  accepts `reasoning_format`, while GPT-OSS takes the graded `low|medium|high`
+  and **rejects `reasoning_format` outright**. 2.1.0 sent Qwen's spelling to
+  every model, so any reasoning request against `openai/gpt-oss-*` carried two
+  invalid parameters. Each catalogue entry now records the dialect it speaks.
+- **Groq's Llama models are marked non-reasoning.** Groq documents no reasoning
+  parameters for `llama-3.3-70b-versatile` or `llama-3.1-8b-instant`, and the
+  latter is the driver's default — so an unqualified reasoning request sent
+  parameters the model does not accept. It now raises
+  `UnsupportedReasoningException` naming the models that do reason.
+
+### Added
+
+- `qwen/qwen3.6-27b` to the Groq catalogue ($0.60/$3.00 per million tokens),
+  the reasoning model that endpoint serves.
+- The drift checker declines `groq/compound*` and `allam-2-7b`: Groq publishes
+  no per-token rate for them — the compound entries are tool-orchestrating
+  systems rather than token-billed models — so there is nothing to put in a
+  pricing table.
+- Kimi is now watched by the drift checker; it was absent because the script
+  predated its catalogue.
+
+---
+
 ## [3.0.0] — 2026-08-11
 
 ### Breaking

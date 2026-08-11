@@ -33,7 +33,7 @@ class ClaudeDriver implements LLMDriverInterface
     /** Used when a request names no model at all — a caller declining to choose. */
     private const DEFAULT_MODEL = 'claude-sonnet-5';
 
-    /** @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> Cost per 1k tokens in USD */
+    /** @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}> Cost per 1k tokens in USD */
     private const PRICING = [
         // USD per 1k tokens. Verified against Anthropic's published per-million
         // rates: divide those by 1000. Every model here reasons — Anthropic's
@@ -56,7 +56,7 @@ class ClaudeDriver implements LLMDriverInterface
     private string $anthropicApiKey;
 
     /**
-     * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> $extraModelPricing
+     * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}> $extraModelPricing
      *   Pricing per 1k tokens for models this release predates, merged over the
      *   shipped table. Without an entry here, an unknown model is rejected
      *   rather than silently served by the default one.
