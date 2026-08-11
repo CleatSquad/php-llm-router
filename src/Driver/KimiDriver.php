@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
+use LlmRouter\Driver\Concern\ResolvesPricedModel;
 use LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
@@ -25,18 +26,50 @@ use RuntimeException;
 class KimiDriver implements LLMDriverInterface
 {
     use ParsesChatCompletionSse;
+    use ResolvesPricedModel;
+
+    /** Used when a request names no model at all — a caller declining to choose. */
+    private const DEFAULT_MODEL = 'kimi-k2.6';
+
+    /**
+     * USD per 1k tokens = Moonshot's published per-million rate / 1000, taken
+     * from the international endpoint (api.moonshot.ai). Cache-miss input rate;
+     * cache hits bill far less, so a cache-heavy workload costs less than
+     * estimated, never more.
+     *
+     * These rates do NOT apply to the mainland endpoint (api.moonshot.cn),
+     * which bills the moonshot-v1-* family in yuan. Register those with their
+     * own rates through $extraModelPricing if you use that endpoint — and
+     * convert them yourself, since CostEstimate reports USD.
+     *
+     * @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}>
+     */
+    private const PRICING = [
+        'kimi-k3' => ['input' => 0.003, 'output' => 0.015],
+        'kimi-k2.7-code' => ['input' => 0.00095, 'output' => 0.004],
+        'kimi-k2.6' => ['input' => 0.00095, 'output' => 0.004],
+        'kimi-k2.5' => ['input' => 0.0006, 'output' => 0.003],
+    ];
     use ReplaysChatCompletionReasoning;
 
     private string $moonshotUrl;
     private string $moonshotApiKey;
 
+    /**
+     * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> $extraModelPricing
+     *   Pricing per 1k tokens for models this release predates — or for the
+     *   mainland moonshot-v1-* family, whose yuan rates must be converted to
+     *   USD by the caller.
+     */
     public function __construct(
         private readonly HttpClient $httpClient,
         string $moonshotUrl = 'https://api.moonshot.cn/v1',
         string $moonshotApiKey = '',
         private readonly float $localLlmTimeout = 30.0,
-        private readonly string $moonshotModel = 'moonshot-v1-8k'
+        private readonly ?string $moonshotModel = null,
+        array $extraModelPricing = [],
     ) {
+        $this->extraModelPricing = $extraModelPricing;
         $this->moonshotUrl = rtrim($moonshotUrl, '/');
         $this->moonshotApiKey = $moonshotApiKey;
     }
@@ -126,17 +159,6 @@ class KimiDriver implements LLMDriverInterface
     /**
      * Moonshot's two platforms (api.moonshot.cn vs .ai) have disjoint, server-side-mutable catalogs, so an explicit model is trusted as-is rather than validated against a static whitelist. Only a null request falls back to the default.
      */
-    private function resolveModel(?string $requestedModel): string
-    {
-        $model = $requestedModel ?? $this->moonshotModel;
-
-        // Strip provider prefix if present
-        if (str_contains($model, '/')) {
-            $model = explode('/', $model)[1];
-        }
-
-        return $model;
-    }
 
     /**
      * K2 reasoning models (kimi-k2*) reject any temperature but exactly 1 with a 400 error, so it's overridden here rather than surfaced to every caller.
@@ -152,7 +174,7 @@ class KimiDriver implements LLMDriverInterface
 
     public function chat(LLMRequest $request): LLMResponse
     {
-        $model = $this->resolveModel($request->model);
+        $model = $this->resolveModel($request->model ?? $this->moonshotModel);
 
         $payload = [
             'model' => $model,
@@ -245,7 +267,7 @@ class KimiDriver implements LLMDriverInterface
      */
     public function stream(LLMRequest $request): Generator
     {
-        $model = $this->resolveModel($request->model);
+        $model = $this->resolveModel($request->model ?? $this->moonshotModel);
 
         $payload = [
             'model' => $model,
@@ -291,7 +313,7 @@ class KimiDriver implements LLMDriverInterface
      */
     public function getModels(): array
     {
-        return ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'];
+        return array_keys($this->modelPricing());
     }
 
     public function supportsStreaming(): bool
@@ -316,24 +338,15 @@ class KimiDriver implements LLMDriverInterface
 
     public function estimateCost(LLMRequest $request): CostEstimate
     {
-        $model = $request->model ?? 'moonshot-v1-8k';
+        $model = $this->resolveModel($request->model ?? $this->moonshotModel);
         $inputTokens = $request->estimateInputTokens();
-
-        $inputCostPer1k = 0.0016;
-        $outputCostPer1k = 0.0016;
-        if (str_contains($model, '32k')) {
-            $inputCostPer1k = 0.0033;
-            $outputCostPer1k = 0.0033;
-        } elseif (str_contains($model, '128k')) {
-            $inputCostPer1k = 0.0083;
-            $outputCostPer1k = 0.0083;
-        }
+        $pricing = $this->pricingFor($model);
 
         $estimatedOutputTokens = $request->maxTokens ?? 200;
         $estimatedTokens = $inputTokens + $estimatedOutputTokens;
-        $estimatedCostUsd = (($inputTokens * $inputCostPer1k) + ($estimatedOutputTokens * $outputCostPer1k)) / 1000;
+        $estimatedCostUsd = (($inputTokens * $pricing['input']) + ($estimatedOutputTokens * $pricing['output'])) / 1000;
 
-        return new CostEstimate($inputCostPer1k, $outputCostPer1k, $estimatedTokens, $estimatedCostUsd);
+        return new CostEstimate($pricing['input'], $pricing['output'], $estimatedTokens, $estimatedCostUsd);
     }
 
     /**

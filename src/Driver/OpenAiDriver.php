@@ -31,10 +31,24 @@ class OpenAiDriver implements LLMDriverInterface
     private const DEFAULT_MODEL = 'gpt-4o-mini';
 
     private const PRICING = [
-        // Neither of these accepts `reasoning_effort` — sending it is a 400.
-        // Register a reasoning model (o-series, gpt-5) through
-        // $extraModelPricing to use one; entries default to reasoning-capable.
-        'gpt-4o' => ['input' => 0.0025, 'output' => 0.01, 'reasoning' => false],
+        // USD per 1k tokens = OpenAI's published per-million rate / 1000.
+        // The GPT-5 family and the o-series accept `reasoning_effort`; the
+        // gpt-4o pair rejects it, hence the explicit flag on those two.
+        'gpt-5.6-sol' => ['input' => 0.005, 'output' => 0.030],
+        'gpt-5.6-terra' => ['input' => 0.002, 'output' => 0.012],
+        'gpt-5.6-luna' => ['input' => 0.0002, 'output' => 0.0012],
+        'gpt-5.5' => ['input' => 0.005, 'output' => 0.030],
+        'gpt-5.4' => ['input' => 0.0025, 'output' => 0.015],
+        'gpt-5' => ['input' => 0.00125, 'output' => 0.010],
+        'gpt-5-mini' => ['input' => 0.00025, 'output' => 0.002],
+        'gpt-5-nano' => ['input' => 0.00005, 'output' => 0.0004],
+        'o3-pro' => ['input' => 0.020, 'output' => 0.080],
+        'o3' => ['input' => 0.002, 'output' => 0.008],
+        'o3-mini' => ['input' => 0.0011, 'output' => 0.0044],
+        'o1-pro' => ['input' => 0.150, 'output' => 0.600],
+        'o1' => ['input' => 0.015, 'output' => 0.060],
+        // Neither accepts `reasoning_effort` — sending it is a 400.
+        'gpt-4o' => ['input' => 0.0025, 'output' => 0.010, 'reasoning' => false],
         'gpt-4o-mini' => ['input' => 0.00015, 'output' => 0.0006, 'reasoning' => false],
     ];
 

@@ -19,7 +19,7 @@ final class KimiDriverTest extends TestCase
     /**
      * @param Response[] $responses
      */
-    private function driverWithMockedResponses(array $responses, array &$history = [], string $moonshotModel = 'moonshot-v1-8k'): KimiDriver
+    private function driverWithMockedResponses(array $responses, array &$history = [], string $moonshotModel = 'kimi-k2.6'): KimiDriver
     {
         $handlerStack = HandlerStack::create(new MockHandler($responses));
         $handlerStack->push(Middleware::history($history));
@@ -53,7 +53,7 @@ final class KimiDriverTest extends TestCase
     public function testChatKeepsTheRequestedTemperatureForNonK2Models(): void
     {
         $history = [];
-        $driver = $this->driverWithMockedResponses([$this->chatResponse()], $history, moonshotModel: 'moonshot-v1-8k');
+        $driver = $this->driverWithMockedResponses([$this->chatResponse()], $history, moonshotModel: 'kimi-k3');
 
         $driver->chat(new LLMRequest(
             messages: [['role' => 'user', 'content' => 'Salut']],

@@ -25,8 +25,55 @@ declare(strict_types=1);
  *   it with total confidence. Price drift is therefore reported as "verify
  *   this by hand", never auto-corrected.
  *
+ * Two sources of false alarm are filtered out, learned from the first run:
+ *
+ *   Aliases. /v1/models lists dated snapshots — `claude-haiku-4-5-20251001` —
+ *   while catalogues store the stable alias `claude-haiku-4-5`. The alias is
+ *   valid and serving; reporting it as retired would have removed a working
+ *   model. An entry is only retired if no served ID starts with it.
+ *
+ *   Non-chat models. A provider's /models lists embeddings, speech, moderation
+ *   and realtime endpoints too. These drivers serve chat, so anything else is
+ *   noise — OpenAI alone contributed 122 lines of it on the first run, burying
+ *   the real findings.
+ *
  * Exit codes: 0 = no drift, 1 = drift found, 2 = could not check (no keys).
  */
+
+/**
+ * Whether a served model ID is a chat model this package could plausibly use.
+ */
+function isChatModel(string $id): bool
+{
+    foreach ([
+        'embedding', 'embed-', 'tts-', 'whisper', 'moderation', 'dall-e', 'davinci',
+        'babbage', 'realtime', 'transcribe', 'audio', 'image', 'guard', 'rerank',
+        'speech', 'orpheus', 'playai', 'veo', 'imagen', 'aqa', 'learnlm',
+    ] as $marker) {
+        if (str_contains($id, $marker)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * A catalogue entry is served if the provider lists it, or lists a dated
+ * snapshot of it (`claude-haiku-4-5` ← `claude-haiku-4-5-20251001`).
+ *
+ * @param string[] $live
+ */
+function isServed(string $entry, array $live): bool
+{
+    foreach ($live as $id) {
+        if ($id === $entry || str_starts_with($id, $entry . '-')) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -136,17 +183,26 @@ foreach ($providers as $name => $provider) {
 
     // A shipped model the provider no longer lists is the dangerous case: it
     // stays selectable, and every call using it fails at the provider.
-    $retired = array_values(array_diff($shipped, $live));
+    $retired = array_values(array_filter(
+        $shipped,
+        static fn (string $entry): bool => !isServed($entry, $live)
+    ));
 
     // A live model absent from the catalogue is only an opportunity — it can't
     // be added automatically, because its price isn't in this payload.
-    $missing = array_values(array_diff($live, $shipped));
+    $missing = array_values(array_filter(
+        $live,
+        static fn (string $id): bool => isChatModel($id) && !in_array($id, $shipped, true)
+            && !isServed($id, $shipped)
+    ));
 
     if ($retired !== []) {
         $findings[] = sprintf(
             "### %s — %d catalogue %s no longer served\n\n%s\n\n"
                 . "These are still selectable through the driver, so any call naming one fails at the provider. "
-                . "If one is a `DEFAULT_MODEL`, every call that names no model fails.",
+                . "If one is a `DEFAULT_MODEL`, every call that names no model fails.\n\n"
+                . "_A model restricted to your account tier (a preview or invite-only model) also shows up here — "
+                . "check before removing._",
             $name,
             count($retired),
             count($retired) === 1 ? 'entry' : 'entries',

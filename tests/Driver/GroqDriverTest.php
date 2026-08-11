@@ -152,7 +152,6 @@ final class GroqDriverTest extends TestCase
                 'llama-3.1-8b-instant',
                 'openai/gpt-oss-120b',
                 'openai/gpt-oss-20b',
-                'gemma2-9b-it',
             ],
             $driver->getModels()
         );

@@ -34,9 +34,6 @@ class GroqDriver implements LLMDriverInterface
         'llama-3.1-8b-instant' => ['input' => 0.00005, 'output' => 0.00008],
         'openai/gpt-oss-120b' => ['input' => 0.00015, 'output' => 0.0006],
         'openai/gpt-oss-20b' => ['input' => 0.000075, 'output' => 0.0003],
-        // Kept for callers still naming it, though it no longer appears in
-        // Groq's production model list — the rate below is the last published.
-        'gemma2-9b-it' => ['input' => 0.0002, 'output' => 0.0002],
     ];
 
     use Concern\HandlesHttpRateLimit;

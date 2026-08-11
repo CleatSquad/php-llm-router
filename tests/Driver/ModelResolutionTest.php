@@ -54,7 +54,7 @@ final class ModelResolutionTest extends TestCase
     {
         return [
             'Claude' => [ClaudeDriver::class, 'claude-sonnet-5', 'claude-does-not-exist'],
-            'OpenAI' => [OpenAiDriver::class, 'gpt-4o-mini', 'gpt-5'],
+            'OpenAI' => [OpenAiDriver::class, 'gpt-4o-mini', 'gpt-99-imaginary'],
             'Gemini' => [GeminiDriver::class, 'gemini-2.5-flash-lite', 'gemini-9-ultra'],
             'DeepSeek' => [DeepSeekDriver::class, 'deepseek-v4-flash', 'deepseek-reasoner-v9'],
             'Groq' => [GroqDriver::class, 'llama-3.1-8b-instant', 'llama-99b'],
@@ -175,12 +175,12 @@ final class ModelResolutionTest extends TestCase
     public function testExtraPricingRegistersAModelThisReleasePredates(): void
     {
         $driver = new OpenAiDriver($this->http(), extraModelPricing: [
-            'gpt-5' => ['input' => 0.00125, 'output' => 0.01],
+            'gpt-7-unreleased' => ['input' => 0.00125, 'output' => 0.01],
         ]);
 
-        $this->assertContains('gpt-5', $driver->getModels());
+        $this->assertContains('gpt-7-unreleased', $driver->getModels());
 
-        $cost = $driver->estimateCost($this->request('gpt-5'));
+        $cost = $driver->estimateCost($this->request('gpt-7-unreleased'));
         $this->assertGreaterThan(0.0, $cost->estimatedCostUsd);
     }
 
@@ -202,12 +202,29 @@ final class ModelResolutionTest extends TestCase
         $this->assertTrue(is_subclass_of(UnknownModelException::class, RuntimeException::class));
     }
 
-    public function testKimiStillPassesUnknownModelsStraightThrough(): void
+    public function testKimiNowRefusesAnUnknownModelLikeEveryOtherPricedDriver(): void
     {
-        // Kimi has no pricing table to validate against and deliberately
-        // forwards whatever it is given; this pins that it was left alone.
+        // Kimi used to forward any name it was given and price it from a
+        // hardcoded guess. It now carries a catalogue, so it refuses an
+        // unknown model rather than quoting a made-up rate for it.
         $driver = new \LlmRouter\Driver\KimiDriver($this->http());
 
-        $this->assertGreaterThanOrEqual(0.0, $driver->estimateCost($this->request('kimi-k99'))->estimatedCostUsd);
+        $this->expectException(UnknownModelException::class);
+        $driver->estimateCost($this->request('kimi-k99'));
+    }
+
+    public function testKimiPricesItsCatalogueInUsd(): void
+    {
+        $driver = new \LlmRouter\Driver\KimiDriver($this->http());
+
+        // $3 / $15 per million tokens on the international endpoint.
+        $cost = $driver->estimateCost(new LLMRequest(
+            messages: [['role' => 'user', 'content' => '']],
+            model: 'kimi-k3',
+            maxTokens: 1000,
+        ));
+
+        $this->assertSame(0.003, $cost->inputCostPer1k);
+        $this->assertSame(0.015, $cost->outputCostPer1k);
     }
 }
