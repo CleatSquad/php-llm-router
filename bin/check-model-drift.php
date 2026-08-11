@@ -51,7 +51,14 @@ declare(strict_types=1);
  *
  * @var string[]
  */
-const DECLINED = ['gpt-3.5', 'gpt-4-', 'gpt-4-0', 'gpt-4o-2024', 'gpt-4o-mini-2024'];
+const DECLINED = [
+    // Superseded OpenAI generations.
+    'gpt-3.5', 'gpt-4-', 'gpt-4-0', 'gpt-4o-2024', 'gpt-4o-mini-2024',
+    // Groq's compound systems orchestrate tools rather than serving tokens,
+    // and Groq publishes no per-token rate for them — there is nothing to put
+    // in a pricing table. allam-2-7b likewise has no published rate.
+    'groq/compound', 'allam-',
+];
 
 /**
  * Whether a served model ID is a chat model this package could plausibly use.

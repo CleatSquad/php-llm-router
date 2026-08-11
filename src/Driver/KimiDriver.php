@@ -42,7 +42,7 @@ class KimiDriver implements LLMDriverInterface
      * own rates through $extraModelPricing if you use that endpoint — and
      * convert them yourself, since CostEstimate reports USD.
      *
-     * @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}>
+     * @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}>
      */
     private const PRICING = [
         'kimi-k3' => ['input' => 0.003, 'output' => 0.015],
@@ -56,7 +56,7 @@ class KimiDriver implements LLMDriverInterface
     private string $moonshotApiKey;
 
     /**
-     * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> $extraModelPricing
+     * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}> $extraModelPricing
      *   Pricing per 1k tokens for models this release predates — or for the
      *   mainland moonshot-v1-* family, whose yuan rates must be converted to
      *   USD by the caller.

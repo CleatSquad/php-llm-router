@@ -30,10 +30,34 @@ class GroqDriver implements LLMDriverInterface
 
     private const PRICING = [
         // USD per 1k tokens = Groq's published per-million rate / 1000.
-        'llama-3.3-70b-versatile' => ['input' => 0.00059, 'output' => 0.00079],
-        'llama-3.1-8b-instant' => ['input' => 0.00005, 'output' => 0.00008],
-        'openai/gpt-oss-120b' => ['input' => 0.00015, 'output' => 0.0006],
-        'openai/gpt-oss-20b' => ['input' => 0.000075, 'output' => 0.0003],
+        //
+        // Groq serves two reasoning dialects and they are not interchangeable:
+        // Qwen takes reasoning_effort none|default and supports
+        // reasoning_format, while GPT-OSS takes low|medium|high and rejects
+        // reasoning_format outright. Sending one model the other's spelling is
+        // a 400, so each entry records which it speaks.
+        'qwen/qwen3.6-27b' => [
+            'input' => 0.0006,
+            'output' => 0.003,
+            'reasoningEffort' => 'binary',
+            'reasoningFormat' => true,
+        ],
+        'openai/gpt-oss-120b' => [
+            'input' => 0.00015,
+            'output' => 0.0006,
+            'reasoningEffort' => 'graded',
+            'reasoningFormat' => false,
+        ],
+        'openai/gpt-oss-20b' => [
+            'input' => 0.000075,
+            'output' => 0.0003,
+            'reasoningEffort' => 'graded',
+            'reasoningFormat' => false,
+        ],
+        // Instruction-tuned Llama models; Groq documents no reasoning
+        // parameters for them.
+        'llama-3.3-70b-versatile' => ['input' => 0.00059, 'output' => 0.00079, 'reasoning' => false],
+        'llama-3.1-8b-instant' => ['input' => 0.00005, 'output' => 0.00008, 'reasoning' => false],
     ];
 
     use Concern\HandlesHttpRateLimit;
@@ -44,7 +68,7 @@ class GroqDriver implements LLMDriverInterface
     private string $groqApiKey;
 
     /**
-     * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> $extraModelPricing
+     * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}> $extraModelPricing
      *   Pricing per 1k tokens for models this release predates, merged over the
      *   shipped table. Without an entry here, an unknown model is rejected
      *   rather than silently served by the default one.
@@ -167,15 +191,7 @@ class GroqDriver implements LLMDriverInterface
 
         // Groq returns the trace only when asked to parse it into its own
         // field; the default folds it into the answer as <think> tags.
-        if ($request->reasoningEffort !== null) {
-            $payload['reasoning_effort'] = $request->reasoningEffort === ReasoningEffort::None
-                ? 'none'
-                : 'default';
-        }
-
-        if ($request->includeReasoning) {
-            $payload['reasoning_format'] = 'parsed';
-        }
+        $payload = $this->applyReasoning($payload, $request, $model);
 
         $startTime = microtime(true);
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
@@ -268,15 +284,7 @@ class GroqDriver implements LLMDriverInterface
 
         // Groq returns the trace only when asked to parse it into its own
         // field; the default folds it into the answer as <think> tags.
-        if ($request->reasoningEffort !== null) {
-            $payload['reasoning_effort'] = $request->reasoningEffort === ReasoningEffort::None
-                ? 'none'
-                : 'default';
-        }
-
-        if ($request->includeReasoning) {
-            $payload['reasoning_format'] = 'parsed';
-        }
+        $payload = $this->applyReasoning($payload, $request, $model);
 
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
 
@@ -300,6 +308,46 @@ class GroqDriver implements LLMDriverInterface
     /**
      * @return string[]
      */
+
+    /**
+     * Adds Groq's reasoning parameters in the dialect the chosen model speaks.
+     *
+     * Qwen takes `reasoning_effort: none|default` and can return the trace in
+     * its own field via `reasoning_format`. GPT-OSS takes the graded
+     * `low|medium|high` and rejects `reasoning_format` entirely. Sending
+     * either model the other's spelling earns a 400, so the catalogue records
+     * which dialect each entry speaks and this picks accordingly.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function applyReasoning(array $payload, LLMRequest $request, string $model): array
+    {
+        if ($request->reasoningEffort === null) {
+            return $payload;
+        }
+
+        $this->assertModelCanReason($model, $request);
+
+        $pricing = $this->pricingFor($model);
+
+        $payload['reasoning_effort'] = ($pricing['reasoningEffort'] ?? 'binary') === 'graded'
+            ? $request->reasoningEffort->clampTo([
+                ReasoningEffort::Low,
+                ReasoningEffort::Medium,
+                ReasoningEffort::High,
+            ])->value
+            : ($request->reasoningEffort === ReasoningEffort::None ? 'none' : 'default');
+
+        // Without this the trace is folded into the answer as <think> tags —
+        // but only Qwen accepts the parameter at all.
+        if ($request->includeReasoning && ($pricing['reasoningFormat'] ?? false) === true) {
+            $payload['reasoning_format'] = 'parsed';
+        }
+
+        return $payload;
+    }
+
     public function getModels(): array
     {
         return array_keys($this->modelPricing());

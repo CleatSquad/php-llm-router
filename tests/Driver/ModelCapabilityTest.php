@@ -209,6 +209,54 @@ final class ModelCapabilityTest extends TestCase
         ));
     }
 
+    public function testGroqSpeaksEachModelsOwnReasoningDialect(): void
+    {
+        $answer = new Response(200, [], json_encode([
+            'model' => 'm',
+            'choices' => [['message' => ['content' => 'ok'], 'finish_reason' => 'stop']],
+            'usage' => ['prompt_tokens' => 1, 'completion_tokens' => 1, 'total_tokens' => 2],
+        ], JSON_THROW_ON_ERROR));
+
+        $request = static fn (string $model): LLMRequest => new LLMRequest(
+            messages: [['role' => 'user', 'content' => 'hi']],
+            model: $model,
+            reasoningEffort: ReasoningEffort::High,
+            includeReasoning: true,
+        );
+
+        // Qwen: binary effort, and it accepts reasoning_format.
+        (new \LlmRouter\Driver\GroqDriver($this->http($answer)))->chat($request('qwen/qwen3.6-27b'));
+        $qwen = $this->lastPayload();
+        $this->assertSame('default', $qwen['reasoning_effort']);
+        $this->assertSame('parsed', $qwen['reasoning_format']);
+
+        // GPT-OSS: graded effort, and reasoning_format is rejected outright —
+        // sending Qwen's spelling here was a guaranteed 400.
+        $this->sent = [];
+        (new \LlmRouter\Driver\GroqDriver($this->http($answer)))->chat($request('openai/gpt-oss-120b'));
+        $oss = $this->lastPayload();
+        $this->assertSame('high', $oss['reasoning_effort']);
+        $this->assertArrayNotHasKey('reasoning_format', $oss);
+    }
+
+    public function testGroqLlamaModelsAreMarkedAsNonReasoning(): void
+    {
+        $answer = new Response(200, [], json_encode([
+            'model' => 'm',
+            'choices' => [['message' => ['content' => 'ok'], 'finish_reason' => 'stop']],
+            'usage' => [],
+        ], JSON_THROW_ON_ERROR));
+
+        // Groq documents no reasoning parameters for the instruction-tuned
+        // Llama models, and llama-3.1-8b-instant is the driver's default —
+        // so a reasoning request used to go out on every unqualified call.
+        $this->expectException(UnsupportedReasoningException::class);
+        (new \LlmRouter\Driver\GroqDriver($this->http($answer)))->chat(new LLMRequest(
+            messages: [['role' => 'user', 'content' => 'hi']],
+            reasoningEffort: ReasoningEffort::High,
+        ));
+    }
+
     public function testNotAskingForReasoningWorksOnANonReasoningModel(): void
     {
         $driver = new OpenAiDriver($this->http($this->openAiAnswer()));
