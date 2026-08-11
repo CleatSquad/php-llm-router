@@ -41,6 +41,19 @@ declare(strict_types=1);
  */
 
 /**
+ * Generations this package deliberately does not catalogue.
+ *
+ * These are served and are genuine chat models, so the drift check is right to
+ * see them — but they are superseded, and adding them would mean carrying
+ * prices for models nobody should be starting new work on. Listing them here
+ * says "considered and declined" instead of letting them resurface every week.
+ * A caller who still needs one registers it through $extraModelPricing.
+ *
+ * @var string[]
+ */
+const DECLINED = ['gpt-3.5', 'gpt-4-', 'gpt-4-0', 'gpt-4o-2024', 'gpt-4o-mini-2024'];
+
+/**
  * Whether a served model ID is a chat model this package could plausibly use.
  */
 function isChatModel(string $id): bool
@@ -52,6 +65,12 @@ function isChatModel(string $id): bool
         'search-preview', 'tts', 'codex', 'computer-use',
     ] as $marker) {
         if (str_contains($id, $marker)) {
+            return false;
+        }
+    }
+
+    foreach (DECLINED as $declined) {
+        if ($id === rtrim($declined, '-') || str_starts_with($id, $declined)) {
             return false;
         }
     }
