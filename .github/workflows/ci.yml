@@ -28,6 +28,12 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
           tools: composer:v2
+          # Uninstall ext-redis so the Redis*Store tests run against the
+          # tests/Fixtures/FakeRedis stub, which is what they are written
+          # for. The runners ship the real extension, and a real \Redis with
+          # no server behind it fails every one of those tests — which is why
+          # this job had been red since before the store rework.
+          extensions: ':redis'
 
       - name: Validate composer.json
         run: composer validate --strict
