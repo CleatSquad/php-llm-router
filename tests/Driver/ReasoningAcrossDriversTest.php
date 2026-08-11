@@ -171,9 +171,14 @@ final class ReasoningAcrossDriversTest extends TestCase
 
     public function testOpenAiSendsTheEffortAndStripsTheNeutralKeysItWouldReject(): void
     {
-        $driver = new OpenAiDriver($this->http($this->chatCompletion('unused')));
+        // gpt-4o rejects reasoning_effort outright, so a reasoning request has
+        // to name a reasoning model — registered here the way a caller would.
+        $driver = new OpenAiDriver($this->http($this->chatCompletion('unused')), extraModelPricing: [
+            'gpt-5' => ['input' => 0.00125, 'output' => 0.01],
+        ]);
 
         $driver->chat(new LLMRequest(
+            model: 'gpt-5',
             messages: [
                 ['role' => 'user', 'content' => 'hi'],
                 ['role' => 'assistant', 'content' => 'prior', 'reasoning' => 'private thoughts'],
@@ -191,8 +196,16 @@ final class ReasoningAcrossDriversTest extends TestCase
 
     public function testOpenAiNeverReportsATraceEvenWhenAsked(): void
     {
-        $response = (new OpenAiDriver($this->http($this->chatCompletion('reasoning_content'))))
-            ->chat($this->request());
+        $driver = new OpenAiDriver($this->http($this->chatCompletion('reasoning_content')), extraModelPricing: [
+            'gpt-5' => ['input' => 0.00125, 'output' => 0.01],
+        ]);
+
+        $response = $driver->chat(new LLMRequest(
+            messages: [['role' => 'user', 'content' => 'hi']],
+            model: 'gpt-5',
+            reasoningEffort: ReasoningEffort::High,
+            includeReasoning: true,
+        ));
 
         // The provider keeps its reasoning private and only bills for it.
         $this->assertNull($response->reasoning);
