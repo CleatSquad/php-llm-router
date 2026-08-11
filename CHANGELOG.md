@@ -12,6 +12,40 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
+## [2.2.0] — 2026-08-11
+
+### Added
+
+- **The current Anthropic models are in the catalogue.** `ClaudeDriver` knew
+  only `claude-opus-4-8`, `claude-sonnet-5` and `claude-haiku-4-5`, so since
+  2.0.0 asking for `claude-opus-5` — Anthropic's recommended model — raised
+  `UnknownModelException`. Added `claude-opus-5`, `claude-fable-5`,
+  `claude-mythos-5`, `claude-opus-4-7`, `claude-opus-4-6` and
+  `claude-sonnet-4-6`, priced from the published per-million rates. The three
+  existing entries were already correct and are unchanged.
+- **Per-model capability flags.** A pricing entry may now carry
+  `reasoning => false` (the model cannot reason) or `thinkingAlwaysOn => true`
+  (its thinking cannot be switched off) beside its rates. Absent flags keep the
+  driver's default, so existing `$extraModelPricing` entries are unaffected.
+- `Exception\UnsupportedReasoningException`, a `RuntimeException` so
+  `FailoverDriver` can move to a driver whose model does reason.
+
+### Fixed
+
+- **Reasoning on OpenAI was a guaranteed 400.** 2.1.0 sent `reasoning_effort`
+  to whatever model was resolved, and both models in the shipped catalogue —
+  `gpt-4o` and `gpt-4o-mini` — reject that parameter outright. They are now
+  marked `reasoning => false`, and a reasoning request against them fails with
+  a message naming the model and pointing at `$extraModelPricing` instead of an
+  opaque provider error. Two tests added in 2.1.0 were themselves building
+  requests the API would have rejected.
+- **Asking Claude Fable 5 not to think was a 400.** Thinking is always on for
+  `claude-fable-5` and `claude-mythos-5`; `thinking: {type: "disabled"}` is
+  rejected there. `ReasoningEffort::None` now omits the thinking block for
+  those models rather than sending an instruction they refuse.
+
+---
+
 ## [2.1.0] — 2026-08-11
 
 ### Added

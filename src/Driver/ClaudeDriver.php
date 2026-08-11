@@ -33,10 +33,20 @@ class ClaudeDriver implements LLMDriverInterface
     /** Used when a request names no model at all — a caller declining to choose. */
     private const DEFAULT_MODEL = 'claude-sonnet-5';
 
-    /** @var array<string, array{input: float, output: float}> Cost per 1k tokens in USD */
+    /** @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> Cost per 1k tokens in USD */
     private const PRICING = [
+        // USD per 1k tokens. Verified against Anthropic's published per-million
+        // rates: divide those by 1000. Every model here reasons — Anthropic's
+        // current line is thinking-capable throughout — so none carries an
+        // explicit 'reasoning' => false.
+        'claude-fable-5' => ['input' => 0.010, 'output' => 0.050, 'thinkingAlwaysOn' => true],
+        'claude-mythos-5' => ['input' => 0.010, 'output' => 0.050, 'thinkingAlwaysOn' => true],
+        'claude-opus-5' => ['input' => 0.005, 'output' => 0.025],
         'claude-opus-4-8' => ['input' => 0.005, 'output' => 0.025],
+        'claude-opus-4-7' => ['input' => 0.005, 'output' => 0.025],
+        'claude-opus-4-6' => ['input' => 0.005, 'output' => 0.025],
         'claude-sonnet-5' => ['input' => 0.003, 'output' => 0.015],
+        'claude-sonnet-4-6' => ['input' => 0.003, 'output' => 0.015],
         'claude-haiku-4-5' => ['input' => 0.001, 'output' => 0.005],
     ];
 
@@ -46,7 +56,7 @@ class ClaudeDriver implements LLMDriverInterface
     private string $anthropicApiKey;
 
     /**
-     * @param array<string, array{input: float, output: float}> $extraModelPricing
+     * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> $extraModelPricing
      *   Pricing per 1k tokens for models this release predates, merged over the
      *   shipped table. Without an entry here, an unknown model is rejected
      *   rather than silently served by the default one.
@@ -453,7 +463,14 @@ class ClaudeDriver implements LLMDriverInterface
         }
 
         if ($request->reasoningEffort === ReasoningEffort::None) {
-            $payload['thinking'] = ['type' => 'disabled'];
+            // Claude Fable 5 and Mythos 5 always think: sending
+            // `thinking: {type: "disabled"}` to them is a 400, so the only way
+            // to express "don't think" there is to say nothing and let the
+            // model's own default stand.
+            if (($this->pricingFor($payload['model'])['thinkingAlwaysOn'] ?? false) !== true) {
+                $payload['thinking'] = ['type' => 'disabled'];
+            }
+
             return $payload;
         }
 

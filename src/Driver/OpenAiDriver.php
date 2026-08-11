@@ -31,8 +31,11 @@ class OpenAiDriver implements LLMDriverInterface
     private const DEFAULT_MODEL = 'gpt-4o-mini';
 
     private const PRICING = [
-        'gpt-4o' => ['input' => 0.0025, 'output' => 0.01],
-        'gpt-4o-mini' => ['input' => 0.00015, 'output' => 0.0006],
+        // Neither of these accepts `reasoning_effort` — sending it is a 400.
+        // Register a reasoning model (o-series, gpt-5) through
+        // $extraModelPricing to use one; entries default to reasoning-capable.
+        'gpt-4o' => ['input' => 0.0025, 'output' => 0.01, 'reasoning' => false],
+        'gpt-4o-mini' => ['input' => 0.00015, 'output' => 0.0006, 'reasoning' => false],
     ];
 
     use ParsesChatCompletionSse;
@@ -42,7 +45,7 @@ class OpenAiDriver implements LLMDriverInterface
     private string $openAiApiKey;
 
     /**
-     * @param array<string, array{input: float, output: float}> $extraModelPricing
+     * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> $extraModelPricing
      *   Pricing per 1k tokens for models this release predates, merged over the
      *   shipped table. Without an entry here, an unknown model is rejected
      *   rather than silently served by the default one.
@@ -166,6 +169,7 @@ class OpenAiDriver implements LLMDriverInterface
         // OpenAI spends reasoning tokens but never returns the trace, so
         // $includeReasoning has nothing to act on here — only the effort does.
         if ($request->reasoningEffort !== null) {
+            $this->assertModelCanReason($model, $request);
             $payload['reasoning_effort'] = $request->reasoningEffort->value;
         }
 
@@ -257,6 +261,7 @@ class OpenAiDriver implements LLMDriverInterface
         // OpenAI spends reasoning tokens but never returns the trace, so
         // $includeReasoning has nothing to act on here — only the effort does.
         if ($request->reasoningEffort !== null) {
+            $this->assertModelCanReason($model, $request);
             $payload['reasoning_effort'] = $request->reasoningEffort->value;
         }
 

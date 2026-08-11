@@ -42,7 +42,7 @@ class GroqDriver implements LLMDriverInterface
     private string $groqApiKey;
 
     /**
-     * @param array<string, array{input: float, output: float}> $extraModelPricing
+     * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> $extraModelPricing
      *   Pricing per 1k tokens for models this release predates, merged over the
      *   shipped table. Without an entry here, an unknown model is rejected
      *   rather than silently served by the default one.

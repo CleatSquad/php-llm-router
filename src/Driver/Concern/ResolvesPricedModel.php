@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace LlmRouter\Driver\Concern;
 
+use LlmRouter\DTO\LLMRequest;
 use LlmRouter\Exception\UnknownModelException;
+use LlmRouter\Exception\UnsupportedReasoningException;
 
 /**
  * Model resolution for the drivers whose PRICING table doubles as their model
@@ -35,14 +37,14 @@ use LlmRouter\Exception\UnknownModelException;
  */
 trait ResolvesPricedModel
 {
-    /** @var array<string, array{input: float, output: float}> */
+    /** @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}> */
     private array $extraModelPricing = [];
 
     /**
      * Every model this driver can serve and price: the shipped table, plus
      * whatever the caller registered.
      *
-     * @return array<string, array{input: float, output: float}>
+     * @return array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}>
      */
     private function modelPricing(): array
     {
@@ -52,11 +54,51 @@ trait ResolvesPricedModel
     }
 
     /**
-     * @return array{input: float, output: float}
+     * Entries may carry capability flags beside the rates: `reasoning => false`
+     * marks a model that cannot reason, `thinkingAlwaysOn => true` one whose
+     * thinking cannot be switched off. Absent flags take the driver's default.
+     *
+     * @return array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool}
      */
     private function pricingFor(string $model): array
     {
         return $this->modelPricing()[$model] ?? self::PRICING[self::DEFAULT_MODEL];
+    }
+
+    /**
+     * Refuses a reasoning request the chosen model cannot serve.
+     *
+     * Providers answer that with an opaque 400 — OpenAI does exactly that for
+     * `reasoning_effort` on gpt-4o. Failing here names the model, the driver,
+     * and the models that would have worked instead.
+     *
+     * Only models the catalogue explicitly marks `reasoning => false` are
+     * refused: a model registered through $extraModelPricing is trusted to
+     * reason unless its entry says otherwise, so this never blocks a model
+     * this release simply predates.
+     *
+     * @throws UnsupportedReasoningException
+     */
+    private function assertModelCanReason(string $model, LLMRequest $request): void
+    {
+        if (!$request->wantsReasoning()) {
+            return;
+        }
+
+        $pricing = $this->modelPricing();
+
+        if (($pricing[$model]['reasoning'] ?? true) !== false) {
+            return;
+        }
+
+        throw new UnsupportedReasoningException(
+            static::class,
+            $model,
+            array_keys(array_filter(
+                $pricing,
+                static fn (array $entry): bool => ($entry['reasoning'] ?? true) !== false
+            )),
+        );
     }
 
     /**

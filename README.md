@@ -466,6 +466,30 @@ $next = $driver->chat(new LLMRequest($messages, tools: $tools));
 | `MistralDriver` | `prompt_mode: "reasoning"` | Yes, `reasoning_content` |
 | `KimiDriver` | nothing — reasoning is a property of the `k2-thinking` models | Yes, `reasoning_content` |
 
+### Which models actually reason
+
+A pricing entry can carry capability flags beside its rates:
+
+```php
+new OpenAiDriver($http, openAiApiKey: $key, extraModelPricing: [
+    'gpt-5' => ['input' => 0.00125, 'output' => 0.01],                        // reasons
+    'some-model' => ['input' => 0.0001, 'output' => 0.0002, 'reasoning' => false],
+]);
+```
+
+`gpt-4o` and `gpt-4o-mini` ship marked `reasoning => false`, because OpenAI
+rejects `reasoning_effort` on them. Asking them to reason raises
+`UnsupportedReasoningException` — naming the model and what to do — instead of
+letting the provider answer `400 Bad Request`. Entries you register are trusted
+to reason unless they say otherwise, so a model this release predates is never
+blocked by the check. `KimiDriver` and `OllamaDriver` have no catalogue and
+perform no such check.
+
+Anthropic's `claude-fable-5` and `claude-mythos-5` carry
+`thinkingAlwaysOn => true`: their thinking cannot be switched off, so
+`ReasoningEffort::None` omits the thinking block there rather than sending a
+`disabled` instruction the API rejects.
+
 **`supportsReasoning()` describes the driver, not your model.** It says this
 driver knows how to express a reasoning request; whether the model you picked
 honours it is a separate question. Sending `reasoning_effort` to a
