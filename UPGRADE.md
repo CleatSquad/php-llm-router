@@ -1,6 +1,11 @@
 # Upgrade guide
 
-## 1.14.x → next major
+## 1.14.x → 2.0.0
+
+**This major release carries exactly one breaking change.** Nothing else moved:
+no interface, no signature, no constructor order, and the PHP floor stays at
+8.2. If you never pass an explicit model name, `composer require` is the whole
+migration.
 
 ### Unknown models are refused instead of silently substituted
 

@@ -12,7 +12,11 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
-## [Unreleased]
+## [2.0.0] — 2026-08-11
+
+Single-change major: the only breaking item is model resolution. Everything
+else in 1.14.1 is unchanged, so upgrading is a `composer require` plus the
+check described in UPGRADE.md.
 
 ### Breaking
 
