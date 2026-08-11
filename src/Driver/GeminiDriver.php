@@ -30,14 +30,21 @@ class GeminiDriver implements LLMDriverInterface
     use ResolvesPricedModel;
 
     /** Used when a request names no model at all — a caller declining to choose. */
-    private const DEFAULT_MODEL = 'gemini-flash-lite-latest';
+    private const DEFAULT_MODEL = 'gemini-2.5-flash-lite';
 
     private const PRICING = [
+        // USD per 1k tokens = Google's published per-million rate / 1000.
+        // Long-prompt (>200k) tiers are not modelled; estimates use the base
+        // rate, so a very large prompt is under-estimated rather than wrong in
+        // the other direction.
+        'gemini-3.6-flash' => ['input' => 0.0015, 'output' => 0.0075],
+        'gemini-3.5-flash' => ['input' => 0.0015, 'output' => 0.009],
+        'gemini-3.5-flash-lite' => ['input' => 0.0003, 'output' => 0.0025],
+        'gemini-3.1-pro-preview' => ['input' => 0.002, 'output' => 0.012],
+        'gemini-3.1-flash-lite' => ['input' => 0.00025, 'output' => 0.0015],
         'gemini-2.5-pro' => ['input' => 0.00125, 'output' => 0.01],
         'gemini-2.5-flash' => ['input' => 0.0003, 'output' => 0.0025],
-        'gemini-2.0-flash' => ['input' => 0.0001, 'output' => 0.0004],
-        'gemini-1.5-flash' => ['input' => 0.000075, 'output' => 0.0003],
-        'gemini-flash-lite-latest' => ['input' => 0.000075, 'output' => 0.0003],
+        'gemini-2.5-flash-lite' => ['input' => 0.0001, 'output' => 0.0004],
     ];
 
     use Concern\HandlesHttpRateLimit;

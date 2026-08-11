@@ -46,7 +46,7 @@ final class GeminiDriverTest extends TestCase
             ['role' => 'user', 'content' => 'Salut'],
             ['role' => 'assistant', 'content' => 'Bonjour, comment puis-je aider ?'],
             ['role' => 'user', 'content' => 'Dis bonjour'],
-        ], model: 'gemini-2.0-flash'));
+        ], model: 'gemini-2.5-flash'));
 
         $this->assertSame('Bonjour !', $response->content);
         $this->assertSame(10, $response->promptTokens);
@@ -159,7 +159,7 @@ final class GeminiDriverTest extends TestCase
                 ['type' => 'text', 'text' => 'Que vois-tu ?'],
                 ['type' => 'image_url', 'image_url' => ['url' => 'data:image/jpeg;base64,ZmFrZWRhdGE=']],
             ]],
-        ], model: 'gemini-2.0-flash'));
+        ], model: 'gemini-2.5-flash'));
 
         $sentBody = json_decode((string) $history[0]['request']->getBody(), true);
         $parts = $sentBody['contents'][0]['parts'];
@@ -181,7 +181,7 @@ final class GeminiDriverTest extends TestCase
 
         $driver->chat(new LLMRequest(messages: [
             ['role' => 'user', 'content' => 'Un message texte normal'],
-        ], model: 'gemini-2.0-flash'));
+        ], model: 'gemini-2.5-flash'));
 
         $sentBody = json_decode((string) $history[0]['request']->getBody(), true);
         $this->assertSame('Un message texte normal', $sentBody['contents'][0]['parts'][0]['text']);
