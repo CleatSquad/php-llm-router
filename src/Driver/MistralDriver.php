@@ -6,6 +6,7 @@ namespace LlmRouter\Driver;
 
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
+use LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
 use LlmRouter\Driver\Concern\ResolvesPricedModel;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthStatus;
@@ -13,6 +14,7 @@ use LlmRouter\DTO\HealthState;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
+use LlmRouter\Enum\ReasoningEffort;
 use LlmRouter\Http\HttpClient;
 use DateTimeImmutable;
 use Generator;
@@ -38,6 +40,7 @@ class MistralDriver implements LLMDriverInterface
 
     use Concern\HandlesHttpRateLimit;
     use ParsesChatCompletionSse;
+    use ReplaysChatCompletionReasoning;
 
     private string $mistralUrl;
     private string $mistralApiKey;
@@ -148,7 +151,7 @@ class MistralDriver implements LLMDriverInterface
 
         $payload = [
             'model' => $model,
-            'messages' => $request->messages,
+            'messages' => self::withReplayedReasoning($request->messages, 'reasoning_content'),
             'stream' => $request->stream,
         ];
 
@@ -162,6 +165,12 @@ class MistralDriver implements LLMDriverInterface
 
         if ($request->tools !== null) {
             $payload['tools'] = $request->tools;
+        }
+
+        // Magistral reasons by virtue of its system prompt; prompt_mode is the
+        // switch, and there is no effort dial to map onto.
+        if ($request->wantsReasoning()) {
+            $payload['prompt_mode'] = 'reasoning';
         }
 
         $startTime = microtime(true);
@@ -191,6 +200,7 @@ class MistralDriver implements LLMDriverInterface
         }
 
         $content = $data['choices'][0]['message']['content'] ?? '';
+        $reasoning = $data['choices'][0]['message']['reasoning_content'] ?? null;
         if (is_array($content)) {
             $textParts = [];
             foreach ($content as $part) {
@@ -222,7 +232,8 @@ class MistralDriver implements LLMDriverInterface
             costUsd: $costUsd,
             latencyMs: $latencyMs,
             toolCalls: $toolCalls,
-            finishReason: $finishReason
+            finishReason: $finishReason,
+            reasoning: is_string($reasoning) && $reasoning !== '' ? $reasoning : null,
         );
     }
 
@@ -235,7 +246,7 @@ class MistralDriver implements LLMDriverInterface
 
         $payload = [
             'model' => $model,
-            'messages' => $request->messages,
+            'messages' => self::withReplayedReasoning($request->messages, 'reasoning_content'),
             'stream' => true,
         ];
 
@@ -249,6 +260,12 @@ class MistralDriver implements LLMDriverInterface
 
         if ($request->tools !== null) {
             $payload['tools'] = $request->tools;
+        }
+
+        // Magistral reasons by virtue of its system prompt; prompt_mode is the
+        // switch, and there is no effort dial to map onto.
+        if ($request->wantsReasoning()) {
+            $payload['prompt_mode'] = 'reasoning';
         }
 
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
@@ -268,7 +285,7 @@ class MistralDriver implements LLMDriverInterface
             throw new RuntimeException('Mistral stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        return yield from self::readChatCompletionSse($response->getBody());
+        return yield from self::readChatCompletionSse($response->getBody(), $request);
     }
 
     /**
@@ -296,7 +313,7 @@ class MistralDriver implements LLMDriverInterface
 
     public function supportsReasoning(): bool
     {
-        return false;
+        return true;
     }
 
     public function estimateCost(LLMRequest $request): CostEstimate

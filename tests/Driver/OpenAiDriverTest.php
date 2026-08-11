@@ -115,7 +115,11 @@ final class OpenAiDriverTest extends TestCase
         $this->assertTrue($driver->supportsStreaming());
         $this->assertTrue($driver->supportsTools());
         $this->assertTrue($driver->supportsVision());
-        $this->assertFalse($driver->supportsReasoning());
+        // Was false until this driver learned to express a reasoning request.
+        // It reports what the *driver* can translate, not what the model you
+        // picked will accept — see "Reasoning" in the README for which models
+        // actually honour it.
+        $this->assertTrue($driver->supportsReasoning());
     }
 
     public function testEstimateCostUsesPricingForResolvedModelAndDefaultOutputBudget(): void

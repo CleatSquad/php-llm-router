@@ -13,6 +13,7 @@ use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
+use LlmRouter\Enum\ReasoningEffort;
 use LlmRouter\Http\HttpClient;
 use RuntimeException;
 
@@ -213,6 +214,20 @@ class OllamaDriver implements LLMDriverInterface
             $payload['options']['num_predict'] = $request->maxTokens;
         }
 
+        // Ollama's `think` takes these very level names, so the neutral effort
+        // maps across unchanged. Whether the model honours it depends on the
+        // model: a non-thinking one simply ignores the flag.
+        if ($request->reasoningEffort !== null) {
+            $payload['think'] = $request->reasoningEffort === ReasoningEffort::None
+                ? false
+                : $request->reasoningEffort->clampTo([
+                    ReasoningEffort::Low,
+                    ReasoningEffort::Medium,
+                    ReasoningEffort::High,
+                    ReasoningEffort::Max,
+                ])->value;
+        }
+
         $startTime = microtime(true);
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
         try {
@@ -232,6 +247,7 @@ class OllamaDriver implements LLMDriverInterface
         }
 
         $content = $data['message']['content'] ?? '';
+        $reasoning = $data['message']['thinking'] ?? null;
         $finishReason = $data['done_reason'] ?? 'stop';
 
         $promptTokens = (int) ($data['prompt_eval_count'] ?? 0);
@@ -252,7 +268,8 @@ class OllamaDriver implements LLMDriverInterface
             costUsd: 0.0, // Local execution is free
             latencyMs: $latencyMs,
             toolCalls: null,
-            finishReason: $finishReason
+            finishReason: $finishReason,
+            reasoning: is_string($reasoning) && $reasoning !== '' ? $reasoning : null,
         );
     }
 
@@ -277,6 +294,20 @@ class OllamaDriver implements LLMDriverInterface
 
         if ($request->maxTokens !== null) {
             $payload['options']['num_predict'] = $request->maxTokens;
+        }
+
+        // Ollama's `think` takes these very level names, so the neutral effort
+        // maps across unchanged. Whether the model honours it depends on the
+        // model: a non-thinking one simply ignores the flag.
+        if ($request->reasoningEffort !== null) {
+            $payload['think'] = $request->reasoningEffort === ReasoningEffort::None
+                ? false
+                : $request->reasoningEffort->clampTo([
+                    ReasoningEffort::Low,
+                    ReasoningEffort::Medium,
+                    ReasoningEffort::High,
+                    ReasoningEffort::Max,
+                ])->value;
         }
 
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
@@ -310,6 +341,11 @@ class OllamaDriver implements LLMDriverInterface
                 $data = json_decode($line, true);
                 if (!is_array($data)) {
                     continue;
+                }
+
+                $thinking = $data['message']['thinking'] ?? '';
+                if (is_string($thinking) && $thinking !== '') {
+                    $request->emitReasoning($thinking);
                 }
 
                 $chunk = $data['message']['content'] ?? '';
@@ -365,7 +401,7 @@ class OllamaDriver implements LLMDriverInterface
 
     public function supportsReasoning(): bool
     {
-        return false;
+        return true;
     }
 
     public function estimateCost(LLMRequest $request): CostEstimate

@@ -386,6 +386,93 @@ lands on the one that does — the routing the silent substitution used to hide.
   local server, fuzzy-matching the closest one and never picking an embedding
   model as a chat fallback.
 
+## Reasoning
+
+Reasoning models think before answering. This package asks for that in one
+vocabulary and translates it per provider, because they disagree on almost
+everything: OpenAI, DeepSeek and Groq spell it `reasoning_effort`, Anthropic
+`output_config.effort`, Gemini a token budget, Ollama a `think` level.
+
+```php
+use LlmRouter\Enum\ReasoningEffort;
+
+$response = $driver->chat(new LLMRequest(
+    messages: $messages,
+    reasoningEffort: ReasoningEffort::High,
+    includeReasoning: true,   // also return the trace, not just spend tokens on it
+));
+
+$response->content;         // the answer
+$response->reasoning;       // the trace, or null
+$response->reasoningTokens; // thinking tokens, where the provider reports them
+```
+
+`ReasoningEffort` is `None`, `Low`, `Medium`, `High`, `XHigh` or `Max`. Drivers
+supporting fewer levels clamp to their nearest one instead of dropping the
+request. **Omitting `reasoningEffort` sends nothing at all**, leaving the
+provider's own default in place — so this feature costs you nothing until you
+ask for it.
+
+Effort, not a token budget, is the portable abstraction. Anthropic's
+`thinking.budget_tokens` is deprecated on Claude 4.6 and returns a 400 on
+Claude 4.7 and later, so a budget-shaped API would already be broken.
+
+### Reasoning while streaming
+
+Reasoning never arrives through the values `stream()` yields — those stay the
+visible answer, so existing loops keep working and no application accidentally
+prints a model's scratch work to a user. Pass a callback instead:
+
+```php
+$request = new LLMRequest(
+    messages: $messages,
+    reasoningEffort: ReasoningEffort::High,
+    includeReasoning: true,
+    onReasoning: fn (string $fragment) => $ui->showThinking($fragment),
+);
+
+foreach ($driver->stream($request) as $chunk) {
+    echo $chunk; // answer only
+}
+```
+
+### Multi-turn: replay the trace
+
+Anthropic, Mistral and Moonshot all require the reasoning trace to be sent back
+on the following turn. Moonshot is explicit that dropping it during a
+tool-calling loop degrades the model — and nothing in the response tells you it
+happened.
+
+Use `toMessage()` rather than hand-building the assistant entry, and the driver
+re-emits the trace in its provider's native shape:
+
+```php
+$response = $driver->chat($request);
+
+$messages[] = $response->toMessage(); // carries content, tool calls and the trace
+$next = $driver->chat(new LLMRequest($messages, tools: $tools));
+```
+
+### What each provider actually does
+
+| Driver | How it is asked | Trace returned? |
+| --- | --- | --- |
+| `ClaudeDriver` | `thinking: {type: "adaptive"}` + `output_config.effort` | Yes — needs `display: "summarized"`, which `includeReasoning` sets |
+| `OpenAiDriver` | `reasoning_effort` | **No.** OpenAI keeps its reasoning private and bills for it |
+| `DeepSeekDriver` | `thinking: {type: "enabled"}` + `reasoning_effort` | Yes, `reasoning_content` |
+| `GeminiDriver` | `thinkingConfig.thinkingBudget` + `includeThoughts` | Yes, as parts flagged `thought: true` |
+| `GroqDriver` | `reasoning_effort` + `reasoning_format: "parsed"` | Yes, `reasoning` |
+| `OllamaDriver` | `think: "low"…"max"` | Yes, `message.thinking` |
+| `MistralDriver` | `prompt_mode: "reasoning"` | Yes, `reasoning_content` |
+| `KimiDriver` | nothing — reasoning is a property of the `k2-thinking` models | Yes, `reasoning_content` |
+
+**`supportsReasoning()` describes the driver, not your model.** It says this
+driver knows how to express a reasoning request; whether the model you picked
+honours it is a separate question. Sending `reasoning_effort` to a
+non-reasoning model (`gpt-4o`, say) earns a 400 from the provider — the error
+is surfaced as-is rather than guessed at, because a per-model capability table
+would be stale within weeks.
+
 ## Sharing state across processes
 
 Three decorators keep state between calls: `CachingDriver` (cached responses),

@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Generator;
 use LlmRouter\Contract\Driver\LLMDriverInterface;
 use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
+use LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
 use LlmRouter\Driver\Concern\ResolvesPricedModel;
 use LlmRouter\DTO\CostEstimate;
 use LlmRouter\DTO\HealthState;
@@ -15,6 +16,7 @@ use LlmRouter\DTO\HealthStatus;
 use LlmRouter\DTO\LLMRequest;
 use LlmRouter\DTO\LLMResponse;
 use LlmRouter\Enum\DriverType;
+use LlmRouter\Enum\ReasoningEffort;
 use LlmRouter\Http\HttpClient;
 use RuntimeException;
 
@@ -34,6 +36,7 @@ class OpenAiDriver implements LLMDriverInterface
     ];
 
     use ParsesChatCompletionSse;
+    use ReplaysChatCompletionReasoning;
 
     private string $openAiUrl;
     private string $openAiApiKey;
@@ -144,7 +147,7 @@ class OpenAiDriver implements LLMDriverInterface
 
         $payload = [
             'model' => $model,
-            'messages' => $request->messages,
+            'messages' => self::withoutReasoningKeys($request->messages),
             'stream' => $request->stream,
         ];
 
@@ -158,6 +161,12 @@ class OpenAiDriver implements LLMDriverInterface
 
         if ($request->tools !== null) {
             $payload['tools'] = $request->tools;
+        }
+
+        // OpenAI spends reasoning tokens but never returns the trace, so
+        // $includeReasoning has nothing to act on here — only the effort does.
+        if ($request->reasoningEffort !== null) {
+            $payload['reasoning_effort'] = $request->reasoningEffort->value;
         }
 
         $startTime = microtime(true);
@@ -229,7 +238,7 @@ class OpenAiDriver implements LLMDriverInterface
 
         $payload = [
             'model' => $model,
-            'messages' => $request->messages,
+            'messages' => self::withoutReasoningKeys($request->messages),
             'stream' => true,
         ];
 
@@ -243,6 +252,12 @@ class OpenAiDriver implements LLMDriverInterface
 
         if ($request->tools !== null) {
             $payload['tools'] = $request->tools;
+        }
+
+        // OpenAI spends reasoning tokens but never returns the trace, so
+        // $includeReasoning has nothing to act on here — only the effort does.
+        if ($request->reasoningEffort !== null) {
+            $payload['reasoning_effort'] = $request->reasoningEffort->value;
         }
 
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
@@ -259,7 +274,7 @@ class OpenAiDriver implements LLMDriverInterface
             throw new RuntimeException('OpenAI stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        return yield from self::readChatCompletionSse($response->getBody());
+        return yield from self::readChatCompletionSse($response->getBody(), $request);
     }
 
     /**
@@ -287,7 +302,7 @@ class OpenAiDriver implements LLMDriverInterface
 
     public function supportsReasoning(): bool
     {
-        return false;
+        return true;
     }
 
     public function estimateCost(LLMRequest $request): CostEstimate
