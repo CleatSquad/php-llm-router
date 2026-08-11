@@ -49,6 +49,7 @@ function isChatModel(string $id): bool
         'embedding', 'embed-', 'tts-', 'whisper', 'moderation', 'dall-e', 'davinci',
         'babbage', 'realtime', 'transcribe', 'audio', 'image', 'guard', 'rerank',
         'speech', 'orpheus', 'playai', 'veo', 'imagen', 'aqa', 'learnlm',
+        'search-preview', 'tts', 'codex', 'computer-use',
     ] as $marker) {
         if (str_contains($id, $marker)) {
             return false;
@@ -68,6 +69,27 @@ function isServed(string $entry, array $live): bool
 {
     foreach ($live as $id) {
         if ($id === $entry || str_starts_with($id, $entry . '-')) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * The mirror of isServed(): whether a served ID is a dated snapshot of
+ * something the catalogue already covers (`o1-2024-12-17` → `o1`).
+ *
+ * Both directions are needed, and getting them the wrong way round is easy —
+ * the first run of this script reported 67 OpenAI snapshots as missing models
+ * because this case was checked with isServed()'s comparison reversed.
+ *
+ * @param string[] $shipped
+ */
+function isSnapshotOfKnown(string $id, array $shipped): bool
+{
+    foreach ($shipped as $entry) {
+        if (str_starts_with($id, $entry . '-')) {
             return true;
         }
     }
@@ -109,6 +131,15 @@ $providers = [
         'driver' => LlmRouter\Driver\MistralDriver::class,
         'url' => 'https://api.mistral.ai/v1/models',
         'env' => 'MISTRAL_API_KEY',
+        'header' => 'Authorization: Bearer %s',
+        'extract' => static fn (array $d): array => array_column($d['data'] ?? [], 'id'),
+    ],
+    'Kimi' => [
+        'driver' => LlmRouter\Driver\KimiDriver::class,
+        // The international endpoint, whose catalogue is the one this package
+        // prices in USD. The mainland host serves a different model list.
+        'url' => 'https://api.moonshot.ai/v1/models',
+        'env' => 'MOONSHOT_API_KEY',
         'header' => 'Authorization: Bearer %s',
         'extract' => static fn (array $d): array => array_column($d['data'] ?? [], 'id'),
     ],
@@ -192,8 +223,9 @@ foreach ($providers as $name => $provider) {
     // be added automatically, because its price isn't in this payload.
     $missing = array_values(array_filter(
         $live,
-        static fn (string $id): bool => isChatModel($id) && !in_array($id, $shipped, true)
-            && !isServed($id, $shipped)
+        static fn (string $id): bool => isChatModel($id)
+            && !in_array($id, $shipped, true)
+            && !isSnapshotOfKnown($id, $shipped)
     ));
 
     if ($retired !== []) {
