@@ -33,14 +33,20 @@ class MistralDriver implements LLMDriverInterface
 
     private const PRICING = [
         // USD per 1k tokens = Mistral's published per-million rate / 1000.
+        //
+        // Magistral, Devstral and mistral-code are deliberately absent: Mistral
+        // publishes no per-token rate for them, and its own model overview
+        // lists Magistral and Devstral among deprecated models. Magistral is
+        // the family `prompt_mode: "reasoning"` was built for, so a reasoning
+        // request here needs one registered through $extraModelPricing with a
+        // rate you have confirmed.
         'mistral-medium-latest' => ['input' => 0.0015, 'output' => 0.0075],
         'mistral-large-latest' => ['input' => 0.0005, 'output' => 0.0015],
         'mistral-small-latest' => ['input' => 0.00015, 'output' => 0.0006],
         'codestral-latest' => ['input' => 0.0003, 'output' => 0.0009],
+        'ministral-14b-latest' => ['input' => 0.0002, 'output' => 0.0002],
         'ministral-8b-latest' => ['input' => 0.00015, 'output' => 0.00015],
-        // Kept for callers still naming it, though it no longer appears on
-        // Mistral's pricing page — the rate below is the last one published.
-        'open-mistral-nemo' => ['input' => 0.00015, 'output' => 0.00015],
+        'ministral-3b-latest' => ['input' => 0.0001, 'output' => 0.0001],
     ];
 
     use Concern\HandlesHttpRateLimit;

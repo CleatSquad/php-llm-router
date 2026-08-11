@@ -70,6 +70,8 @@ function isChatModel(string $id): bool
         'babbage', 'realtime', 'transcribe', 'audio', 'image', 'guard', 'rerank',
         'speech', 'orpheus', 'playai', 'veo', 'imagen', 'aqa', 'learnlm',
         'search-preview', 'tts', 'codex', 'computer-use',
+        // Mistral: voice models, and the labs- prefix marks experiments.
+        'voxtral', 'labs-', 'ocr', 'moderation',
     ] as $marker) {
         if (str_contains($id, $marker)) {
             return false;
@@ -116,6 +118,15 @@ function isSnapshotOfKnown(string $id, array $shipped): bool
 {
     foreach ($shipped as $entry) {
         if (str_starts_with($id, $entry . '-')) {
+            return true;
+        }
+
+        // Mistral names its alias `mistral-medium-latest` and its snapshots
+        // `mistral-medium-2505`; comparing on the stem matches the two.
+        $stem = preg_replace('/-latest$/', '', $entry);
+        if ($stem !== $entry && $stem !== null
+            && ($id === $stem || str_starts_with($id, $stem . '-'))
+        ) {
             return true;
         }
     }
