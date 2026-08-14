@@ -1,6 +1,19 @@
-# mohaelmrabet/php-llm-router
+# cleatsquad/php-llm-router
 
-[![CI](https://github.com/mohaelmrabet/php-llm-router/actions/workflows/ci.yml/badge.svg)](https://github.com/mohaelmrabet/php-llm-router/actions/workflows/ci.yml)
+> **Moved.** This package was previously published as `mohaelmrabet/php-llm-router`.
+> That package still works and stays installable — nothing breaks if you do
+> nothing. The code, the `LlmRouter\` namespace and the public API are
+> identical; only the Composer package name changed. To move over:
+>
+> ```bash
+> composer remove mohaelmrabet/php-llm-router
+> composer require cleatsquad/php-llm-router
+> ```
+>
+> No `use` statement needs to change.
+
+
+[![CI](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml/badge.svg)](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml)
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.2-777bb4)](composer.json)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -24,7 +37,7 @@ automatically when a provider is down, rate-limited, or out of credit.
 ## Install
 
 ```bash
-composer require mohaelmrabet/php-llm-router
+composer require cleatsquad/php-llm-router
 ```
 
 ## Usage
