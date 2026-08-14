@@ -1,9 +1,43 @@
 {
-    "name": "mohaelmrabet/php-llm-router",
+    "name": "cleatsquad/php-llm-router",
     "description": "Provider-agnostic LLM client for PHP — a uniform interface over Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama and Kimi, with pluggable routing, retries, caching, circuit breaking, rate limiting, MCP and A2A client drivers, embeddings, and audio transcription.",
     "type": "library",
     "license": "MIT",
-    "keywords": ["llm", "ai", "claude", "openai", "gemini", "mistral", "groq", "deepseek", "ollama", "router", "fallback", "circuit-breaker", "rate-limit", "mcp", "model-context-protocol", "a2a", "agent2agent", "agent", "embeddings", "audio", "transcription", "whisper"],
+    "authors": [
+        {
+            "name": "Mohamed El Mrabet",
+            "email": "mimou78@gmail.com"
+        }
+    ],
+    "homepage": "https://github.com/CleatSquad/php-llm-router",
+    "support": {
+        "issues": "https://github.com/CleatSquad/php-llm-router/issues",
+        "source": "https://github.com/CleatSquad/php-llm-router"
+    },
+    "keywords": [
+        "llm",
+        "ai",
+        "claude",
+        "openai",
+        "gemini",
+        "mistral",
+        "groq",
+        "deepseek",
+        "ollama",
+        "router",
+        "fallback",
+        "circuit-breaker",
+        "rate-limit",
+        "mcp",
+        "model-context-protocol",
+        "a2a",
+        "agent2agent",
+        "agent",
+        "embeddings",
+        "audio",
+        "transcription",
+        "whisper"
+    ],
     "require": {
         "php": ">=8.2",
         "guzzlehttp/guzzle": "^7.8",
