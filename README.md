@@ -862,6 +862,21 @@ Optional extensions:
 - **`RoundRobinStrategy` is stateful per instance.** Its cursor lives in the
   object, so rotation is per-process unless you keep one instance around.
 
+## Documentation
+
+- [docs/architecture.md](docs/architecture.md) — the request lifecycle, from
+  availability filtering through hard constraints and ranking to the resilience
+  decorators.
+- [docs/routing-strategies.md](docs/routing-strategies.md) — every strategy,
+  what it needs to work, and where this package parts ways with LiteLLM.
+- [CHANGELOG.md](CHANGELOG.md) · [UPGRADE.md](UPGRADE.md)
+
+## Contributing
+
+Bug reports and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [code of conduct](CODE_OF_CONDUCT.md). To report a vulnerability, follow
+[SECURITY.md](SECURITY.md) rather than opening a public issue.
+
 ## License
 
 MIT

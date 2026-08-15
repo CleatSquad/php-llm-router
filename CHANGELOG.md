@@ -5,12 +5,79 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Only five releases (v1.12.0 … v1.13.1) were ever tagged. Everything before that
-is reconstructed from the git history, so those entries group commits by theme
-rather than by a release that actually existed. Where a commit message does not
-say *why* a change was made, this file says so instead of guessing.
+The 1.x entries are reconstructed from the git history rather than from
+releases that actually existed — only v1.12.0 … v1.13.1 were ever tagged — so
+they group commits by theme. Where a commit message does not say *why* a change
+was made, this file says so instead of guessing.
 
-## [4.1.3] — 2026-08-15
+The 4.x entries carry no date. They were tagged within a day of each other, and
+a date on each would say less about this package than the tags do. For the
+release date of any version, ask git: `git log -1 --format=%ad v4.1.3`.
+
+## [4.1.4]
+
+### Fixed
+
+- **The 4.1.x entries below described the wrong releases.** The strategy suite
+  they credited to 4.1.3 shipped in **4.1.1**; 4.1.2 changed no code at all, and
+  4.1.3 was a stabilization release. Each entry now matches what its tag
+  actually contains. No tag was moved — only this file was wrong.
+- Removed `tous`, an empty file committed by accident in the 4.1.3 release
+  commit.
+
+### Changed
+
+- `.idea/` is now ignored, and `.idea/modules.xml` is no longer tracked. An IDE
+  file has no place in a distributed package.
+- `docs/routing-strategies.md` is written in English throughout. Half of it was
+  in French, which the rest of the documentation is not.
+- README links the architecture overview and the contributing, security and
+  conduct documents. They shipped in 4.1.3 with nothing pointing at them.
+
+---
+
+## [4.1.3]
+
+Stabilization and release hygiene. No new routing strategy — the suite was
+already complete as of 4.1.1.
+
+### Fixed
+
+- **`WeightedStrategy` no longer resurrects a driver you weighted to zero.** A
+  weight of `0` was clamped to `1`, so the one way to say "never send traffic
+  here, but keep the driver configured" silently sent traffic there. Zero-weight
+  drivers are now excluded from the draw; if every available driver is weighted
+  zero, the first available one is returned rather than dividing by a zero total.
+
+### Added
+
+- `docs/architecture.md`: the request lifecycle from availability filtering
+  through hard constraints, ranking, and the resilience decorators.
+- `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`.
+- `tests/Routing/InvariantPropertiesTest.php`: properties every strategy must
+  hold, checked against all of them rather than one at a time.
+- `tests/Routing/RoutingPerformanceBenchmarkTest.php`: a regression benchmark
+  over 1000 selections across 20 drivers per strategy, with a deliberately loose
+  CI-safe upper bound. It guards against a routing path becoming accidentally
+  expensive; it is not a proof of algorithmic complexity.
+
+### Changed
+
+- `composer.json` declares `config.allow-plugins` for `php-http/discovery`, so a
+  fresh install does not stop on an interactive plugin prompt.
+
+---
+
+## [4.1.2]
+
+### Changed
+
+- CHANGELOG only. This tag contains no code, test or documentation change of any
+  kind — it exists because the 4.1.1 entry was written after 4.1.1 was tagged.
+
+---
+
+## [4.1.1]
 
 ### Added
 
@@ -22,7 +89,7 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
-## [4.1.0] — 2026-08-15
+## [4.1.0]
 
 ### Added
 
@@ -39,7 +106,7 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
-## [4.0.0] — 2026-08-15
+## [4.0.0]
 
 ### Changed — breaking
 
@@ -594,6 +661,6 @@ Grouped by theme; each bullet corresponds to one or more commits.
 - **`LiteLLMDriver` removed** (`ee52c35`) — unused in this package and in the
   application it was extracted from. A LiteLLM proxy is OpenAI-compatible, so
   `OpenAiDriver` pointed at the proxy URL replaces it. The README continued to
-  document the removed driver until the Unreleased entry above.
+  document the removed driver until [1.14.0](#1140--2026-08-11).
 - **Namespace rename** `Concio\LlmRouter` → `LlmRouter` (`b0f520b`), before the
   package had external consumers.

@@ -59,22 +59,22 @@ It cleanly separates **Routing** (deciding *who* to call before sending a reques
 ## Conceptual Comparison with LiteLLM Router
 
 ### 1. Architectural Philosophy
-* **LiteLLM**: Router centralise à la fois le load-balancing, le failover, les retries, le budget-tracking, la gestion d'API keys et de proxy HTTP Python (Async).
-* **php-llm-router**: Modèle par **Décorateurs & Composabilité native PHP**. Les stratégies de routage sont des objets légers implémentant `RoutingStrategyInterface`. Le failover est un découpé dans `FailoverDriver`, le circuit breaker dans `CircuitBreakerDriver`, le rate limit dans `RateLimitedDriver`, etc.
+* **LiteLLM**: one Router object carries load balancing, failover, retries, budget tracking, API key management and an async Python HTTP proxy.
+* **php-llm-router**: decorators and plain PHP composition. Routing strategies are small objects implementing `RoutingStrategyInterface`; failover lives in `FailoverDriver`, circuit breaking in `CircuitBreakerDriver`, rate limiting in `RateLimitedDriver`, each usable on its own.
 
 ### 2. Strategy Parity & Differences
-* **Priority Strategy**: Inspiré de la priorité LiteLLM. `php-llm-router` supporte aussi la bascule dynamique via `$request->preferQuality` (`qualityPriorities`).
-* **Weighted & Random Strategies**: Permettent un load balancing probabiliste. Dans `php-llm-router`, la source d'aléatoire est abstraite via `RandomizerInterface`, garantissant un comportement 100% déterministe dans les tests unitaires.
-* **LeastBusy Strategy**: Similaire à LiteLLM `least-busy`, mais utilise l'interface `ActiveRequestsTrackerInterface` au lieu de dépendre directement d'un Redis global obligatoire.
-* **Latency Strategy**: Calculé via `LatencyTrackerInterface` (Moving Average). Prévoir la phase de warm-up avec un `defaultLatencyMs` configurable.
-* **Cost Strategy**: Déterminé avant l'appel via `$driver->estimateCost($request)`.
+* **Priority Strategy**: modeled on LiteLLM's priority routing, plus a per-request switch through `$request->preferQuality` (`qualityPriorities`).
+* **Weighted & Random Strategies**: probabilistic load balancing. The source of randomness sits behind `RandomizerInterface`, so unit tests are deterministic.
+* **LeastBusy Strategy**: comparable to LiteLLM `least-busy`, but reads through `ActiveRequestsTrackerInterface` instead of requiring a global Redis.
+* **Latency Strategy**: a moving average kept by `LatencyTrackerInterface`. Cover the warm-up window with a configurable `defaultLatencyMs`.
+* **Cost Strategy**: decided before the call, from `$driver->estimateCost($request)`.
 
 ### 3. Intentional Omissions & Why
-* **Global Proxy State / Central Daemon**: LiteLLM tourne en tant que serveur proxy autonome Python. `php-llm-router` est une bibliothèque native PHP intégrable directement sans latence réseau supplémentaire ni daemon secondaire.
-* **Hardcoded Pricing Databases**: Les prix ne sont pas codés en dur dans la stratégie de coût mais dynamiquement résolus via le modèle/catalogue de chaque driver (`estimateCost()`).
+* **Global proxy state / central daemon**: LiteLLM runs as a standalone Python proxy server. This is a library you embed, with no extra network hop and no second process to operate.
+* **Hardcoded pricing databases**: prices are not baked into the cost strategy. Each driver resolves them from its own model catalogue through `estimateCost()`.
 
 ---
 
 ## Conclusion
 
-`php-llm-router` offre ainsi une suite complète et extensible de stratégies de routing LLM pour PHP, respectant les normes de typage strict PHP 8.2+ et de testabilité sans dépendance globale.
+The result is a complete, extensible set of LLM routing strategies for PHP, strictly typed against PHP 8.2+ and testable without any global dependency.
