@@ -1,12 +1,12 @@
 # cleatsquad/php-llm-router
 
-> **v5.0 is the Composable Routing Decision Engine release.**
+> **v5.1 introduces Model-Aware Candidate Identity & Deployment Separation.**
 > 
 > ```bash
-> composer require cleatsquad/php-llm-router:^5.0
+> composer require cleatsquad/php-llm-router:^5.1
 > ```
 > 
-> While v4.x used Strategy-based single selection (`RoutingStrategyInterface::select()`), v5.0 introduces a **Composable Routing Decision Engine** (`RoutingEngine::decide()`) built of explicit **Constraints**, **Rankers**, **Selectors**, and explainable **RoutingDecisions**.
+> Building on v5.0's **Composable Routing Decision Engine** (`RoutingEngine::decide()`), v5.1 adds model-aware routing (`ModelConstraint`) and distinct deployment identity separation (`Candidate::$id` vs `Candidate::$model`).
 > 
 > Migration is straightforward — see [docs/v5-migration.md](docs/v5-migration.md) and [docs/v5-architecture.md](docs/v5-architecture.md).
 
