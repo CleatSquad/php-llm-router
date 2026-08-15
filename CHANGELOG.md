@@ -10,7 +10,7 @@ is reconstructed from the git history, so those entries group commits by theme
 rather than by a release that actually existed. Where a commit message does not
 say *why* a change was made, this file says so instead of guessing.
 
-## [4.1.2] — 2026-08-15
+## [4.1.3] — 2026-08-15
 
 ### Added
 

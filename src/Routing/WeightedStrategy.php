@@ -46,12 +46,19 @@ final class WeightedStrategy implements RoutingStrategyInterface
         $weightedAvailable = [];
 
         foreach ($available as $driver) {
-            $weight = max(1, $this->weights[$driver->getId()] ?? 1);
-            $totalWeight += $weight;
-            $weightedAvailable[] = [
-                'driver' => $driver,
-                'weight' => $weight,
-            ];
+            $weight = max(0, $this->weights[$driver->getId()] ?? 1);
+            if ($weight > 0) {
+                $totalWeight += $weight;
+                $weightedAvailable[] = [
+                    'driver' => $driver,
+                    'weight' => $weight,
+                ];
+            }
+        }
+
+        if ($totalWeight === 0 || empty($weightedAvailable)) {
+            // Fallback to first available driver if all available drivers have weight 0
+            return $available[0];
         }
 
         $random = $this->randomizer->nextInt(1, $totalWeight);

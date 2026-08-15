@@ -72,5 +72,10 @@
         "test:security": "phpunit --group security",
         "phpstan": "phpstan analyse"
     },
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": false
+        }
+    }
 }
