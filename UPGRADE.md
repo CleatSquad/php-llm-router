@@ -1,5 +1,27 @@
 # Upgrade guide
 
+## 5.0.1 → 5.0.2
+
+**Patch Stabilization Release: Multi-Ranker & Tracker Fixes.**
+
+This release contains zero breaking changes and requires no code modifications if you are upgrading from 5.0.0 / 5.0.1.
+
+### Improvements & Reliability Fixes in 5.0.2
+
+1. **Multi-Ranker Composition**:
+   - `RoutingEngine` now automatically composes multiple rankers specified in a `RoutingPolicy` using `CompositeRanker`, calculating aggregate weighted average scores without overwriting previous ranker evaluations.
+
+2. **Fault-Isolated Ranker Evaluation**:
+   - Exceptions thrown during ranking (e.g. `CostRanker` failing to estimate cost for a specific model candidate) no longer crash the entire routing decision. The failing candidate is marked ineligible with a structured `RankerException` rejection, allowing remaining valid candidates to continue evaluation.
+
+3. **Factory Tracker Integration**:
+   - `RoutingStrategyFactory` strategies (`least-busy`, `usage`, `reliability`, `quota`) now correctly populate and utilize their respective tracker abstractions (`activeRequestsTracker`, `usageTracker`, `reliabilityTracker`, `quotaTracker`).
+
+4. **New v5 Metric Rankers**:
+   - Introduced `LeastBusyRanker` and `UsageRanker` for direct v5 policy composition.
+
+---
+
 ## 4.x → 5.0.0
 
 **Major Architectural Upgrade: Composable Routing Decision Engine.**

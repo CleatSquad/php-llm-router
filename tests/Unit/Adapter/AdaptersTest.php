@@ -26,4 +26,21 @@ final class AdaptersTest extends TestCase
         $this->assertSame($driver, $selected);
         $this->assertNotNull($adapter->getLastDecision());
     }
+
+    public function testLegacyStrategyAdapterToPolicy(): void
+    {
+        $driver = $this->createMock(LLMDriverInterface::class);
+        $driver->method('getId')->willReturn('d1');
+
+        $legacyStrategy = $this->createMock(\CleatSquad\LlmRouter\Contract\RoutingStrategyInterface::class);
+        $legacyStrategy->method('select')->willReturn($driver);
+
+        $policy = \CleatSquad\LlmRouter\Adapter\LegacyStrategyAdapter::toPolicy($legacyStrategy, 'legacy-test');
+        $this->assertSame('legacy-test', $policy->name);
+
+        $engine = new \CleatSquad\LlmRouter\Engine\RoutingEngine($policy);
+        $decision = $engine->decide(new LLMRequest(messages: []), [$driver]);
+
+        $this->assertSame('d1', $decision->selected->id);
+    }
 }

@@ -9,6 +9,7 @@ use CleatSquad\LlmRouter\Decision\RoutingDecision;
 use CleatSquad\LlmRouter\DTO\LLMRequest;
 use CleatSquad\LlmRouter\Exception\NoEligibleCandidateException;
 use CleatSquad\LlmRouter\Policy\RoutingPolicy;
+use CleatSquad\LlmRouter\Ranker\CompositeRanker;
 use InvalidArgumentException;
 
 final readonly class RoutingEngine
@@ -47,16 +48,37 @@ final readonly class RoutingEngine
             }
         }
 
+        $ranker = count($this->policy->rankers) === 1
+            ? $this->policy->rankers[0]
+            : (empty($this->policy->rankers) ? null : new CompositeRanker(array_map(static fn ($r) => ['ranker' => $r, 'weight' => 1.0], $this->policy->rankers)));
+
+        if ($ranker !== null) {
+            foreach ($evaluations as $eval) {
+                if (!$eval->isEligible) {
+                    continue;
+                }
+                try {
+                    $eval->score = $ranker->score($eval, $request);
+                } catch (\Throwable $t) {
+                    $eval->reject(new CandidateRejection(
+                        'RankerException',
+                        'ranker_error',
+                        $t->getMessage(),
+                        [
+                            'exception_class' => $t::class,
+                            'exception_code' => $t->getCode(),
+                            'file' => $t->getFile(),
+                            'line' => $t->getLine(),
+                        ]
+                    ));
+                }
+            }
+        }
+
         $eligibleEvaluations = array_values(array_filter($evaluations, static fn (CandidateEvaluation $e): bool => $e->isEligible));
 
         if (empty($eligibleEvaluations)) {
             throw new NoEligibleCandidateException($evaluations);
-        }
-
-        foreach ($this->policy->rankers as $ranker) {
-            foreach ($eligibleEvaluations as $eval) {
-                $eval->score = $ranker->score($eval, $request);
-            }
         }
 
         $orderedCandidates = $this->policy->selector->select($eligibleEvaluations, $request);

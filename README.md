@@ -1,6 +1,6 @@
 # cleatsquad/php-llm-router
 
-> **v5.0.0 is the Composable Routing Decision Engine release.**
+> **v5.0 is the Composable Routing Decision Engine release.**
 > 
 > ```bash
 > composer require cleatsquad/php-llm-router:^5.0

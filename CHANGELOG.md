@@ -14,6 +14,17 @@ The 4.x entries carry no date. They were tagged within a day of each other, and
 a date on each would say less about this package than the tags do. For the
 release date of any version, ask git: `git log -1 --format=%ad v4.1.3`.
 
+## [5.0.2] - 2026-08-15
+
+### Fixed
+
+- **Ranker Score Overwrite Fix**: Resolved issue in `RoutingEngine` where consecutive rankers in a policy would overwrite candidate scores. Multiple rankers are now cleanly composed using `CompositeRanker`.
+- **Ranker Fault Isolation**: Candidate evaluations now isolate exceptions during ranking/scoring. If a ranker fails for a candidate (e.g. `CostRanker` cost estimation error), the failed candidate is rejected with structured error details (`RankerException`), while remaining candidates continue evaluation.
+- **Factory Tracker Mappings**: Restored tracker injection in `RoutingStrategyFactory` for `least-busy`, `usage`, `reliability`, and `quota` strategies.
+- **New v5 Rankers**: Added `LeastBusyRanker` and `UsageRanker` to complete metric-driven ranker implementations.
+
+---
+
 ## [5.0.0]
 
 ### Added

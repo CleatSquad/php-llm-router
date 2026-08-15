@@ -47,4 +47,26 @@ final class ConstraintsTest extends TestCase
         $this->assertFalse($passed);
         $this->assertFalse($eval->isEligible);
     }
+
+    public function testQuotaConstraintRejectsExceededQuota(): void
+    {
+        $driver = $this->createMock(LLMDriverInterface::class);
+        $driver->method('getId')->willReturn('c1');
+
+        $candidate = new Candidate('c1', 'C1', $driver);
+        $eval = new CandidateEvaluation($candidate);
+        $request = new LLMRequest(messages: []);
+
+        $tracker = new \CleatSquad\LlmRouter\Routing\InMemoryQuotaTracker();
+        $tracker->setQuota('c1', 100);
+        $tracker->recordUsage('c1', 100); // exhausted
+
+        $constraint = new \CleatSquad\LlmRouter\Constraint\QuotaConstraint($tracker);
+        $passed = $constraint->evaluate($eval, $request);
+
+        $this->assertFalse($passed);
+        $this->assertFalse($eval->isEligible);
+        $this->assertCount(1, $eval->rejections);
+        $this->assertSame('QuotaConstraint', $eval->rejections[0]->constraintName);
+    }
 }

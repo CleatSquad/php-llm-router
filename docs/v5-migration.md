@@ -7,6 +7,8 @@
 | v4 Strategy | v5 Composable Component Equivalent |
 | :--- | :--- |
 | `PriorityStrategy` | `PriorityRanker` + `BestCandidateSelector` |
+| `LeastBusyStrategy` | `LeastBusyRanker` + `BestCandidateSelector` |
+| `UsageStrategy` | `UsageRanker` + `BestCandidateSelector` |
 | `CapabilityStrategy` | `CapabilityConstraint` |
 | `ContextWindowStrategy` | `ContextWindowConstraint` |
 | `CostStrategy` | `CostRanker` + `BestCandidateSelector` |
