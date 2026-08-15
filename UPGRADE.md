@@ -1,5 +1,60 @@
 # Upgrade guide
 
+## 4.x → 5.0.0
+
+**Major Architectural Upgrade: Composable Routing Decision Engine.**
+
+`php-llm-router` v5 replaces the strategy-based routing model (`RoutingStrategyInterface::select()`) with a **Composable Routing Decision Engine** (`RoutingEngine::decide()`).
+
+### Quick Summary of Changes
+
+1. **Routing Engine & Policy**: `RoutingEngine` processes `RoutingPolicy` instances built of explicit `ConstraintInterface[]`, `RankerInterface[]`, and a `SelectorInterface`.
+2. **Immutable Candidates**: `Candidate` is now an immutable value object (`id`, `name`, `driver`).
+3. **Accumulative Evaluation State**: `CandidateEvaluation` tracks candidate eligibility, constraint `rejections`, and composite `RankScore` results.
+4. **Structured Decision Telemetry**: `RoutingDecision` provides complete inspectability (`$decision->selected`, `$decision->orderedCandidates`, `$decision->evaluations`, `$decision->getFallbacks()`).
+5. **NoEligibleCandidateException**: Thrown when zero candidates survive constraints, carrying `$e->getEvaluations()` for complete failure telemetry.
+
+### Upgrading Code
+
+If you were using `PriorityStrategy` or factory-instantiated strategies in v4:
+
+#### Before (v4):
+```php
+use CleatSquad\LlmRouter\Routing\PriorityStrategy;
+
+$strategy = new PriorityStrategy(priorities: ['ollama' => 10, 'claude' => 5]);
+$driver = $strategy->select($request, $drivers);
+```
+
+#### After (v5 Native Policy):
+```php
+use CleatSquad\LlmRouter\Engine\RoutingEngine;
+use CleatSquad\LlmRouter\Policy\RoutingPolicy;
+use CleatSquad\LlmRouter\Constraint\CapabilityConstraint;
+use CleatSquad\LlmRouter\Ranker\PriorityRanker;
+use CleatSquad\LlmRouter\Selector\BestCandidateSelector;
+
+$policy = new RoutingPolicy(
+    constraints: [new CapabilityConstraint()],
+    rankers: [new PriorityRanker(['ollama' => 10, 'claude' => 5])],
+    selector: new BestCandidateSelector()
+);
+
+$engine = new RoutingEngine($policy);
+$decision = $engine->decide($request, $drivers);
+$driver = $decision->selected->driver;
+```
+
+### Backward Compatibility & Adapters
+
+- **Existing `RoutingStrategyInterface` implementations**: Continue to work via `LegacyStrategyAdapter::toPolicy($customStrategy)`.
+- **v5 Policy to v4 interface**: Use `RoutingPolicyAdapter($v5Policy)` to wrap a v5 policy into a `RoutingStrategyInterface`.
+- **`RoutingStrategyFactory`**: Retained and updated to instantiate `RoutingPolicyAdapter` instances wrapping v5 policies under the hood.
+
+For detailed architecture explanations, see [docs/v5-architecture.md](docs/v5-architecture.md) and [docs/v5-migration.md](docs/v5-migration.md).
+
+---
+
 ## 3.x → 4.0.0
 
 **One breaking change, and it is mechanical: the namespace gained its vendor

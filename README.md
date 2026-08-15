@@ -1,19 +1,14 @@
 # cleatsquad/php-llm-router
 
-> **Renamed twice, and 4.0.0 is the one that touches your code.** This package
-> was published as `mohaelmrabet/php-llm-router` up to 3.3.0, then as
-> `cleatsquad/php-llm-router` from 3.4.0 — a Composer name change only. Since
-> **4.0.0** the PHP namespace matches the vendor: `LlmRouter\` became
-> `CleatSquad\LlmRouter\`. Not one class, signature or behaviour moved with it;
-> only the `use` statements change.
->
+> **v5.0.0 is the Composable Routing Decision Engine release.**
+> 
 > ```bash
-> composer require cleatsquad/php-llm-router:^4.0
+> composer require cleatsquad/php-llm-router:^5.0
 > ```
->
-> Migration is one pass over your own code — see [UPGRADE.md](UPGRADE.md#3x--400).
-> Staying on 3.4.0 is a valid choice — it keeps the old namespace — but new work
-> lands on 4.x.
+> 
+> While v4.x used Strategy-based single selection (`RoutingStrategyInterface::select()`), v5.0 introduces a **Composable Routing Decision Engine** (`RoutingEngine::decide()`) built of explicit **Constraints**, **Rankers**, **Selectors**, and explainable **RoutingDecisions**.
+> 
+> Migration is straightforward — see [docs/v5-migration.md](docs/v5-migration.md) and [docs/v5-architecture.md](docs/v5-architecture.md).
 
 
 [![CI](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml/badge.svg)](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml)
@@ -21,8 +16,8 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Provider-agnostic LLM client for PHP. One interface, eight LLM drivers (Claude,
-OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, Kimi/Moonshot), pluggable
-routing strategies (priority/fallback and round-robin load balancing),
+OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, Kimi/Moonshot), composable
+routing decision engine (Constraints, Rankers, Selectors),
 decorators for retries, fail-over, caching, circuit breaking and rate
 limiting, plus MCP and A2A client drivers for talking to tools and remote
 agents, embedding drivers (with priority/fallback) for OpenAI/Gemini/
@@ -43,14 +38,21 @@ automatically when a provider is down, rate-limited, or out of credit.
 composer require cleatsquad/php-llm-router
 ```
 
-## Usage
+## Usage (v5 Composable Decision Engine)
 
 ```php
+use CleatSquad\LlmRouter\Constraint\CapabilityConstraint;
+use CleatSquad\LlmRouter\Constraint\ContextWindowConstraint;
 use CleatSquad\LlmRouter\Driver\ClaudeDriver;
 use CleatSquad\LlmRouter\Driver\OllamaDriver;
 use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Engine\RoutingEngine;
 use CleatSquad\LlmRouter\Http\HttpClient;
-use CleatSquad\LlmRouter\Routing\PriorityStrategy;
+use CleatSquad\LlmRouter\Policy\RoutingPolicy;
+use CleatSquad\LlmRouter\Ranker\CompositeRanker;
+use CleatSquad\LlmRouter\Ranker\CostRanker;
+use CleatSquad\LlmRouter\Ranker\PriorityRanker;
+use CleatSquad\LlmRouter\Selector\BestCandidateSelector;
 
 $http = new HttpClient();
 
@@ -59,18 +61,33 @@ $drivers = [
     new ClaudeDriver($http, anthropicApiKey: getenv('ANTHROPIC_API_KEY') ?: ''),
 ];
 
-// Higher number = tried first, as long as isAvailable() is true.
-$strategy = new PriorityStrategy(priorities: ['ollama' => 10, 'claude' => 5]);
+// Build a Composable Routing Policy: Constraints + Rankers + Selector
+$policy = new RoutingPolicy(
+    constraints: [
+        new CapabilityConstraint(),
+        new ContextWindowConstraint(),
+    ],
+    rankers: [
+        new CompositeRanker([
+            ['ranker' => new PriorityRanker(['ollama' => 10, 'claude' => 5]), 'weight' => 0.70],
+            ['ranker' => new CostRanker(), 'weight' => 0.30],
+        ]),
+    ],
+    selector: new BestCandidateSelector()
+);
+
+$engine = new RoutingEngine($policy);
 
 $request = new LLMRequest(messages: [
     ['role' => 'user', 'content' => 'Say hello in one word.'],
 ]);
 
-$driver = $strategy->select($request, $drivers);
+// Evaluate decision and get full telemetry
+$decision = $engine->decide($request, $drivers);
+$driver = $decision->selected->driver;
 $response = $driver->chat($request);
 
 echo $response->content; // "Hello"
-echo $response->costUsd; // 0.0 for Ollama, real $ for Claude
 ```
 
 ### Fallback across two priority tiers
