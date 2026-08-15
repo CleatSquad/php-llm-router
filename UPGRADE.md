@@ -189,7 +189,7 @@ priced as `gpt-4o-mini`, reported as `gpt-4o-mini`, with nothing anywhere
 saying a substitution had happened. You could run for months believing you were
 on a frontier model.
 
-It now throws `LlmRouter\Exception\UnknownModelException`.
+It now throws `CleatSquad\LlmRouter\Exception\UnknownModelException`.
 
 **Why this is likely to affect you:** the shipped pricing tables hold only 2–5
 models each and lag behind the providers. Every model they predate used to
