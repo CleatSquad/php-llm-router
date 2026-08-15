@@ -10,6 +10,33 @@ is reconstructed from the git history, so those entries group commits by theme
 rather than by a release that actually existed. Where a commit message does not
 say *why* a change was made, this file says so instead of guessing.
 
+## [4.1.2] — 2026-08-15
+
+### Added
+
+- **`CapabilityStrategy`** (`Routing\CapabilityStrategy`): Hard constraint filtering candidates based on required technical features (`tools`, `vision`, `reasoning`, `streaming`).
+- **`ReliabilityStrategy` & `ReliabilityTrackerInterface`** (`Routing\ReliabilityStrategy`, `Contract\Routing\ReliabilityTrackerInterface`): Ranking strategy favoring deployments with the highest observed success rate with configurable sample windows. Includes `InMemoryReliabilityTracker`.
+- **`QuotaStrategy` & `QuotaTrackerInterface`** (`Routing\QuotaStrategy`, `Contract\Routing\QuotaTrackerInterface`): Hard constraint and ranking strategy protecting against exhausted or low quota limits. Includes `InMemoryQuotaTracker`.
+- **`CompositeStrategy`** (`Routing\CompositeStrategy`): Enables pipeline composition of hard constraints (Capability, ContextWindow, Quota) followed by ranking strategies.
+- **`RoutingStrategyFactory`** extended to instantiate capability, reliability, and quota strategies from options.
+
+---
+
+## [4.1.0] — 2026-08-15
+
+### Added
+
+- **Pluggable Load Balancing & Routing Strategies**:
+  - `WeightedStrategy` (`Routing\WeightedStrategy`): Probabilistic weighted distribution (e.g. 70%/20%/10%).
+  - `RandomStrategy` (`Routing\RandomStrategy`): Uniform random selection with injectable seed.
+  - `LeastBusyStrategy` (`Routing\LeastBusyStrategy`): Active concurrency-aware routing via `ActiveRequestsTrackerInterface`.
+  - `LatencyStrategy` (`Routing\LatencyStrategy`): Rolling latency-based routing (EMA) via `LatencyTrackerInterface`.
+  - `CostStrategy` (`Routing\CostStrategy`): Minimum estimated USD cost routing via `$driver->estimateCost()`.
+  - `UsageStrategy` (`Routing\UsageStrategy`): Accumulated token/request usage-based routing via `UsageTrackerInterface`.
+  - `ContextWindowStrategy` (`Routing\ContextWindowStrategy`): Prompt size vs context capacity filtering.
+- **`RoutingStrategyFactoryInterface` & `RoutingStrategyFactory`**: Dynamic instantiation of routing strategies from configuration strings.
+- **`Contract\Routing` abstractions**: `RandomizerInterface`, `ActiveRequestsTrackerInterface`, `LatencyTrackerInterface`, `UsageTrackerInterface` with in-memory defaults.
+
 ---
 
 ## [4.0.0] — 2026-08-15
