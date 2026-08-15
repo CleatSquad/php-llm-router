@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
-use LlmRouter\Contract\Driver\AudioDriverInterface;
-use LlmRouter\Driver\FallbackAudioDriver;
-use LlmRouter\DTO\AudioTranscriptionRequest;
-use LlmRouter\DTO\AudioTranscriptionResponse;
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthState;
-use LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\Contract\Driver\AudioDriverInterface;
+use CleatSquad\LlmRouter\Driver\FallbackAudioDriver;
+use CleatSquad\LlmRouter\DTO\AudioTranscriptionRequest;
+use CleatSquad\LlmRouter\DTO\AudioTranscriptionResponse;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\HealthState;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

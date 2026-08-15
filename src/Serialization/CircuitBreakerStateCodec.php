@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Serialization;
+namespace CleatSquad\LlmRouter\Serialization;
 
+use CleatSquad\LlmRouter\CircuitBreaker\CircuitBreakerState;
 use DateTimeImmutable;
 use JsonException;
-use LlmRouter\CircuitBreaker\CircuitBreakerState;
 
 /**
  * JSON codec for breaker state held in a shared store — a failure count and a

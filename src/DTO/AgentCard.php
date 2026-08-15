@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\DTO;
+namespace CleatSquad\LlmRouter\DTO;
 
 /**
  * An A2A Agent Card — the self-description a remote agent publishes at

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Contract\Driver;
+namespace CleatSquad\LlmRouter\Contract\Driver;
 
-use LlmRouter\DTO\AudioTranscriptionRequest;
-use LlmRouter\DTO\AudioTranscriptionResponse;
-use LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\AudioTranscriptionRequest;
+use CleatSquad\LlmRouter\DTO\AudioTranscriptionResponse;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
 
 interface AudioDriverInterface extends DriverInterface
 {

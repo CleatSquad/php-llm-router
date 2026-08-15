@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Driver\FailoverDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Exception\AllDriversFailedException;
+use CleatSquad\LlmRouter\Routing\PriorityStrategy;
+use CleatSquad\LlmRouter\Tests\Fixtures\ControllableDriver;
+use CleatSquad\LlmRouter\Tests\Fixtures\PartialStreamDriver;
+use CleatSquad\LlmRouter\Tests\Fixtures\RecordingLogger;
 use InvalidArgumentException;
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\Driver\FailoverDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Exception\AllDriversFailedException;
-use LlmRouter\Routing\PriorityStrategy;
-use LlmRouter\Tests\Fixtures\ControllableDriver;
-use LlmRouter\Tests\Fixtures\PartialStreamDriver;
-use LlmRouter\Tests\Fixtures\RecordingLogger;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use TypeError;

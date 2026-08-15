@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\RateLimit;
+namespace CleatSquad\LlmRouter\RateLimit;
 
 use DateTimeImmutable;
 use Redis;

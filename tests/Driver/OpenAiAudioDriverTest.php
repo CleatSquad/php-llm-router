@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
+use CleatSquad\LlmRouter\Driver\OpenAiAudioDriver;
+use CleatSquad\LlmRouter\DTO\AudioTranscriptionRequest;
+use CleatSquad\LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\Http\HttpClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
-use LlmRouter\Driver\OpenAiAudioDriver;
-use LlmRouter\DTO\AudioTranscriptionRequest;
-use LlmRouter\Enum\DriverType;
-use LlmRouter\Http\HttpClient;
 use PHPUnit\Framework\TestCase;
 
 final class OpenAiAudioDriverTest extends TestCase

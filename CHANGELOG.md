@@ -12,6 +12,38 @@ say *why* a change was made, this file says so instead of guessing.
 
 ---
 
+## [4.0.0] — 2026-08-15
+
+### Changed — breaking
+
+- **The root namespace is now `CleatSquad\LlmRouter\`** instead of `LlmRouter\`.
+  The package ships as `cleatsquad/php-llm-router`, but its namespace claimed
+  `LlmRouter\`, a root name no vendor owns: it collided with any other library
+  of that name, and `use LlmRouter\...` gave a reader no way to tell which
+  package to install. PSR-4 expects `Vendor\Package\`.
+
+  Nothing else moved — no class renamed, split or removed, no signature,
+  constructor order or default changed, no dependency touched, PHP floor still
+  8.2. Migration is a search-and-replace over your own imports; see
+  [UPGRADE.md](UPGRADE.md#3x--400) for a re-runnable one-liner covering the
+  escaped form found in JSON/NEON/baselines too.
+
+  Shared state is unaffected: Redis keys (`llm_router:*`), cache entries,
+  breaker and quota payloads keep their format, so a mixed 3.x/4.0 rollout is
+  safe.
+
+---
+
+## [3.4.0] — 2026-08-14
+
+### Changed
+
+- Published under the `cleatsquad` vendor: `mohaelmrabet/php-llm-router` became
+  **`cleatsquad/php-llm-router`**. A Composer name change only — the namespace
+  stayed `LlmRouter\` in this release and no `use` statement needed to change.
+
+---
+
 ## [3.3.0] — 2026-08-11
 
 ### Changed

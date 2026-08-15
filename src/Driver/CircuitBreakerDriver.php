@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver;
+namespace CleatSquad\LlmRouter\Driver;
 
+use CleatSquad\LlmRouter\CircuitBreaker\CircuitBreakerStoreInterface;
+use CleatSquad\LlmRouter\CircuitBreaker\InMemoryCircuitBreakerStore;
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\Exception\RateLimitException;
 use DateTimeImmutable;
 use Generator;
-use LlmRouter\CircuitBreaker\CircuitBreakerStoreInterface;
-use LlmRouter\CircuitBreaker\InMemoryCircuitBreakerStore;
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthStatus;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\DTO\LLMResponse;
-use LlmRouter\Enum\DriverType;
-use LlmRouter\Exception\RateLimitException;
 use RuntimeException;
 use Throwable;
 

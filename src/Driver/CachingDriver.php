@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver;
+namespace CleatSquad\LlmRouter\Driver;
 
+use CleatSquad\LlmRouter\Cache\CacheStoreInterface;
+use CleatSquad\LlmRouter\Cache\InMemoryCacheStore;
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\Enum\DriverType;
 use Generator;
-use LlmRouter\Cache\CacheStoreInterface;
-use LlmRouter\Cache\InMemoryCacheStore;
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthStatus;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\DTO\LLMResponse;
-use LlmRouter\Enum\DriverType;
 
 /**
  * Decorates a driver with a response cache for chat(); stream() intentionally bypasses the cache since streaming can't buffer a full response first.

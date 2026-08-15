@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Cache;
+namespace CleatSquad\LlmRouter\Cache;
 
-use LlmRouter\DTO\LLMResponse;
-use LlmRouter\Serialization\LLMResponseCodec;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\Serialization\LLMResponseCodec;
 use Psr\Log\LoggerInterface;
 use Redis;
 use Throwable;

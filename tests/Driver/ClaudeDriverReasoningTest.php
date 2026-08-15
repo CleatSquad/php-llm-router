@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
+use CleatSquad\LlmRouter\Driver\ClaudeDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Enum\ReasoningEffort;
+use CleatSquad\LlmRouter\Http\HttpClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request as Psr7Request;
 use GuzzleHttp\Psr7\Response;
-use LlmRouter\Driver\ClaudeDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Enum\ReasoningEffort;
-use LlmRouter\Http\HttpClient;
 use PHPUnit\Framework\TestCase;
 
 /**

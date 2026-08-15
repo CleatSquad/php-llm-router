@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Serialization;
+namespace CleatSquad\LlmRouter\Serialization;
 
+use CleatSquad\LlmRouter\DTO\LLMResponse;
 use JsonException;
-use LlmRouter\DTO\LLMResponse;
 
 /**
  * Turns an LLMResponse into JSON and back for the shared cache stores.

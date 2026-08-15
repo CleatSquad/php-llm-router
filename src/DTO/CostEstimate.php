@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\DTO;
+namespace CleatSquad\LlmRouter\DTO;
 
 /**
  * Represents a cost estimate for an LLM request.

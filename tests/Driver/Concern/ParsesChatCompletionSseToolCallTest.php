@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver\Concern;
+namespace CleatSquad\LlmRouter\Tests\Driver\Concern;
 
+use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use Generator;
 use GuzzleHttp\Psr7\Utils;
-use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use PHPUnit\Framework\TestCase;
 
 /**

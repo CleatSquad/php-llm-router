@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Driver\DeepSeekDriver;
+use CleatSquad\LlmRouter\Driver\GeminiDriver;
+use CleatSquad\LlmRouter\Driver\GroqDriver;
+use CleatSquad\LlmRouter\Driver\KimiDriver;
+use CleatSquad\LlmRouter\Driver\MistralDriver;
+use CleatSquad\LlmRouter\Driver\OllamaDriver;
+use CleatSquad\LlmRouter\Driver\OpenAiDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Enum\ReasoningEffort;
+use CleatSquad\LlmRouter\Http\HttpClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\Driver\DeepSeekDriver;
-use LlmRouter\Driver\GeminiDriver;
-use LlmRouter\Driver\GroqDriver;
-use LlmRouter\Driver\KimiDriver;
-use LlmRouter\Driver\MistralDriver;
-use LlmRouter\Driver\OllamaDriver;
-use LlmRouter\Driver\OpenAiDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Enum\ReasoningEffort;
-use LlmRouter\Http\HttpClient;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

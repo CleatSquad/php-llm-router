@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\DTO;
+namespace CleatSquad\LlmRouter\DTO;
 
 /**
  * Result of invoking a single tool (MCP tool call, function call, etc.).

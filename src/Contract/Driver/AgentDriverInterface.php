@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Contract\Driver;
+namespace CleatSquad\LlmRouter\Contract\Driver;
 
-use LlmRouter\DTO\AgentResponse;
+use CleatSquad\LlmRouter\DTO\AgentResponse;
 
 interface AgentDriverInterface extends DriverInterface
 {

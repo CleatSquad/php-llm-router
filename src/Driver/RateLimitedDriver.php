@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver;
+namespace CleatSquad\LlmRouter\Driver;
 
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\RateLimit\AtomicRateLimitStoreInterface;
+use CleatSquad\LlmRouter\RateLimit\InMemoryRateLimitStore;
+use CleatSquad\LlmRouter\RateLimit\RateLimitStoreInterface;
+use CleatSquad\LlmRouter\RateLimit\RateLimitWindow;
 use DateTimeImmutable;
 use Generator;
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthStatus;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\DTO\LLMResponse;
-use LlmRouter\Enum\DriverType;
-use LlmRouter\RateLimit\AtomicRateLimitStoreInterface;
-use LlmRouter\RateLimit\InMemoryRateLimitStore;
-use LlmRouter\RateLimit\RateLimitStoreInterface;
-use LlmRouter\RateLimit\RateLimitWindow;
 use RuntimeException;
 
 /**

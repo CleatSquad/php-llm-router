@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
-use LlmRouter\Contract\Driver\EmbeddingDriverInterface;
-use LlmRouter\Driver\FallbackEmbeddingDriver;
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\EmbeddingRequest;
-use LlmRouter\DTO\EmbeddingResponse;
-use LlmRouter\DTO\HealthState;
-use LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\Contract\Driver\EmbeddingDriverInterface;
+use CleatSquad\LlmRouter\Driver\FallbackEmbeddingDriver;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\EmbeddingRequest;
+use CleatSquad\LlmRouter\DTO\EmbeddingResponse;
+use CleatSquad\LlmRouter\DTO\HealthState;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

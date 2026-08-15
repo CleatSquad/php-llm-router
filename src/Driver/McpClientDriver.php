@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver;
+namespace CleatSquad\LlmRouter\Driver;
 
+use CleatSquad\LlmRouter\Contract\Driver\MCPDriverInterface;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\DTO\ToolResult;
+use CleatSquad\LlmRouter\Enum\DriverType;
 use GuzzleHttp\Client as GuzzleClient;
 use InvalidArgumentException;
-use LlmRouter\Contract\Driver\MCPDriverInterface;
-use LlmRouter\DTO\HealthStatus;
-use LlmRouter\DTO\ToolResult;
-use LlmRouter\Enum\DriverType;
 use Mcp\Client;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Client\Transport\StdioTransport;

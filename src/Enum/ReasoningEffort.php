@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Enum;
+namespace CleatSquad\LlmRouter\Enum;
 
 /**
  * How hard the model should think before answering, in terms every provider

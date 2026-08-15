@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Driver\RetryingDriver;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\Tests\Fixtures\ControllableDriver;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Psr7\Request as Psr7Request;
 use GuzzleHttp\Psr7\Response as Psr7Response;
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\Driver\RetryingDriver;
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthStatus;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\DTO\LLMResponse;
-use LlmRouter\Enum\DriverType;
-use LlmRouter\Tests\Fixtures\ControllableDriver;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

@@ -1,16 +1,19 @@
 # cleatsquad/php-llm-router
 
-> **Moved.** This package was previously published as `mohaelmrabet/php-llm-router`.
-> That package still works and stays installable — nothing breaks if you do
-> nothing. The code, the `LlmRouter\` namespace and the public API are
-> identical; only the Composer package name changed. To move over:
+> **Renamed twice, and 4.0.0 is the one that touches your code.** This package
+> was published as `mohaelmrabet/php-llm-router` up to 3.3.0, then as
+> `cleatsquad/php-llm-router` from 3.4.0 — a Composer name change only. Since
+> **4.0.0** the PHP namespace matches the vendor: `LlmRouter\` became
+> `CleatSquad\LlmRouter\`. Not one class, signature or behaviour moved with it;
+> only the `use` statements change.
 >
 > ```bash
-> composer remove mohaelmrabet/php-llm-router
-> composer require cleatsquad/php-llm-router
+> composer require cleatsquad/php-llm-router:^4.0
 > ```
 >
-> No `use` statement needs to change.
+> Migration is one pass over your own code — see [UPGRADE.md](UPGRADE.md#3x--400).
+> Staying on 3.4.0 is a valid choice — it keeps the old namespace — but new work
+> lands on 4.x.
 
 
 [![CI](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml/badge.svg)](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml)
@@ -43,11 +46,11 @@ composer require cleatsquad/php-llm-router
 ## Usage
 
 ```php
-use LlmRouter\Driver\ClaudeDriver;
-use LlmRouter\Driver\OllamaDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Http\HttpClient;
-use LlmRouter\Routing\PriorityStrategy;
+use CleatSquad\LlmRouter\Driver\ClaudeDriver;
+use CleatSquad\LlmRouter\Driver\OllamaDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Http\HttpClient;
+use CleatSquad\LlmRouter\Routing\PriorityStrategy;
 
 $http = new HttpClient();
 
@@ -99,7 +102,7 @@ $replyDriver = $strategy->select(new LLMRequest(messages: $msgs, preferQuality: 
 | `OllamaDriver` | Local Ollama | free, fuzzy-matches the closest locally-pulled model |
 | `KimiDriver` | Moonshot AI | tools |
 
-Every driver implements `LlmRouter\Contract\Driver\LLMDriverInterface`:
+Every driver implements `CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface`:
 `chat()`, `stream()`, `getModels()`, `isAvailable()`, `healthCheck()`,
 `estimateCost()`, and `supportsStreaming()/Tools()/Vision()/Reasoning()`
 capability flags.
@@ -160,8 +163,8 @@ one" loop by hand. `FailoverDriver` is that loop, and it is itself an
 `LLMDriverInterface`, so everything downstream keeps talking to one driver:
 
 ```php
-use LlmRouter\Driver\FailoverDriver;
-use LlmRouter\Routing\PriorityStrategy;
+use CleatSquad\LlmRouter\Driver\FailoverDriver;
+use CleatSquad\LlmRouter\Routing\PriorityStrategy;
 
 $router = new FailoverDriver(
     new PriorityStrategy(priorities: ['ollama' => 25, 'openai' => 10, 'claude' => 1]),
@@ -178,8 +181,8 @@ has failed it throws `AllDriversFailedException`, which carries the attempts as
 live exception objects rather than a concatenated string:
 
 ```php
-use LlmRouter\Exception\AllDriversFailedException;
-use LlmRouter\Exception\RateLimitException;
+use CleatSquad\LlmRouter\Exception\AllDriversFailedException;
+use CleatSquad\LlmRouter\Exception\RateLimitException;
 
 try {
     $response = $router->chat($request);
@@ -227,7 +230,7 @@ failures it reports unavailable and fails fast — no network call — for
 `$openSeconds` (or the dynamic delay extracted from HTTP 429 `Retry-After` headers via `RateLimitException`), resetting on the next success.
 
 ```php
-use LlmRouter\Driver\CircuitBreakerDriver;
+use CleatSquad\LlmRouter\Driver\CircuitBreakerDriver;
 
 $drivers = [
     new CircuitBreakerDriver(new ClaudeDriver($http, anthropicApiKey: $key), failureThreshold: 5, openSeconds: 60),
@@ -245,7 +248,7 @@ interface against your own DB, to share breaker state across requests or
 worker processes — the package itself stays storage-agnostic.
 
 ```php
-use LlmRouter\CircuitBreaker\RedisCircuitBreakerStore;
+use CleatSquad\LlmRouter\CircuitBreaker\RedisCircuitBreakerStore;
 
 $store = new RedisCircuitBreakerStore(new Redis()); // connect() it yourself first
 $driver = new CircuitBreakerDriver(new ClaudeDriver($http, anthropicApiKey: $key), $store);
@@ -259,7 +262,7 @@ backoff, up to `$maxAttempts`. Non-transient errors (401, 400, ...)
 propagate immediately since retrying them just fails the same way again.
 
 ```php
-use LlmRouter\Driver\RetryingDriver;
+use CleatSquad\LlmRouter\Driver\RetryingDriver;
 
 $driver = new RetryingDriver(
     new OpenAiDriver($http, openAiApiKey: $key),
@@ -285,7 +288,7 @@ response before the first byte reaches the caller would defeat the point
 of streaming.
 
 ```php
-use LlmRouter\Driver\CachingDriver;
+use CleatSquad\LlmRouter\Driver\CachingDriver;
 
 $driver = new CachingDriver(new ClaudeDriver($http, anthropicApiKey: $key), ttlSeconds: 300);
 ```
@@ -303,7 +306,7 @@ tokens-per-minute budget. A call that would exceed either limit blocks
 of firing straight into the provider's own 429.
 
 ```php
-use LlmRouter\Driver\RateLimitedDriver;
+use CleatSquad\LlmRouter\Driver\RateLimitedDriver;
 
 $driver = new RateLimitedDriver(
     new GroqDriver($http, groqApiKey: $key),
@@ -322,7 +325,7 @@ pass the same store instance to two `RateLimitedDriver`s wrapping the
 same underlying driver to have them share one quota.
 
 ```php
-use LlmRouter\RateLimit\RedisRateLimitStore;
+use CleatSquad\LlmRouter\RateLimit\RedisRateLimitStore;
 
 $store = new RedisRateLimitStore(new Redis()); // connect() it yourself first
 $driver = new RateLimitedDriver(new GroqDriver($http, groqApiKey: $key), $store, maxRequestsPerMinute: 30);
@@ -337,7 +340,7 @@ e.g. three OpenAI API keys behind three `OpenAiDriver` instances — instead
 of always hitting the first one.
 
 ```php
-use LlmRouter\Routing\RoundRobinStrategy;
+use CleatSquad\LlmRouter\Routing\RoundRobinStrategy;
 
 $strategy = new RoundRobinStrategy(weights: ['key-a' => 2, 'key-b' => 1]); // key-a offered twice as often
 $driver = $strategy->select($request, $drivers); // cycles, skipping unavailable ones
@@ -359,7 +362,7 @@ asked for `gpt-5`, got `gpt-4o-mini`, and were billed for `gpt-4o-mini` with
 nothing saying so.
 
 ```php
-use LlmRouter\Exception\UnknownModelException;
+use CleatSquad\LlmRouter\Exception\UnknownModelException;
 
 try {
     $response = $driver->chat(new LLMRequest($messages, model: 'gpt-5'));
@@ -416,7 +419,7 @@ everything: OpenAI, DeepSeek and Groq spell it `reasoning_effort`, Anthropic
 `output_config.effort`, Gemini a token budget, Ollama a `think` level.
 
 ```php
-use LlmRouter\Enum\ReasoningEffort;
+use CleatSquad\LlmRouter\Enum\ReasoningEffort;
 
 $response = $driver->chat(new LLMRequest(
     messages: $messages,
@@ -536,9 +539,9 @@ Pass a shared store instead.
 The most complete option — shared across processes *and* machines:
 
 ```php
-use LlmRouter\Cache\RedisCacheStore;
-use LlmRouter\CircuitBreaker\RedisCircuitBreakerStore;
-use LlmRouter\RateLimit\RedisRateLimitStore;
+use CleatSquad\LlmRouter\Cache\RedisCacheStore;
+use CleatSquad\LlmRouter\CircuitBreaker\RedisCircuitBreakerStore;
+use CleatSquad\LlmRouter\RateLimit\RedisRateLimitStore;
 
 $redis = new Redis();
 $redis->connect('127.0.0.1', 6379); // connect it yourself; the stores never do
@@ -567,8 +570,8 @@ Any PSR-16 cache works for the response cache and the circuit breaker —
 filesystem, APCu, Memcached, PDO, whatever your framework already configures:
 
 ```php
-use LlmRouter\Cache\Psr16CacheStore;
-use LlmRouter\CircuitBreaker\Psr16CircuitBreakerStore;
+use CleatSquad\LlmRouter\Cache\Psr16CacheStore;
+use CleatSquad\LlmRouter\CircuitBreaker\Psr16CircuitBreakerStore;
 use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 
@@ -583,7 +586,7 @@ atomic increment, so a PSR-16 quota would be a read-modify-write pretending to
 be a shared one. Use APCu instead, which does have an atomic increment:
 
 ```php
-use LlmRouter\RateLimit\ApcuRateLimitStore;
+use CleatSquad\LlmRouter\RateLimit\ApcuRateLimitStore;
 
 $driver = new RateLimitedDriver($driver, new ApcuRateLimitStore(), maxRequestsPerMinute: 30);
 ```
@@ -623,7 +626,7 @@ Redis/PSR-16 stores and every degradation is recorded at warning level.
 
 Two more driver families beyond LLM chat, following the same
 `getId()/getType()/isAvailable()/healthCheck()/getMetadata()` base
-contract (`LlmRouter\Contract\Driver\DriverInterface`), so they compose
+contract (`CleatSquad\LlmRouter\Contract\Driver\DriverInterface`), so they compose
 with the rest of the package (health checks, driver registries, etc.)
 without the router needing to know about them specifically.
 
@@ -633,7 +636,7 @@ stdio (spawns a local process) or HTTP, lists its tools/prompts/resources,
 and calls tools:
 
 ```php
-use LlmRouter\Driver\McpClientDriver;
+use CleatSquad\LlmRouter\Driver\McpClientDriver;
 
 $mcp = new McpClientDriver([
     'id' => 'filesystem',
@@ -654,8 +657,8 @@ protocol's JSON-RPC 2.0 wire format (`message/send`, `message/stream`,
 `tasks/get`, `tasks/cancel`):
 
 ```php
-use LlmRouter\Driver\A2AClientDriver;
-use LlmRouter\Http\HttpClient;
+use CleatSquad\LlmRouter\Driver\A2AClientDriver;
+use CleatSquad\LlmRouter\Http\HttpClient;
 
 $agent = new A2AClientDriver(new HttpClient(), 'https://agent.example.com');
 
@@ -683,9 +686,9 @@ endpoint — `OpenAiEmbeddingDriver`, `GeminiEmbeddingDriver`,
 don't have one).
 
 ```php
-use LlmRouter\Driver\OpenAiEmbeddingDriver;
-use LlmRouter\DTO\EmbeddingRequest;
-use LlmRouter\Http\HttpClient;
+use CleatSquad\LlmRouter\Driver\OpenAiEmbeddingDriver;
+use CleatSquad\LlmRouter\DTO\EmbeddingRequest;
+use CleatSquad\LlmRouter\Http\HttpClient;
 
 $driver = new OpenAiEmbeddingDriver(new HttpClient(), openAiApiKey: getenv('OPENAI_API_KEY'));
 
@@ -702,7 +705,7 @@ first, falling through to the next only when a driver is unavailable or its
 `embed()` call throws:
 
 ```php
-use LlmRouter\Driver\FallbackEmbeddingDriver;
+use CleatSquad\LlmRouter\Driver\FallbackEmbeddingDriver;
 
 $driver = new FallbackEmbeddingDriver([$ollama, $openai, $mistral]); // priority order, highest first
 $response = $driver->embed(EmbeddingRequest::forText('Hello, world')); // tries $ollama, falls back on failure
@@ -715,9 +718,9 @@ $response = $driver->embed(EmbeddingRequest::forText('Hello, world')); // tries 
 here with a real speech-to-text endpoint:
 
 ```php
-use LlmRouter\Driver\OpenAiAudioDriver;
-use LlmRouter\DTO\AudioTranscriptionRequest;
-use LlmRouter\Http\HttpClient;
+use CleatSquad\LlmRouter\Driver\OpenAiAudioDriver;
+use CleatSquad\LlmRouter\DTO\AudioTranscriptionRequest;
+use CleatSquad\LlmRouter\Http\HttpClient;
 
 $driver = new OpenAiAudioDriver(new HttpClient(), openAiApiKey: getenv('OPENAI_API_KEY'));
 
@@ -768,7 +771,7 @@ apply normally.
 
 ### Rate limits
 
-A 429 is surfaced as `LlmRouter\Exception\RateLimitException`, with the delay
+A 429 is surfaced as `CleatSquad\LlmRouter\Exception\RateLimitException`, with the delay
 as a typed property — `getRetryAfterSeconds()` — never as text to be parsed out
 of a message. `Retry-After` is read in both forms RFC 9110 allows (a delay in
 seconds, or an HTTP date); a past date and a negative value both read as 0, and

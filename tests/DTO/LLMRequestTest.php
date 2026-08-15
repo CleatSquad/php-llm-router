@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\DTO;
+namespace CleatSquad\LlmRouter\Tests\DTO;
 
-use LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
 use PHPUnit\Framework\TestCase;
 
 final class LLMRequestTest extends TestCase

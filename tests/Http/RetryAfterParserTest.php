@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Http;
+namespace CleatSquad\LlmRouter\Tests\Http;
 
+use CleatSquad\LlmRouter\Http\RetryAfterParser;
 use DateTimeImmutable;
-use LlmRouter\Http\RetryAfterParser;
 use PHPUnit\Framework\TestCase;
 
 final class RetryAfterParserTest extends TestCase

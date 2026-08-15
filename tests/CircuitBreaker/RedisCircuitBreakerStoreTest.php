@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\CircuitBreaker;
+namespace CleatSquad\LlmRouter\Tests\CircuitBreaker;
 
+use CleatSquad\LlmRouter\CircuitBreaker\CircuitBreakerState;
+use CleatSquad\LlmRouter\CircuitBreaker\RedisCircuitBreakerStore;
 use DateTimeImmutable;
-use LlmRouter\CircuitBreaker\CircuitBreakerState;
-use LlmRouter\CircuitBreaker\RedisCircuitBreakerStore;
 use PHPUnit\Framework\TestCase;
 use Redis;
 

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Contract\Driver;
+namespace CleatSquad\LlmRouter\Contract\Driver;
 
-use LlmRouter\DTO\HealthStatus;
-use LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\Enum\DriverType;
 
 interface DriverInterface
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Http;
+namespace CleatSquad\LlmRouter\Http;
 
 use DateTimeImmutable;
 

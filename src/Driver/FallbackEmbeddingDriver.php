@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver;
+namespace CleatSquad\LlmRouter\Driver;
 
+use CleatSquad\LlmRouter\Contract\Driver\EmbeddingDriverInterface;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\EmbeddingRequest;
+use CleatSquad\LlmRouter\DTO\EmbeddingResponse;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\Enum\DriverType;
 use InvalidArgumentException;
-use LlmRouter\Contract\Driver\EmbeddingDriverInterface;
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\EmbeddingRequest;
-use LlmRouter\DTO\EmbeddingResponse;
-use LlmRouter\DTO\HealthStatus;
-use LlmRouter\Enum\DriverType;
 use RuntimeException;
 use Throwable;
 

@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
+use CleatSquad\LlmRouter\Driver\ClaudeDriver;
+use CleatSquad\LlmRouter\Driver\OpenAiDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Enum\ReasoningEffort;
+use CleatSquad\LlmRouter\Exception\UnsupportedReasoningException;
+use CleatSquad\LlmRouter\Http\HttpClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
-use LlmRouter\Driver\ClaudeDriver;
-use LlmRouter\Driver\OpenAiDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Enum\ReasoningEffort;
-use LlmRouter\Exception\UnsupportedReasoningException;
-use LlmRouter\Http\HttpClient;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -225,7 +225,7 @@ final class ModelCapabilityTest extends TestCase
         );
 
         // Qwen: binary effort, and it accepts reasoning_format.
-        (new \LlmRouter\Driver\GroqDriver($this->http($answer)))->chat($request('qwen/qwen3.6-27b'));
+        (new \CleatSquad\LlmRouter\Driver\GroqDriver($this->http($answer)))->chat($request('qwen/qwen3.6-27b'));
         $qwen = $this->lastPayload();
         $this->assertSame('default', $qwen['reasoning_effort']);
         $this->assertSame('parsed', $qwen['reasoning_format']);
@@ -233,7 +233,7 @@ final class ModelCapabilityTest extends TestCase
         // GPT-OSS: graded effort, and reasoning_format is rejected outright —
         // sending Qwen's spelling here was a guaranteed 400.
         $this->sent = [];
-        (new \LlmRouter\Driver\GroqDriver($this->http($answer)))->chat($request('openai/gpt-oss-120b'));
+        (new \CleatSquad\LlmRouter\Driver\GroqDriver($this->http($answer)))->chat($request('openai/gpt-oss-120b'));
         $oss = $this->lastPayload();
         $this->assertSame('high', $oss['reasoning_effort']);
         $this->assertArrayNotHasKey('reasoning_format', $oss);
@@ -251,7 +251,7 @@ final class ModelCapabilityTest extends TestCase
         // Llama models, and llama-3.1-8b-instant is the driver's default —
         // so a reasoning request used to go out on every unqualified call.
         $this->expectException(UnsupportedReasoningException::class);
-        (new \LlmRouter\Driver\GroqDriver($this->http($answer)))->chat(new LLMRequest(
+        (new \CleatSquad\LlmRouter\Driver\GroqDriver($this->http($answer)))->chat(new LLMRequest(
             messages: [['role' => 'user', 'content' => 'hi']],
             reasoningEffort: ReasoningEffort::High,
         ));

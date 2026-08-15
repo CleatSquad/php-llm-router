@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\CircuitBreaker;
+namespace CleatSquad\LlmRouter\CircuitBreaker;
 
 use DateTimeImmutable;
 

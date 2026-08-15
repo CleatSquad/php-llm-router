@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
+use CleatSquad\LlmRouter\Driver\A2AClientDriver;
+use CleatSquad\LlmRouter\DTO\HealthState;
+use CleatSquad\LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\Http\HttpClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
-use LlmRouter\Driver\A2AClientDriver;
-use LlmRouter\DTO\HealthState;
-use LlmRouter\Enum\DriverType;
-use LlmRouter\Http\HttpClient;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

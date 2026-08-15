@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Cache;
+namespace CleatSquad\LlmRouter\Cache;
 
-use LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
 
 /**
  * Where CachingDriver persists cached chat() responses; implement against Redis/DB to share the cache across processes.

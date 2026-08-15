@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Contract\Driver;
+namespace CleatSquad\LlmRouter\Contract\Driver;
 
+use CleatSquad\LlmRouter\DTO\AgentCard;
+use CleatSquad\LlmRouter\DTO\AgentResponse;
 use Generator;
-use LlmRouter\DTO\AgentCard;
-use LlmRouter\DTO\AgentResponse;
 
 interface A2ADriverInterface extends AgentDriverInterface
 {

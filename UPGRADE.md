@@ -1,5 +1,65 @@
 # Upgrade guide
 
+## 3.x → 4.0.0
+
+**One breaking change, and it is mechanical: the namespace gained its vendor
+prefix.** `LlmRouter\` is now `CleatSquad\LlmRouter\`. No class was renamed,
+moved, split or removed; no signature, constructor order or default changed; the
+PHP floor stays at 8.2 and the dependencies are untouched. Only your `use`
+statements move.
+
+### Why
+
+The package is published as `cleatsquad/php-llm-router`, but its root namespace
+claimed `LlmRouter\` — a name no vendor owns. Any other library called
+"llm router" collided with it, and a reader seeing `use LlmRouter\...` had no
+way to tell which Composer package to install. PSR-4 expects
+`Vendor\Package\`; this release makes the code say what the package name
+already said.
+
+### Migrating
+
+```bash
+composer require cleatsquad/php-llm-router:^4.0
+```
+
+Then rewrite your imports. This one pass covers every form — `use`, fully
+qualified names, `::class`, string class names — and is safe to run twice,
+because it skips what is already prefixed:
+
+```bash
+perl -pi -e 's/(?<!CleatSquad\\)LlmRouter(?=\\\\)/CleatSquad\\\\LlmRouter/g;
+             s/(?<!CleatSquad\\)LlmRouter(?=\\(?!\\))/CleatSquad\\LlmRouter/g;' \
+  $(grep -rl 'LlmRouter' src/ tests/ config/ 2>/dev/null)
+```
+
+The second pattern handles source code (`LlmRouter\Driver\ClaudeDriver`); the
+first handles the escaped form found in JSON, YAML, NEON and PHPStan baselines
+(`LlmRouter\\Driver\\ClaudeDriver`). Adjust the directory list to your tree.
+
+Then check nothing was missed:
+
+```bash
+grep -rn '\bLlmRouter\\' --include='*.php' . | grep -v CleatSquad
+```
+
+### Two places worth checking by hand
+
+- **Your own PHPStan/Psalm baselines** hold the old class names inside error
+  messages. Regenerate them rather than editing them.
+- **Container and configuration files** referencing drivers as strings
+  (`'LlmRouter\Driver\ClaudeDriver'`) fail at runtime, not at compile time, so
+  static analysis will not catch them. The `grep` above will.
+
+### What does not change
+
+Redis keys (`llm_router:*`), cache-entry shapes, breaker and quota state, wire
+formats and the model catalogues are all identical. A mixed-version rollout is
+safe: two builds differing only by namespace read each other's shared state
+without a hiccup.
+
+---
+
 ## 2.x → 3.0.0
 
 **One breaking change, and it only affects `KimiDriver`.** Every other driver is
@@ -48,7 +108,7 @@ the requests this library sends are byte-identical to 2.0.x.
 ### Asking a model to think
 
 ```php
-use LlmRouter\Enum\ReasoningEffort;
+use CleatSquad\LlmRouter\Enum\ReasoningEffort;
 
 $response = $driver->chat(new LLMRequest(
     messages: $messages,
@@ -289,14 +349,14 @@ PHP-FPM means one cache and one quota *per worker*. Two new options:
 
 ```php
 // Cache and breaker over any PSR-16 backend (filesystem, APCu, Memcached, PDO)
-use LlmRouter\Cache\Psr16CacheStore;
-use LlmRouter\CircuitBreaker\Psr16CircuitBreakerStore;
+use CleatSquad\LlmRouter\Cache\Psr16CacheStore;
+use CleatSquad\LlmRouter\CircuitBreaker\Psr16CircuitBreakerStore;
 
 $driver = new CachingDriver($driver, new Psr16CacheStore($psr16), ttlSeconds: 300);
 $driver = new CircuitBreakerDriver($driver, new Psr16CircuitBreakerStore($psr16));
 
 // Quota over APCu — atomic across the workers of one machine
-use LlmRouter\RateLimit\ApcuRateLimitStore;
+use CleatSquad\LlmRouter\RateLimit\ApcuRateLimitStore;
 
 $driver = new RateLimitedDriver($driver, new ApcuRateLimitStore(), maxRequestsPerMinute: 30);
 ```

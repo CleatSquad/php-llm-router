@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver\Concern;
+namespace CleatSquad\LlmRouter\Driver\Concern;
 
+use CleatSquad\LlmRouter\DTO\LLMRequest;
 use Generator;
-use LlmRouter\DTO\LLMRequest;
 use Psr\Http\Message\StreamInterface;
 
 /**

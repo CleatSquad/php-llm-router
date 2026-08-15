@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests;
+namespace CleatSquad\LlmRouter\Tests;
 
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Routing\RoundRobinStrategy;
-use LlmRouter\Tests\Fixtures\FakeDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Routing\RoundRobinStrategy;
+use CleatSquad\LlmRouter\Tests\Fixtures\FakeDriver;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

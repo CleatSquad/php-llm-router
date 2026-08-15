@@ -56,12 +56,12 @@
     },
     "autoload": {
         "psr-4": {
-            "LlmRouter\\": "src/"
+            "CleatSquad\\LlmRouter\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "LlmRouter\\Tests\\": "tests/"
+            "CleatSquad\\LlmRouter\\Tests\\": "tests/"
         },
         "files": [
             "tests/Fixtures/FakeRedis.php"

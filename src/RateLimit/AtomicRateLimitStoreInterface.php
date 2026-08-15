@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\RateLimit;
+namespace CleatSquad\LlmRouter\RateLimit;
 
 /**
  * Opt-in extension of RateLimitStoreInterface for backends offering a real

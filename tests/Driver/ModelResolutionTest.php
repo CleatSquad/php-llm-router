@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Driver\ClaudeDriver;
+use CleatSquad\LlmRouter\Driver\DeepSeekDriver;
+use CleatSquad\LlmRouter\Driver\GeminiDriver;
+use CleatSquad\LlmRouter\Driver\GroqDriver;
+use CleatSquad\LlmRouter\Driver\MistralDriver;
+use CleatSquad\LlmRouter\Driver\OpenAiDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Exception\UnknownModelException;
+use CleatSquad\LlmRouter\Http\HttpClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\Driver\ClaudeDriver;
-use LlmRouter\Driver\DeepSeekDriver;
-use LlmRouter\Driver\GeminiDriver;
-use LlmRouter\Driver\GroqDriver;
-use LlmRouter\Driver\MistralDriver;
-use LlmRouter\Driver\OpenAiDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Exception\UnknownModelException;
-use LlmRouter\Http\HttpClient;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -151,7 +151,7 @@ final class ModelResolutionTest extends TestCase
         // Groq serves "openai/gpt-oss-120b" — the slash is part of the name,
         // not a provider prefix. Stripping eagerly turned a known model into
         // an unknown one and raised UnknownModelException.
-        $driver = new \LlmRouter\Driver\GroqDriver($this->http());
+        $driver = new \CleatSquad\LlmRouter\Driver\GroqDriver($this->http());
 
         $this->assertContains('openai/gpt-oss-120b', $driver->getModels());
         $this->assertGreaterThan(
@@ -162,7 +162,7 @@ final class ModelResolutionTest extends TestCase
 
     public function testAProviderPrefixIsStillStrippedWhenTheFullNameIsUnknown(): void
     {
-        $driver = new \LlmRouter\Driver\GroqDriver($this->http());
+        $driver = new \CleatSquad\LlmRouter\Driver\GroqDriver($this->http());
 
         // "groq/llama-3.1-8b-instant" isn't a catalogue entry, but the part
         // after the prefix is — proxied setups depend on this.
@@ -207,7 +207,7 @@ final class ModelResolutionTest extends TestCase
         // Kimi used to forward any name it was given and price it from a
         // hardcoded guess. It now carries a catalogue, so it refuses an
         // unknown model rather than quoting a made-up rate for it.
-        $driver = new \LlmRouter\Driver\KimiDriver($this->http());
+        $driver = new \CleatSquad\LlmRouter\Driver\KimiDriver($this->http());
 
         $this->expectException(UnknownModelException::class);
         $driver->estimateCost($this->request('kimi-k99'));
@@ -215,7 +215,7 @@ final class ModelResolutionTest extends TestCase
 
     public function testKimiPricesItsCatalogueInUsd(): void
     {
-        $driver = new \LlmRouter\Driver\KimiDriver($this->http());
+        $driver = new \CleatSquad\LlmRouter\Driver\KimiDriver($this->http());
 
         // $3 / $15 per million tokens on the international endpoint.
         $cost = $driver->estimateCost(new LLMRequest(

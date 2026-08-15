@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Exception;
+namespace CleatSquad\LlmRouter\Exception;
 
 use RuntimeException;
 

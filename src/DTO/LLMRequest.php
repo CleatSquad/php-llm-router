@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\DTO;
+namespace CleatSquad\LlmRouter\DTO;
 
+use CleatSquad\LlmRouter\Enum\ReasoningEffort;
 use Closure;
-use LlmRouter\Enum\ReasoningEffort;
 
 /**
  * Represents a request to an LLM driver.

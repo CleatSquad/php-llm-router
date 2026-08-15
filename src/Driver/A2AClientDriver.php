@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver;
+namespace CleatSquad\LlmRouter\Driver;
 
+use CleatSquad\LlmRouter\Contract\Driver\A2ADriverInterface;
+use CleatSquad\LlmRouter\DTO\AgentCard;
+use CleatSquad\LlmRouter\DTO\AgentResponse;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\Http\HttpClient;
 use Exception;
 use Generator;
-use LlmRouter\Contract\Driver\A2ADriverInterface;
-use LlmRouter\DTO\AgentCard;
-use LlmRouter\DTO\AgentResponse;
-use LlmRouter\DTO\HealthStatus;
-use LlmRouter\Enum\DriverType;
-use LlmRouter\Http\HttpClient;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 use Throwable;

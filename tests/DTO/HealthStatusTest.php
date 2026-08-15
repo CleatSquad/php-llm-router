@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\DTO;
+namespace CleatSquad\LlmRouter\Tests\DTO;
 
-use LlmRouter\DTO\HealthState;
-use LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\DTO\HealthState;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
 use PHPUnit\Framework\TestCase;
 
 final class HealthStatusTest extends TestCase

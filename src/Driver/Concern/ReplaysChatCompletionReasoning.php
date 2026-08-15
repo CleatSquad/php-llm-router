@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver\Concern;
+namespace CleatSquad\LlmRouter\Driver\Concern;
 
 /**
  * Rewrites the history for providers that speak the OpenAI Chat Completions

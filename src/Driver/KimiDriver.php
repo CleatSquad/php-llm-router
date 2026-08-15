@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver;
+namespace CleatSquad\LlmRouter\Driver;
 
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
+use CleatSquad\LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
+use CleatSquad\LlmRouter\Driver\Concern\ResolvesPricedModel;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\HealthState;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\Enum\ReasoningEffort;
+use CleatSquad\LlmRouter\Http\HttpClient;
 use DateTimeImmutable;
 use Generator;
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\Driver\Concern\ParsesChatCompletionSse;
-use LlmRouter\Driver\Concern\ResolvesPricedModel;
-use LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthState;
-use LlmRouter\DTO\HealthStatus;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\DTO\LLMResponse;
-use LlmRouter\Enum\DriverType;
-use LlmRouter\Enum\ReasoningEffort;
-use LlmRouter\Http\HttpClient;
 use RuntimeException;
 
 /**

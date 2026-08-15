@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Fixtures;
+namespace CleatSquad\LlmRouter\Tests\Fixtures;
 
 /**
  * Stand-in for a gadget class: any type whose mere instantiation during

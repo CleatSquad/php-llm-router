@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Cache;
+namespace CleatSquad\LlmRouter\Tests\Cache;
 
-use LlmRouter\Cache\InMemoryCacheStore;
-use LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\Cache\InMemoryCacheStore;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
 use PHPUnit\Framework\TestCase;
 
 final class InMemoryCacheStoreTest extends TestCase

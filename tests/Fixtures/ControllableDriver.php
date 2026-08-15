@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Fixtures;
+namespace CleatSquad\LlmRouter\Tests\Fixtures;
 
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\HealthStatus;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\Enum\DriverType;
 use Generator;
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\HealthStatus;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\DTO\LLMResponse;
-use LlmRouter\Enum\DriverType;
 use Throwable;
 
 /**

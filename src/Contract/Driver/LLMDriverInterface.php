@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Contract\Driver;
+namespace CleatSquad\LlmRouter\Contract\Driver;
 
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
 use Generator;
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\DTO\LLMResponse;
 
 interface LLMDriverInterface extends DriverInterface
 {

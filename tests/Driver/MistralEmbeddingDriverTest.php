@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
+use CleatSquad\LlmRouter\Driver\MistralEmbeddingDriver;
+use CleatSquad\LlmRouter\DTO\EmbeddingRequest;
+use CleatSquad\LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\Http\HttpClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
-use LlmRouter\Driver\MistralEmbeddingDriver;
-use LlmRouter\DTO\EmbeddingRequest;
-use LlmRouter\Enum\DriverType;
-use LlmRouter\Http\HttpClient;
 use PHPUnit\Framework\TestCase;
 
 final class MistralEmbeddingDriverTest extends TestCase

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
-use LlmRouter\Driver\CachingDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Tests\Fixtures\ControllableDriver;
+use CleatSquad\LlmRouter\Driver\CachingDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Tests\Fixtures\ControllableDriver;
 use PHPUnit\Framework\TestCase;
 
 final class CachingDriverTest extends TestCase

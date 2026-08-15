@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Cache;
+namespace CleatSquad\LlmRouter\Tests\Cache;
 
-use LlmRouter\Cache\RedisCacheStore;
-use LlmRouter\DTO\LLMResponse;
-use LlmRouter\Tests\Fixtures\GadgetProbe;
-use LlmRouter\Tests\Fixtures\RecordingLogger;
+use CleatSquad\LlmRouter\Cache\RedisCacheStore;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\Tests\Fixtures\GadgetProbe;
+use CleatSquad\LlmRouter\Tests\Fixtures\RecordingLogger;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Redis;

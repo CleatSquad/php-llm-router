@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Fixtures;
+namespace CleatSquad\LlmRouter\Tests\Fixtures;
 
 use Psr\SimpleCache\CacheInterface;
 use RuntimeException;

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
-use LlmRouter\Driver\RateLimitedDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\RateLimit\InMemoryRateLimitStore;
-use LlmRouter\Tests\Fixtures\ControllableDriver;
+use CleatSquad\LlmRouter\Driver\RateLimitedDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\RateLimit\InMemoryRateLimitStore;
+use CleatSquad\LlmRouter\Tests\Fixtures\ControllableDriver;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

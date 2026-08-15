@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Cache;
+namespace CleatSquad\LlmRouter\Tests\Cache;
 
-use LlmRouter\Cache\Psr16CacheStore;
-use LlmRouter\DTO\LLMResponse;
-use LlmRouter\Tests\Fixtures\ArrayPsr16Cache;
-use LlmRouter\Tests\Fixtures\GadgetProbe;
-use LlmRouter\Tests\Fixtures\RecordingLogger;
+use CleatSquad\LlmRouter\Cache\Psr16CacheStore;
+use CleatSquad\LlmRouter\DTO\LLMResponse;
+use CleatSquad\LlmRouter\Tests\Fixtures\ArrayPsr16Cache;
+use CleatSquad\LlmRouter\Tests\Fixtures\GadgetProbe;
+use CleatSquad\LlmRouter\Tests\Fixtures\RecordingLogger;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
-use LlmRouter\CircuitBreaker\InMemoryCircuitBreakerStore;
-use LlmRouter\Driver\CircuitBreakerDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Tests\Fixtures\ControllableDriver;
+use CleatSquad\LlmRouter\CircuitBreaker\InMemoryCircuitBreakerStore;
+use CleatSquad\LlmRouter\Driver\CircuitBreakerDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Tests\Fixtures\ControllableDriver;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -142,14 +142,14 @@ final class CircuitBreakerDriverTest extends TestCase
 
     public function testRateLimitExceptionSetsCustomOpenDuration(): void
     {
-        $rateLimitFailure = new \LlmRouter\Exception\RateLimitException('Rate limit hit', 3442, 429);
+        $rateLimitFailure = new \CleatSquad\LlmRouter\Exception\RateLimitException('Rate limit hit', 3442, 429);
         $inner = new ControllableDriver('fake', [$rateLimitFailure]);
         $store = new InMemoryCircuitBreakerStore();
         $breaker = new CircuitBreakerDriver($inner, $store, failureThreshold: 1, openSeconds: 60);
 
         try {
             $breaker->chat($this->request());
-        } catch (\LlmRouter\Exception\RateLimitException) {
+        } catch (\CleatSquad\LlmRouter\Exception\RateLimitException) {
         }
 
         $state = $store->getState('fake');

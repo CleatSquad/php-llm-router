@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\CircuitBreaker;
+namespace CleatSquad\LlmRouter\CircuitBreaker;
 
-use LlmRouter\Serialization\CircuitBreakerStateCodec;
+use CleatSquad\LlmRouter\Serialization\CircuitBreakerStateCodec;
 use Psr\Log\LoggerInterface;
 use Redis;
 use Throwable;

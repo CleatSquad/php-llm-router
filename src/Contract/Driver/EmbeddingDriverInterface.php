@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Contract\Driver;
+namespace CleatSquad\LlmRouter\Contract\Driver;
 
-use LlmRouter\DTO\CostEstimate;
-use LlmRouter\DTO\EmbeddingRequest;
-use LlmRouter\DTO\EmbeddingResponse;
+use CleatSquad\LlmRouter\DTO\CostEstimate;
+use CleatSquad\LlmRouter\DTO\EmbeddingRequest;
+use CleatSquad\LlmRouter\DTO\EmbeddingResponse;
 
 interface EmbeddingDriverInterface extends DriverInterface
 {

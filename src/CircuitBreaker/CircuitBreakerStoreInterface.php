@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\CircuitBreaker;
+namespace CleatSquad\LlmRouter\CircuitBreaker;
 
 /**
  * Where CircuitBreakerDriver persists per-driver failure state; implement against Redis/DB to share it across processes.

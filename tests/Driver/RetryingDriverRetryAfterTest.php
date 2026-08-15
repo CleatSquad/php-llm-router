@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
-use LlmRouter\Driver\RetryingDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Exception\RateLimitException;
-use LlmRouter\Tests\Fixtures\ControllableDriver;
-use LlmRouter\Tests\Fixtures\PartialStreamDriver;
+use CleatSquad\LlmRouter\Driver\RetryingDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Exception\RateLimitException;
+use CleatSquad\LlmRouter\Tests\Fixtures\ControllableDriver;
+use CleatSquad\LlmRouter\Tests\Fixtures\PartialStreamDriver;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

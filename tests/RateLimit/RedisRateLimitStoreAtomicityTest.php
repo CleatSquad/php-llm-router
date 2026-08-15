@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\RateLimit;
+namespace CleatSquad\LlmRouter\Tests\RateLimit;
 
-use LlmRouter\RateLimit\AtomicRateLimitStoreInterface;
-use LlmRouter\RateLimit\RedisRateLimitStore;
+use CleatSquad\LlmRouter\RateLimit\AtomicRateLimitStoreInterface;
+use CleatSquad\LlmRouter\RateLimit\RedisRateLimitStore;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Redis;

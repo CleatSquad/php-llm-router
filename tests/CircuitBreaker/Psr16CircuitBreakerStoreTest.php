@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\CircuitBreaker;
+namespace CleatSquad\LlmRouter\Tests\CircuitBreaker;
 
+use CleatSquad\LlmRouter\CircuitBreaker\CircuitBreakerState;
+use CleatSquad\LlmRouter\CircuitBreaker\Psr16CircuitBreakerStore;
+use CleatSquad\LlmRouter\Tests\Fixtures\ArrayPsr16Cache;
+use CleatSquad\LlmRouter\Tests\Fixtures\GadgetProbe;
+use CleatSquad\LlmRouter\Tests\Fixtures\RecordingLogger;
 use DateTimeImmutable;
-use LlmRouter\CircuitBreaker\CircuitBreakerState;
-use LlmRouter\CircuitBreaker\Psr16CircuitBreakerStore;
-use LlmRouter\Tests\Fixtures\ArrayPsr16Cache;
-use LlmRouter\Tests\Fixtures\GadgetProbe;
-use LlmRouter\Tests\Fixtures\RecordingLogger;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 

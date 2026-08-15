@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver\Concern;
+namespace CleatSquad\LlmRouter\Driver\Concern;
 
+use CleatSquad\LlmRouter\Exception\RateLimitException;
+use CleatSquad\LlmRouter\Http\RetryAfterParser;
 use GuzzleHttp\Exception\RequestException;
-use LlmRouter\Exception\RateLimitException;
-use LlmRouter\Http\RetryAfterParser;
 
 trait HandlesHttpRateLimit
 {

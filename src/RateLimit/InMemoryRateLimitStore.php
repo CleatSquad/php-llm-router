@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\RateLimit;
+namespace CleatSquad\LlmRouter\RateLimit;
 
 /**
  * Default RateLimitStoreInterface: a same-process array, fine for a CLI session or single worker.

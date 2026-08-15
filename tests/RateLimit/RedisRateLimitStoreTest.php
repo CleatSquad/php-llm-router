@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\RateLimit;
+namespace CleatSquad\LlmRouter\Tests\RateLimit;
 
+use CleatSquad\LlmRouter\RateLimit\RateLimitWindow;
+use CleatSquad\LlmRouter\RateLimit\RedisRateLimitStore;
 use DateTimeImmutable;
-use LlmRouter\RateLimit\RateLimitWindow;
-use LlmRouter\RateLimit\RedisRateLimitStore;
 use PHPUnit\Framework\TestCase;
 use Redis;
 

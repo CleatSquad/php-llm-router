@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Routing;
+namespace CleatSquad\LlmRouter\Routing;
 
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\Contract\RoutingStrategyInterface;
-use LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\RoutingStrategyInterface;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
 use RuntimeException;
 
 class PriorityStrategy implements RoutingStrategyInterface

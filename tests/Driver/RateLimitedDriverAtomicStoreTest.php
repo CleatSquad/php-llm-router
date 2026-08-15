@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
-use LlmRouter\Driver\RateLimitedDriver;
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\RateLimit\InMemoryRateLimitStore;
-use LlmRouter\RateLimit\RedisRateLimitStore;
-use LlmRouter\Tests\Fixtures\ControllableDriver;
+use CleatSquad\LlmRouter\Driver\RateLimitedDriver;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\RateLimit\InMemoryRateLimitStore;
+use CleatSquad\LlmRouter\RateLimit\RedisRateLimitStore;
+use CleatSquad\LlmRouter\Tests\Fixtures\ControllableDriver;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Redis;

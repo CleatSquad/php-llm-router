@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
-use LlmRouter\Driver\McpClientDriver;
-use LlmRouter\DTO\HealthState;
-use LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\Driver\McpClientDriver;
+use CleatSquad\LlmRouter\DTO\HealthState;
+use CleatSquad\LlmRouter\Enum\DriverType;
 use PHPUnit\Framework\TestCase;
 
 final class McpClientDriverTest extends TestCase

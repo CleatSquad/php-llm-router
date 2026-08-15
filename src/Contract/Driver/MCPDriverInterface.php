@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Contract\Driver;
+namespace CleatSquad\LlmRouter\Contract\Driver;
 
-use LlmRouter\DTO\ToolResult;
+use CleatSquad\LlmRouter\DTO\ToolResult;
 
 interface MCPDriverInterface extends DriverInterface
 {

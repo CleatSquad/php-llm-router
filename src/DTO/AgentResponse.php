@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\DTO;
+namespace CleatSquad\LlmRouter\DTO;
 
 /**
  * Result of an agent execution (A2A task, coding-agent CLI run, etc.).

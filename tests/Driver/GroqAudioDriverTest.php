@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\Driver;
+namespace CleatSquad\LlmRouter\Tests\Driver;
 
+use CleatSquad\LlmRouter\Driver\GroqAudioDriver;
+use CleatSquad\LlmRouter\DTO\AudioTranscriptionRequest;
+use CleatSquad\LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\Http\HttpClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
-use LlmRouter\Driver\GroqAudioDriver;
-use LlmRouter\DTO\AudioTranscriptionRequest;
-use LlmRouter\Enum\DriverType;
-use LlmRouter\Http\HttpClient;
 use PHPUnit\Framework\TestCase;
 
 final class GroqAudioDriverTest extends TestCase
@@ -72,7 +72,7 @@ final class GroqAudioDriverTest extends TestCase
         try {
             $driver->transcribe(new AudioTranscriptionRequest('fake-audio-bytes'));
             $this->fail('Expected RateLimitException');
-        } catch (\LlmRouter\Exception\RateLimitException $e) {
+        } catch (\CleatSquad\LlmRouter\Exception\RateLimitException $e) {
             $this->assertSame(120, $e->getRetryAfterSeconds());
             $this->assertSame(429, $e->getStatusCode());
         }

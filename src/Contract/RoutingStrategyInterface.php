@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Contract;
+namespace CleatSquad\LlmRouter\Contract;
 
-use LlmRouter\Contract\Driver\LLMDriverInterface;
-use LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
 
 interface RoutingStrategyInterface
 {

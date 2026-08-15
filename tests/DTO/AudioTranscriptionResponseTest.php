@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Tests\DTO;
+namespace CleatSquad\LlmRouter\Tests\DTO;
 
-use LlmRouter\DTO\AudioTranscriptionResponse;
+use CleatSquad\LlmRouter\DTO\AudioTranscriptionResponse;
 use PHPUnit\Framework\TestCase;
 
 final class AudioTranscriptionResponseTest extends TestCase

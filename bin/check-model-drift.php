@@ -164,35 +164,35 @@ require __DIR__ . '/../vendor/autoload.php';
  */
 $providers = [
     'Anthropic' => [
-        'driver' => LlmRouter\Driver\ClaudeDriver::class,
+        'driver' => CleatSquad\LlmRouter\Driver\ClaudeDriver::class,
         'url' => 'https://api.anthropic.com/v1/models?limit=100',
         'env' => 'ANTHROPIC_API_KEY',
         'header' => 'x-api-key: %s',
         'extract' => static fn (array $d): array => array_column($d['data'] ?? [], 'id'),
     ],
     'OpenAI' => [
-        'driver' => LlmRouter\Driver\OpenAiDriver::class,
+        'driver' => CleatSquad\LlmRouter\Driver\OpenAiDriver::class,
         'url' => 'https://api.openai.com/v1/models',
         'env' => 'OPENAI_API_KEY',
         'header' => 'Authorization: Bearer %s',
         'extract' => static fn (array $d): array => array_column($d['data'] ?? [], 'id'),
     ],
     'Groq' => [
-        'driver' => LlmRouter\Driver\GroqDriver::class,
+        'driver' => CleatSquad\LlmRouter\Driver\GroqDriver::class,
         'url' => 'https://api.groq.com/openai/v1/models',
         'env' => 'GROQ_API_KEY',
         'header' => 'Authorization: Bearer %s',
         'extract' => static fn (array $d): array => array_column($d['data'] ?? [], 'id'),
     ],
     'Mistral' => [
-        'driver' => LlmRouter\Driver\MistralDriver::class,
+        'driver' => CleatSquad\LlmRouter\Driver\MistralDriver::class,
         'url' => 'https://api.mistral.ai/v1/models',
         'env' => 'MISTRAL_API_KEY',
         'header' => 'Authorization: Bearer %s',
         'extract' => static fn (array $d): array => array_column($d['data'] ?? [], 'id'),
     ],
     'Kimi' => [
-        'driver' => LlmRouter\Driver\KimiDriver::class,
+        'driver' => CleatSquad\LlmRouter\Driver\KimiDriver::class,
         // The international endpoint, whose catalogue is the one this package
         // prices in USD. The mainland host serves a different model list.
         'url' => 'https://api.moonshot.ai/v1/models',
@@ -201,14 +201,14 @@ $providers = [
         'extract' => static fn (array $d): array => array_column($d['data'] ?? [], 'id'),
     ],
     'DeepSeek' => [
-        'driver' => LlmRouter\Driver\DeepSeekDriver::class,
+        'driver' => CleatSquad\LlmRouter\Driver\DeepSeekDriver::class,
         'url' => 'https://api.deepseek.com/models',
         'env' => 'DEEPSEEK_API_KEY',
         'header' => 'Authorization: Bearer %s',
         'extract' => static fn (array $d): array => array_column($d['data'] ?? [], 'id'),
     ],
     'Gemini' => [
-        'driver' => LlmRouter\Driver\GeminiDriver::class,
+        'driver' => CleatSquad\LlmRouter\Driver\GeminiDriver::class,
         'url' => 'https://generativelanguage.googleapis.com/v1beta/models',
         'env' => 'GEMINI_API_KEY',
         'header' => 'x-goog-api-key: %s',
@@ -267,7 +267,7 @@ foreach ($providers as $name => $provider) {
     /** @var string[] $live */
     $live = array_filter($provider['extract']($payload));
     /** @var string[] $shipped */
-    $shipped = (new $provider['driver'](new LlmRouter\Http\HttpClient()))->getModels();
+    $shipped = (new $provider['driver'](new CleatSquad\LlmRouter\Http\HttpClient()))->getModels();
 
     // A shipped model the provider no longer lists is the dangerous case: it
     // stays selectable, and every call using it fails at the provider.

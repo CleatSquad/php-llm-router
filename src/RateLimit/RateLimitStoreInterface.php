@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\RateLimit;
+namespace CleatSquad\LlmRouter\RateLimit;
 
 /**
  * Where RateLimitedDriver persists its per-driver usage window; implement against Redis/DB to share a quota across processes.

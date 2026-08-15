@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver\Concern;
+namespace CleatSquad\LlmRouter\Driver\Concern;
 
 /**
  * Shared by vision-capable drivers that need their own wire shape for image content — request DTOs carry it in OpenAI's native shape (see LLMRequest::estimateInputTokens()), which OpenAiDriver passes through unmodified but every other driver must translate.

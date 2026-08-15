@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace LlmRouter\Driver\Concern;
+namespace CleatSquad\LlmRouter\Driver\Concern;
 
-use LlmRouter\DTO\LLMRequest;
-use LlmRouter\Exception\UnknownModelException;
-use LlmRouter\Exception\UnsupportedReasoningException;
+use CleatSquad\LlmRouter\DTO\LLMRequest;
+use CleatSquad\LlmRouter\Exception\UnknownModelException;
+use CleatSquad\LlmRouter\Exception\UnsupportedReasoningException;
 
 /**
  * Model resolution for the drivers whose PRICING table doubles as their model
