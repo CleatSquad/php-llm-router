@@ -39,17 +39,20 @@ It cleanly separates **Routing** (deciding *who* to call before sending a reques
 
 ## Available Strategies
 
-| Strategy | Behavior | Deterministic | Prerequisites / Metrics |
-|---|---|:---:|:---:|
-| **`priority`** | Tri par priorités explicites configurées | Oui | Aucun |
-| **`weighted`** | Distribution probabiliste selon des poids (ex: 70/20/10) | Non (injectable) | Aucun |
-| **`random`** | Sélection aléatoire uniforme parmi les candidats éligibles | Non (injectable) | Aucun |
-| **`least-busy`** | Sélection du driver ayant le moins de requêtes concurrentes | Dépend (tie-break) | `ActiveRequestsTrackerInterface` |
-| **`latency`** | Sélection du driver ayant la meilleure latence observée (EMA) | Dépend (tie-break) | `LatencyTrackerInterface` |
-| **`cost`** | Sélection du driver avec le coût USD estimé le plus faible | Oui | Metadata pricing (`estimateCost()`) |
-| **`usage`** | Sélection du driver ayant l'utilisation cumulée la plus faible | Dépend (tie-break) | `UsageTrackerInterface` |
-| **`context-window`** | Sélection/Filtrage selon la taille du prompt vs capacité contextuelle | Oui | `estimateInputTokens()` |
-| **`round-robin`** | Rotation séquentielle pondérée sur candidats éligibles | Oui | Aucun |
+| Strategy      | Type         | Metric required | Purpose               |
+| ------------- | ------------ | --------------- | --------------------- |
+| Priority      | ranking      | no              | explicit preference   |
+| Random        | ranking      | no              | random distribution   |
+| Weighted      | ranking      | no              | weighted distribution |
+| RoundRobin    | distribution | state           | rotation              |
+| LeastBusy     | ranking      | active requests | load balancing        |
+| Usage         | ranking      | usage           | usage distribution    |
+| Latency       | ranking      | latency         | performance           |
+| Cost          | ranking      | pricing         | cost optimization     |
+| Reliability   | ranking      | reliability     | availability          |
+| ContextWindow | constraint   | model metadata  | context compatibility |
+| Capability    | constraint   | capabilities    | feature compatibility |
+| Quota         | constraint   | quota state     | quota protection      |
 
 ---
 

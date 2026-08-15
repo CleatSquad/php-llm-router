@@ -21,7 +21,11 @@ final class FakeDriver implements LLMDriverInterface
     public function __construct(
         private readonly string $id,
         private readonly bool $available = true,
-        private readonly ?CostEstimate $costEstimate = null
+        private readonly ?CostEstimate $costEstimate = null,
+        private readonly bool $supportsTools = false,
+        private readonly bool $supportsVision = false,
+        private readonly bool $supportsReasoning = false,
+        private readonly bool $supportsStreaming = true
     ) {}
 
     public function getId(): string
@@ -81,22 +85,22 @@ final class FakeDriver implements LLMDriverInterface
 
     public function supportsStreaming(): bool
     {
-        return true;
+        return $this->supportsStreaming;
     }
 
     public function supportsTools(): bool
     {
-        return false;
+        return $this->supportsTools;
     }
 
     public function supportsVision(): bool
     {
-        return false;
+        return $this->supportsVision;
     }
 
     public function supportsReasoning(): bool
     {
-        return false;
+        return $this->supportsReasoning;
     }
 
     public function estimateCost(LLMRequest $request): CostEstimate

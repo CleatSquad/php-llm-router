@@ -41,6 +41,18 @@ final class RoutingStrategyFactory implements RoutingStrategyFactoryInterface
                 defaultLatencyMs: (float) ($options['default_latency_ms'] ?? 0.0)
             ),
             'cost' => new CostStrategy(),
+            'capability', 'capabilities' => new CapabilityStrategy(
+                requireTools: (bool) ($options['require_tools'] ?? false),
+                requireVision: (bool) ($options['require_vision'] ?? false),
+                requireReasoning: (bool) ($options['require_reasoning'] ?? false),
+                requireStreaming: (bool) ($options['require_streaming'] ?? false)
+            ),
+            'reliability' => new ReliabilityStrategy(
+                tracker: new InMemoryReliabilityTracker()
+            ),
+            'quota' => new QuotaStrategy(
+                tracker: new InMemoryQuotaTracker()
+            ),
             'usage', 'usage-based', 'usage_based' => new UsageStrategy(
                 tracker: new InMemoryUsageTracker()
             ),

@@ -335,17 +335,20 @@ $driver = new RateLimitedDriver(new GroqDriver($http, groqApiKey: $key), $store,
 
 `PriorityStrategy` answers "which provider first when they differ in quality/cost". `php-llm-router` provides a full suite of pluggable routing strategies implementing `RoutingStrategyInterface`:
 
-| Strategy | Use case | Deterministic | Requires metrics |
+| Strategy | Type | Metric required | Purpose |
 | --- | --- | ---: | ---: |
-| `priority` | Strict priority order (with optional `qualityPriorities`) | yes | no |
-| `weighted` | Probabilistic weighted distribution (e.g. 70%/20%/10%) | no (injectable seed) | no |
-| `random` | Uniform random distribution across available drivers | no (injectable seed) | no |
-| `least-busy` | Route to driver with lowest active in-flight requests | depends (tie-break) | yes (`ActiveRequestsTrackerInterface`) |
-| `latency` | Route to driver with best rolling latency | depends (tie-break) | yes (`LatencyTrackerInterface`) |
-| `cost` | Route to driver with minimum estimated USD cost | yes | pricing (`estimateCost()`) |
-| `usage` | Route to driver with lowest accumulated token/request usage | depends (tie-break) | yes (`UsageTrackerInterface`) |
-| `context-window` | Filter/route by prompt size vs context capacity | yes | no (`estimateInputTokens()`) |
-| `round-robin` | Rotates evenly across equivalent deployments | yes | no |
+| `priority` | ranking | no | explicit priority preference |
+| `weighted` | ranking | no | weighted probabilistic distribution |
+| `random` | ranking | no | simple shuffle / uniform random distribution |
+| `least-busy` | ranking | active requests | route to driver with lowest active in-flight requests |
+| `latency` | ranking | latency | route to driver with best rolling latency (EMA) |
+| `cost` | ranking | pricing | route to driver with minimum estimated USD cost |
+| `usage` | ranking | usage | route to driver with lowest accumulated usage |
+| `reliability` | ranking | reliability | route to driver with highest success rate |
+| `context-window` | constraint | model metadata | filter by prompt size vs context capacity limit |
+| `capability` | constraint | capabilities | filter by driver capabilities (tools, vision, reasoning, streaming) |
+| `quota` | constraint | quota state | protection against exhausted or low quota limits |
+| `round-robin` | distribution | state | rotates evenly across equivalent deployments |
 
 #### Strategy Factory
 
