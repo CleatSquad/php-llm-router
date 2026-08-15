@@ -1,5 +1,32 @@
 # Upgrade guide
 
+## 5.0.2 → 5.1.0
+
+**Feature Release: Model-Aware Candidate Identity & Deployment Separation (RFC-1).**
+
+This release is **100% backward compatible** with v5.0.2. Existing candidate declarations, driver lists, and policy configurations continue to work without modification.
+
+### New Features & Improvements in 5.1.0
+
+1. **Model-Aware `Candidate` Identity**:
+   - `Candidate` accepts an optional 4th parameter: `new Candidate($id, $name, $driver, ?string $model = null)`.
+   - `$id` represents explicit deployment/node identity (e.g. `'ollama-node-1'`), while `$model` represents assigned model capability (e.g. `'llama3'`).
+
+2. **`ModelConstraint`**:
+   - Introduce `CleatSquad\LlmRouter\Constraint\ModelConstraint` implementing `ConstraintInterface`.
+   - Filters candidate pools against `LLMRequest::$model` using exact, case-sensitive matching.
+   - When `$candidate->model` is explicitly assigned, it takes strict precedence over general driver capabilities (`$driver->getModels()`).
+
+3. **`RoutingEngine` Candidate & Driver Support**:
+   - `RoutingEngine::decide()` accepts both `Candidate` instances and raw `LLMDriverInterface` instances.
+   - Raw drivers with duplicate IDs within a single decision receive local suffix IDs (`'ollama'`, `'ollama#1'`). Explicit `Candidate` instances retain their exact `$id` across requests for stable telemetry and multi-deployment routing.
+
+4. **Policy Map Fallback Resolution**:
+   - `ContextWindowConstraint` and `PriorityRanker` look up policy maps using precedence: `Candidate::$id` -> `Candidate::$model` -> `$driver->getId()`.
+   - `WeightedSelector` remains strictly deployment-specific (`Candidate::$id` only).
+
+---
+
 ## 5.0.1 → 5.0.2
 
 **Patch Stabilization Release: Multi-Ranker & Tracker Fixes.**

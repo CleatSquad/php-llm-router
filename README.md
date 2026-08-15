@@ -62,8 +62,11 @@ $drivers = [
 ];
 
 // Build a Composable Routing Policy: Constraints + Rankers + Selector
+use CleatSquad\LlmRouter\Constraint\ModelConstraint;
+
 $policy = new RoutingPolicy(
     constraints: [
+        new ModelConstraint(),
         new CapabilityConstraint(),
         new ContextWindowConstraint(),
     ],
