@@ -14,6 +14,23 @@ The 4.x entries carry no date. They were tagged within a day of each other, and
 a date on each would say less about this package than the tags do. For the
 release date of any version, ask git: `git log -1 --format=%ad v4.1.3`.
 
+## [5.0.0]
+
+### Added
+
+- **Composable Routing Decision Engine (`RoutingEngine`)**: Replaces strategy-based single selection with a policy-driven pipeline.
+- **Identity vs State Separation**: Immutable `Candidate` value object for driver identity and `CandidateEvaluation` foraccumulative evaluation state.
+- **Explicit Component Contracts**:
+  - `ConstraintInterface` (`CapabilityConstraint`, `ContextWindowConstraint`, `QuotaConstraint`): Hard filtering with structured rejections.
+  - `RankerInterface` (`PriorityRanker`, `CostRanker`, `LatencyRanker`, `ReliabilityRanker`, `CompositeRanker`): Metric scoring returning rich `RankScore` value objects.
+  - `SelectorInterface` (`BestCandidateSelector`, `WeightedSelector`, `RoundRobinSelector`): Candidate ordering producing `Candidate[]`.
+- **Explainable Decision Telemetry**: `RoutingDecision` and `CandidateRejection` structured DTOs exposing complete candidate selection, scores, and rejection telemetry.
+- **Detailed Exception Telemetry**: `NoEligibleCandidateException` carries `CandidateEvaluation[]` telemetry for all candidates when zero candidates survive constraints.
+- **Bidirectional v4 Compatibility Adapters**: `RoutingPolicyAdapter` (v5 policy to v4 strategy) and `LegacyStrategyAdapter` (v4 strategy to v5 policy).
+- **Architecture and Migration Documentation**: `docs/v5-architecture.md` and `docs/v5-migration.md`.
+
+---
+
 ## [4.1.4]
 
 ### Fixed

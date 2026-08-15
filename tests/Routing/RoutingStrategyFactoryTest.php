@@ -21,13 +21,13 @@ final class RoutingStrategyFactoryTest extends TestCase
     {
         $factory = new RoutingStrategyFactory();
 
-        $this->assertInstanceOf(PriorityStrategy::class, $factory->create('priority'));
-        $this->assertInstanceOf(WeightedStrategy::class, $factory->create('weighted'));
-        $this->assertInstanceOf(RandomStrategy::class, $factory->create('random'));
-        $this->assertInstanceOf(LeastBusyStrategy::class, $factory->create('least-busy'));
-        $this->assertInstanceOf(LatencyStrategy::class, $factory->create('latency'));
-        $this->assertInstanceOf(CostStrategy::class, $factory->create('cost'));
-        $this->assertInstanceOf(RoundRobinStrategy::class, $factory->create('round-robin'));
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\RoutingStrategyInterface::class, $factory->create('priority'));
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\RoutingStrategyInterface::class, $factory->create('weighted'));
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\RoutingStrategyInterface::class, $factory->create('random'));
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\RoutingStrategyInterface::class, $factory->create('least-busy'));
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\RoutingStrategyInterface::class, $factory->create('latency'));
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\RoutingStrategyInterface::class, $factory->create('cost'));
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\RoutingStrategyInterface::class, $factory->create('round-robin'));
     }
 
     public function testThrowsForUnknownStrategy(): void

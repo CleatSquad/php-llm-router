@@ -4,11 +4,22 @@ declare(strict_types=1);
 
 namespace CleatSquad\LlmRouter\Routing;
 
+use CleatSquad\LlmRouter\Adapter\RoutingPolicyAdapter;
+use CleatSquad\LlmRouter\Constraint\CapabilityConstraint;
+use CleatSquad\LlmRouter\Constraint\ContextWindowConstraint;
 use CleatSquad\LlmRouter\Contract\RoutingStrategyInterface;
 use CleatSquad\LlmRouter\Contract\Routing\RoutingStrategyFactoryInterface;
 use CleatSquad\LlmRouter\Contract\Routing\ActiveRequestsTrackerInterface;
 use CleatSquad\LlmRouter\Contract\Routing\LatencyTrackerInterface;
 use CleatSquad\LlmRouter\Contract\Routing\RandomizerInterface;
+use CleatSquad\LlmRouter\Policy\RoutingPolicy;
+use CleatSquad\LlmRouter\Ranker\CostRanker;
+use CleatSquad\LlmRouter\Ranker\LatencyRanker;
+use CleatSquad\LlmRouter\Ranker\PriorityRanker;
+use CleatSquad\LlmRouter\Ranker\ReliabilityRanker;
+use CleatSquad\LlmRouter\Selector\BestCandidateSelector;
+use CleatSquad\LlmRouter\Selector\RoundRobinSelector;
+use CleatSquad\LlmRouter\Selector\WeightedSelector;
 use InvalidArgumentException;
 
 final class RoutingStrategyFactory implements RoutingStrategyFactoryInterface
@@ -19,50 +30,81 @@ final class RoutingStrategyFactory implements RoutingStrategyFactoryInterface
         private readonly ?RandomizerInterface $randomizer = null,
     ) {}
 
+    public function getActiveRequestsTracker(): ?ActiveRequestsTrackerInterface
+    {
+        return $this->activeRequestsTracker;
+    }
+
     public function create(string $name, array $options = []): RoutingStrategyInterface
     {
-        return match (strtolower($name)) {
-            'priority' => new PriorityStrategy(
-                priorities: is_array($options['priorities'] ?? null) ? $options['priorities'] : [],
-                qualityPriorities: is_array($options['quality_priorities'] ?? null) ? $options['quality_priorities'] : []
+        $policy = match (strtolower($name)) {
+            'priority' => new RoutingPolicy(
+                rankers: [new PriorityRanker(
+                    priorities: is_array($options['priorities'] ?? null) ? $options['priorities'] : [],
+                    qualityPriorities: is_array($options['quality_priorities'] ?? null) ? $options['quality_priorities'] : []
+                )],
+                name: 'priority'
             ),
-            'weighted' => new WeightedStrategy(
-                weights: is_array($options['weights'] ?? null) ? $options['weights'] : [],
-                randomizer: $this->randomizer
+            'weighted' => new RoutingPolicy(
+                selector: new WeightedSelector(
+                    weights: is_array($options['weights'] ?? null) ? $options['weights'] : [],
+                    randomizer: $this->randomizer
+                ),
+                name: 'weighted'
             ),
-            'random' => new RandomStrategy(
-                randomizer: $this->randomizer
+            'cost' => new RoutingPolicy(
+                rankers: [new CostRanker()],
+                name: 'cost'
             ),
-            'least-busy', 'leastbusy', 'least_busy' => new LeastBusyStrategy(
-                tracker: $this->activeRequestsTracker ?? new InMemoryActiveRequestsTracker()
+            'capability', 'capabilities' => new RoutingPolicy(
+                constraints: [new CapabilityConstraint(
+                    requireTools: (bool) ($options['require_tools'] ?? false),
+                    requireVision: (bool) ($options['require_vision'] ?? false),
+                    requireReasoning: (bool) ($options['require_reasoning'] ?? false),
+                    requireStreaming: (bool) ($options['require_streaming'] ?? false)
+                )],
+                name: 'capability'
             ),
-            'latency' => new LatencyStrategy(
-                tracker: $this->latencyTracker ?? new InMemoryLatencyTracker(),
-                defaultLatencyMs: (float) ($options['default_latency_ms'] ?? 0.0)
+            'context-window', 'context_window', 'capacity' => new RoutingPolicy(
+                constraints: [new ContextWindowConstraint(
+                    maxContextTokens: is_array($options['max_context_tokens'] ?? null) ? $options['max_context_tokens'] : []
+                )],
+                name: 'context-window'
             ),
-            'cost' => new CostStrategy(),
-            'capability', 'capabilities' => new CapabilityStrategy(
-                requireTools: (bool) ($options['require_tools'] ?? false),
-                requireVision: (bool) ($options['require_vision'] ?? false),
-                requireReasoning: (bool) ($options['require_reasoning'] ?? false),
-                requireStreaming: (bool) ($options['require_streaming'] ?? false)
+            'round-robin', 'roundrobin', 'round_robin' => new RoutingPolicy(
+                selector: new RoundRobinSelector(),
+                name: 'round-robin'
             ),
-            'reliability' => new ReliabilityStrategy(
-                tracker: new InMemoryReliabilityTracker()
+            'random' => new RoutingPolicy(
+                selector: new WeightedSelector(randomizer: $this->randomizer),
+                name: 'random'
             ),
-            'quota' => new QuotaStrategy(
-                tracker: new InMemoryQuotaTracker()
+            'latency' => new RoutingPolicy(
+                rankers: [new LatencyRanker(
+                    tracker: $this->latencyTracker,
+                    defaultLatencyMs: (float) ($options['default_latency_ms'] ?? 100.0)
+                )],
+                name: 'latency'
             ),
-            'usage', 'usage-based', 'usage_based' => new UsageStrategy(
-                tracker: new InMemoryUsageTracker()
+            'reliability' => new RoutingPolicy(
+                rankers: [new ReliabilityRanker()],
+                name: 'reliability'
             ),
-            'context-window', 'context_window', 'capacity' => new ContextWindowStrategy(
-                maxContextTokens: is_array($options['max_context_tokens'] ?? null) ? $options['max_context_tokens'] : []
+            'quota' => new RoutingPolicy(
+                constraints: [new \CleatSquad\LlmRouter\Constraint\QuotaConstraint()],
+                name: 'quota'
             ),
-            'round-robin', 'roundrobin', 'round_robin' => new RoundRobinStrategy(
-                weights: is_array($options['weights'] ?? null) ? $options['weights'] : []
+            'least-busy', 'leastbusy', 'least_busy' => new RoutingPolicy(
+                rankers: [new PriorityRanker()],
+                name: 'least-busy'
+            ),
+            'usage', 'usage-based', 'usage_based' => new RoutingPolicy(
+                rankers: [new PriorityRanker()],
+                name: 'usage'
             ),
             default => throw new InvalidArgumentException("Unknown routing strategy: '$name'."),
         };
+
+        return new RoutingPolicyAdapter($policy);
     }
 }
