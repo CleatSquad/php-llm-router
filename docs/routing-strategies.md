@@ -11,17 +11,18 @@ It cleanly separates **Routing** (deciding *who* to call before sending a reques
 ## Architecture & Responsibilities
 
 ```text
-                 Router / FailoverDriver
+                      RoutingEngine
                            │
-                 RoutingStrategyInterface
+                    RoutingPolicy
                            │
              ┌─────────────┼─────────────┐
              ▼             ▼             ▼
        Priority     Weighted / Random   Metrics-driven
-       Strategy       Strategies       (LeastBusy, Latency, Cost)
+        Ranker         Selectors      (LeastBusy, Latency, Cost)
                            │
                            ▼
-                    Selected Driver
+            RoutingDecision → PlanExecutor
+             (ordered Candidates: driver + model)
                            │
                       ┌────▼────┐
                       │ Request │
@@ -60,7 +61,7 @@ It cleanly separates **Routing** (deciding *who* to call before sending a reques
 
 ### 1. Architectural Philosophy
 * **LiteLLM**: one Router object carries load balancing, failover, retries, budget tracking, API key management and an async Python HTTP proxy.
-* **php-llm-router**: decorators and plain PHP composition. Routing strategies are small objects implementing `RoutingStrategyInterface`; failover lives in `FailoverDriver`, circuit breaking in `CircuitBreakerDriver`, rate limiting in `RateLimitedDriver`, each usable on its own.
+* **php-llm-router**: decorators and plain PHP composition. Routing is a policy of small objects (constraints, rankers, selectors) producing a `RoutingDecision`; executing that decision — including fail-over across its candidates — lives in `PlanExecutor`, circuit breaking in `CircuitBreakerDriver`, rate limiting in `RateLimitedDriver`, each usable on its own. The split is deliberate: the executor never re-decides, so a fallback is always a candidate the policy itself approved, served the model it was resolved for.
 
 ### 2. Strategy Parity & Differences
 * **Priority Strategy**: modeled on LiteLLM's priority routing, plus a per-request switch through `$request->preferQuality` (`qualityPriorities`).

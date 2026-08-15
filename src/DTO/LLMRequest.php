@@ -62,6 +62,36 @@ final readonly class LLMRequest
     ) {}
 
     /**
+     * This request, aimed at a specific model — the projection of a
+     * Candidate's model onto the single slot a driver reads it from.
+     *
+     * Not a way to substitute a model when a driver rejects one: swapping a
+     * name to get past a validation error is how a caller ends up billed for a
+     * model it never chose. PlanExecutor calls this once per candidate, never
+     * in response to a failure.
+     */
+    public function withModel(?string $model): self
+    {
+        if ($model === $this->model) {
+            return $this;
+        }
+
+        return new self(
+            messages: $this->messages,
+            model: $model,
+            temperature: $this->temperature,
+            maxTokens: $this->maxTokens,
+            tools: $this->tools,
+            stream: $this->stream,
+            timeoutSeconds: $this->timeoutSeconds,
+            preferQuality: $this->preferQuality,
+            reasoningEffort: $this->reasoningEffort,
+            includeReasoning: $this->includeReasoning,
+            onReasoning: $this->onReasoning,
+        );
+    }
+
+    /**
      * Whether this request asks the model to think at all.
      */
     public function wantsReasoning(): bool

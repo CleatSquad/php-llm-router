@@ -30,10 +30,11 @@ use CleatSquad\LlmRouter\Exception\UnsupportedReasoningException;
  * be costed either. $extraModelPricing lets callers register a model this
  * release predates without waiting for a new version of the package.
  *
- * Ollama and Kimi deliberately do not use this trait: Ollama resolves against
- * the models actually installed on the local server (fuzzy matching that a
- * dedicated fix, ad6c8f5, tuned), and Kimi passes the requested name straight
- * through to the provider.
+ * Ollama deliberately does not use this trait: it resolves against the models
+ * actually installed on the local server (fuzzy matching that a dedicated fix,
+ * ad6c8f5, tuned). Kimi did not either when this note was first written — it
+ * passed the requested name straight through — but has since joined the priced
+ * drivers and refuses an unknown model like the rest of them.
  */
 trait ResolvesPricedModel
 {
@@ -101,6 +102,23 @@ trait ResolvesPricedModel
                 static fn (array $entry): bool => ($entry['reasoning'] ?? true) !== false
             )),
         );
+    }
+
+    /**
+     * Asks resolveModel() itself, so a constraint gets the verdict this driver
+     * will reach at call time — prefix stripping and $extraModelPricing
+     * included. Answering from array_keys(PRICING) would reject
+     * "anthropic/claude-sonnet-5", which resolves here perfectly well.
+     */
+    public function supportsModel(string $model): bool
+    {
+        try {
+            $this->resolveModel($model);
+
+            return true;
+        } catch (UnknownModelException) {
+            return false;
+        }
     }
 
     /**

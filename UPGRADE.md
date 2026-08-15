@@ -1,5 +1,158 @@
 # Upgrade guide
 
+## 5.1.0 → 5.2.0
+
+**Feature release: one decision, one plan, one executor.**
+
+> **The one idea to carry across:** from 5.2 on, a fallback is a candidate the
+> routing policy already selected. It is no longer determined at execution
+> time by the driver layer.
+>
+> Everything else here follows from that sentence. It is also the answer to the
+> question `PlanExecutor` invites — *why not just add another driver here when
+> the plan runs out?* Because the executor is not allowed to decide. A
+> candidate it added would carry no model of its own and would have passed no
+> constraint, which is exactly the state this release exists to end.
+
+No breaking changes. Everything in 5.1.0 keeps working. What follows is worth
+doing anyway, because it closes a failure mode that only appears under load.
+
+### The failure this closes
+
+`RoutingEngine` decides. `FailoverDriver` also decided — from bare drivers,
+with its own strategy, re-run on every attempt. A candidate's model and the
+constraints it had passed could not cross that boundary, so:
+
+1. **Every fallback was handed the primary candidate's model.** Ask a Groq
+   candidate for `llama-3.3-70b-versatile`, let Groq rate-limit, and Mistral,
+   Gemini, OpenAI and Claude are each handed a Groq model in turn. None serves
+   it. Each fails on validation before reaching the network. The chain could
+   not succeed at the one moment it was needed.
+2. **A fallback was never checked against the request.** The strategy consulted
+   during fail-over is not the policy that built the pool, so a candidate the
+   policy had ruled out — no vision, context window too small — could still be
+   reached, failing as an opaque provider error instead of a constraint
+   violation.
+
+Both have the same cause: the executor re-deciding instead of executing.
+
+### Migrating
+
+**Before** — the decision's plan is discarded, and a second one is built:
+
+```php
+$decision = $engine->decide($request, $candidates);
+$response = $decision->selected->driver->chat($request); // model + fallbacks lost
+```
+
+or, with fail-over:
+
+```php
+$router = new FailoverDriver($strategy, $drivers);
+$response = $router->chat($request);
+```
+
+**After** — the decision *is* the plan:
+
+```php
+use CleatSquad\LlmRouter\Execution\PlanExecutor;
+
+$executor = new PlanExecutor($logger);
+$decision = $engine->decide($request, $candidates);
+
+$response = $executor->execute($request, $decision);
+```
+
+`execute()` walks `$decision->getCandidates()` in order, serving each candidate
+its own model, and stops at the first that answers. `stream()` does the same and
+keeps the streaming rule: no fail-over once a fragment has been emitted.
+
+### Carrying the model on the candidate
+
+`PlanExecutor` serves `$candidate->model`. A candidate built without one leaves
+the request untouched, and the driver picks its own default. So this is where a
+tier-to-model mapping belongs:
+
+```php
+$candidates = [
+    new Candidate('groq', 'Groq', $groq, 'llama-3.3-70b-versatile'),
+    new Candidate('mistral', 'Mistral', $mistral, 'mistral-medium-latest'),
+    new Candidate('claude', 'Claude', $claude, 'claude-sonnet-5'),
+];
+```
+
+Each fallback now keeps its intended tier instead of collapsing to a default —
+and if you were deriving a provider from a model name (`str_starts_with($model,
+'llama') => 'groq'`), delete it. Needing that is the symptom: it re-derives, by
+guesswork, an association the router already held.
+
+### Making an impossible plan impossible
+
+Add `CandidateModelConstraint` to your policy. It rejects a candidate whose
+driver cannot serve the candidate's own model, before the plan exists:
+
+```php
+$policy = new RoutingPolicy(
+    constraints: [
+        new CandidateModelConstraint(),  // is this candidate executable at all?
+        new ModelConstraint(),           // does it satisfy what the caller asked for?
+        new CapabilityConstraint(),
+        new ContextWindowConstraint(),
+    ],
+    // ...
+);
+```
+
+The two model constraints are not redundant. `ModelConstraint` stands down when
+the request names no model — a caller who asked for nothing cannot be overruled
+— and that is exactly the case the production failure went through.
+
+Third-party drivers are unaffected: a driver that does not implement
+`ModelCatalogueInterface` is assumed able to serve what it is given.
+
+### Failure classification
+
+`PlanExecutor` no longer fails over on a `RoutingFailureInterface`
+(`UnknownModelException`, `UnsupportedReasoningException`,
+`NoEligibleCandidateException`). A driver handed a model it has never heard of
+has not failed — it was given an impossible instruction, and moving to the next
+candidate only spends the plan hiding the cause. Expect these to surface now,
+where they were previously swallowed into an exhaustion message naming the
+wrong culprit.
+
+Restore the old behaviour if you depend on it:
+
+```php
+new PlanExecutor($logger, shouldFailover: static fn (): bool => true);
+```
+
+Catch `AllCandidatesFailedException` instead of `AllDriversFailedException`; its
+failures carry a `Candidate`, not a driver ID string:
+
+```php
+catch (AllCandidatesFailedException $e) {
+    foreach ($e->getFailures() as $failure) {
+        $failure['candidate']->id;
+        $failure['candidate']->model;
+        $failure['exception'];
+    }
+    $e->getSkipped(); // candidates unavailable at their turn, never attempted
+}
+```
+
+### Deprecated in 5.2.0
+
+| Deprecated | Replacement |
+| --- | --- |
+| `Driver\FailoverDriver` | `Execution\PlanExecutor` |
+| `Contract\RoutingStrategyInterface` | `Engine\RoutingEngine` (returns `RoutingDecision`) |
+| `Exception\AllDriversFailedException` | `Exception\AllCandidatesFailedException` |
+
+All three still work. `FailoverDriver` in particular is unchanged — a chain
+whose candidates all serve the same model behaves exactly as it always did.
+
+---
+
 ## 5.0.2 → 5.1.0
 
 **Feature Release: Model-Aware Candidate Identity & Deployment Separation (RFC-1).**

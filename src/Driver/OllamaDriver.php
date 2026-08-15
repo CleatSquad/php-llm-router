@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\DTO\CostEstimate;
 use CleatSquad\LlmRouter\DTO\HealthState;
 use CleatSquad\LlmRouter\DTO\HealthStatus;
@@ -20,9 +21,27 @@ use RuntimeException;
 /**
  * LLM driver for a local Ollama instance.
  */
-class OllamaDriver implements LLMDriverInterface
+class OllamaDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     private string $ollamaUrl;
+
+    /**
+     * Always true, and deliberately so.
+     *
+     * resolveModel() never refuses: it strips a provider prefix, matches
+     * loosely against the models installed locally, and falls back to this
+     * driver's configured default when nothing matches. There is no name it
+     * would turn away, so there is none to report here.
+     *
+     * Answering from getModels() instead would be both wrong and expensive —
+     * wrong because a loose match is not list membership, expensive because
+     * that list is an HTTP call to /api/tags, and this method is contractually
+     * I/O-free so a constraint can call it once per candidate per request.
+     */
+    public function supportsModel(string $model): bool
+    {
+        return true;
+    }
 
     public function __construct(
         private HttpClient $httpClient,

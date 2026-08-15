@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CleatSquad\LlmRouter\Exception;
 
+use CleatSquad\LlmRouter\Contract\Exception\RoutingFailureInterface;
 use RuntimeException;
 
 /**
@@ -15,11 +16,15 @@ use RuntimeException;
  * exists to end — a wrong model is worse than no answer, because nothing in
  * the response reveals the substitution.
  *
- * Deliberately a RuntimeException, so FailoverDriver treats it as a failure
- * worth failing over from: in a mixed chain, the driver that doesn't know a
- * model is exactly the one that should step aside for the one that does.
+ * A RoutingFailureInterface: a driver holding an instruction it cannot read is
+ * a defect in whatever paired them, not an outage, so PlanExecutor surfaces it
+ * instead of moving down the plan. The deprecated FailoverDriver fails over on
+ * it, as it always has — which works only while some other candidate knows the
+ * model, and not at all when it is provider-exclusive.
+ *
+ * Still a RuntimeException: existing catch sites are unaffected.
  */
-final class UnknownModelException extends RuntimeException
+final class UnknownModelException extends RuntimeException implements RoutingFailureInterface
 {
     /**
      * @param string[] $knownModels

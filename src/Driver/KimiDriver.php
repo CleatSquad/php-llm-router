@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use CleatSquad\LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
 use CleatSquad\LlmRouter\Driver\Concern\ResolvesPricedModel;
@@ -23,7 +24,7 @@ use RuntimeException;
 /**
  * LLM driver for Moonshot AI's Kimi models.
  */
-class KimiDriver implements LLMDriverInterface
+class KimiDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     use ParsesChatCompletionSse;
     use ResolvesPricedModel;
