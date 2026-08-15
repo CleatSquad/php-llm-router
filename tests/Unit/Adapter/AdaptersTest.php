@@ -31,6 +31,7 @@ final class AdaptersTest extends TestCase
     {
         $driver = $this->createMock(LLMDriverInterface::class);
         $driver->method('getId')->willReturn('d1');
+        $driver->method('isAvailable')->willReturn(true);
 
         $legacyStrategy = $this->createMock(\CleatSquad\LlmRouter\Contract\RoutingStrategyInterface::class);
         $legacyStrategy->method('select')->willReturn($driver);

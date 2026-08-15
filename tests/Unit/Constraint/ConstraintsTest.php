@@ -58,8 +58,7 @@ final class ConstraintsTest extends TestCase
         $request = new LLMRequest(messages: []);
 
         $tracker = new \CleatSquad\LlmRouter\Routing\InMemoryQuotaTracker();
-        $tracker->setQuota('c1', 100);
-        $tracker->recordUsage('c1', 100); // exhausted
+        $tracker->setQuotaRemainingRatio('c1', 0.0); // exhausted
 
         $constraint = new \CleatSquad\LlmRouter\Constraint\QuotaConstraint($tracker);
         $passed = $constraint->evaluate($eval, $request);

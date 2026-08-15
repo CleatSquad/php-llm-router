@@ -19,21 +19,36 @@ final readonly class RoutingEngine
     ) {}
 
     /**
-     * @param LLMDriverInterface[] $drivers
+     * @param array<LLMDriverInterface|Candidate> $candidates
      * @throws NoEligibleCandidateException
      */
-    public function decide(LLMRequest $request, array $drivers): RoutingDecision
+    public function decide(LLMRequest $request, array $candidates): RoutingDecision
     {
-        if (empty($drivers)) {
+        if (empty($candidates)) {
             throw new InvalidArgumentException('RoutingEngine requires at least one candidate driver.');
         }
 
         $evaluations = [];
-        foreach ($drivers as $driver) {
-            $candidate = new Candidate($driver->getId(), $driver->getName(), $driver);
+        $seenIds = [];
+
+        foreach ($candidates as $item) {
+            if ($item instanceof Candidate) {
+                $candidate = $item;
+            } else {
+                $baseId = $item->getId();
+                if (!isset($seenIds[$baseId])) {
+                    $seenIds[$baseId] = 1;
+                    $id = $baseId;
+                } else {
+                    $id = $baseId . '#' . $seenIds[$baseId];
+                    $seenIds[$baseId]++;
+                }
+                $candidate = new Candidate($id, $item->getName(), $item);
+            }
+
             $eval = new CandidateEvaluation($candidate);
 
-            if (!$driver->isAvailable()) {
+            if (!$candidate->driver->isAvailable()) {
                 $eval->reject(new CandidateRejection('AvailabilityCheck', 'unavailable', 'Driver reported unavailable via isAvailable()'));
             }
 

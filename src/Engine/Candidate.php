@@ -12,5 +12,6 @@ final readonly class Candidate
         public string $id,
         public string $name,
         public LLMDriverInterface $driver,
+        public ?string $model = null,
     ) {}
 }

@@ -20,8 +20,10 @@ final readonly class ContextWindowConstraint implements ConstraintInterface
 
     public function evaluate(CandidateEvaluation $evaluation, LLMRequest $request): bool
     {
-        $candidateId = $evaluation->candidate->id;
-        $limit = $this->maxContextTokens[$candidateId] ?? PHP_INT_MAX;
+        $candidate = $evaluation->candidate;
+        $limit = $this->maxContextTokens[$candidate->id]
+            ?? ($candidate->model !== null ? ($this->maxContextTokens[$candidate->model] ?? null) : null)
+            ?? ($this->maxContextTokens[$candidate->driver->getId()] ?? PHP_INT_MAX);
         $estimatedInputTokens = $request->estimateInputTokens();
 
         if ($estimatedInputTokens > $limit) {

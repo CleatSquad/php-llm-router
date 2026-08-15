@@ -26,8 +26,11 @@ final readonly class PriorityRanker implements RankerInterface
             ? $this->qualityPriorities
             : $this->priorities;
 
-        $id = $evaluation->candidate->id;
-        $priority = (float) ($map[$id] ?? 0);
+        $candidate = $evaluation->candidate;
+        $priorityValue = $map[$candidate->id]
+            ?? ($candidate->model !== null ? ($map[$candidate->model] ?? null) : null)
+            ?? ($map[$candidate->driver->getId()] ?? 0);
+        $priority = (float) $priorityValue;
 
         return new RankScore($priority, 'PriorityRanker', ['priority' => $priority]);
     }

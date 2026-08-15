@@ -41,6 +41,7 @@ final readonly class RoutingDecision
             'evaluations' => array_map(static function (CandidateEvaluation $e): array {
                 return [
                     'candidate_id' => $e->candidate->id,
+                    'candidate_model' => $e->candidate->model,
                     'is_eligible' => $e->isEligible,
                     'score' => $e->score !== null ? [
                         'value' => $e->score->value,

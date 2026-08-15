@@ -14,6 +14,19 @@ The 4.x entries carry no date. They were tagged within a day of each other, and
 a date on each would say less about this package than the tags do. For the
 release date of any version, ask git: `git log -1 --format=%ad v4.1.3`.
 
+## [5.1.0] - Unreleased
+
+### Added
+
+- **Model-Aware Candidate Identity & Deployment Separation (RFC-1)**:
+  - Extended `Candidate` with optional `public ?string $model = null` for assigned model capabilities.
+  - Added `ModelConstraint` (`ConstraintInterface`) for exact, case-sensitive candidate model matching against `LLMRequest::$model`. Explicit `Candidate::$model` takes strict precedence over general driver supported models (`$driver->getModels()`).
+  - Added support for passing `Candidate[]` or `LLMDriverInterface[]` to `RoutingEngine::decide()`. Raw drivers with colliding IDs within a single decision receive local suffix IDs (`'ollama'`, `'ollama#1'`).
+  - Added hierarchical key lookup fallback (`Candidate::$id` -> `Candidate::$model` -> `$driver->getId()`) to `ContextWindowConstraint` and `PriorityRanker`.
+  - Added `candidate_model` telemetry to `RoutingDecision::toArray()`.
+
+---
+
 ## [5.0.2] - 2026-08-15
 
 ### Fixed
