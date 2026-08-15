@@ -20,7 +20,8 @@ final class FakeDriver implements LLMDriverInterface
 {
     public function __construct(
         private readonly string $id,
-        private readonly bool $available = true
+        private readonly bool $available = true,
+        private readonly ?CostEstimate $costEstimate = null
     ) {}
 
     public function getId(): string
@@ -100,6 +101,6 @@ final class FakeDriver implements LLMDriverInterface
 
     public function estimateCost(LLMRequest $request): CostEstimate
     {
-        return CostEstimate::free();
+        return $this->costEstimate ?? CostEstimate::free();
     }
 }

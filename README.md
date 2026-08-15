@@ -331,13 +331,41 @@ $store = new RedisRateLimitStore(new Redis()); // connect() it yourself first
 $driver = new RateLimitedDriver(new GroqDriver($http, groqApiKey: $key), $store, maxRequestsPerMinute: 30);
 ```
 
-### Load balancing across equivalent deployments
+### Load balancing & Routing strategies
 
-`PriorityStrategy` answers "which provider first when they differ in
-quality/cost". `RoundRobinStrategy` answers a different question: how do
-you spread load across *interchangeable* deployments of the same model —
-e.g. three OpenAI API keys behind three `OpenAiDriver` instances — instead
-of always hitting the first one.
+`PriorityStrategy` answers "which provider first when they differ in quality/cost". `php-llm-router` provides a full suite of pluggable routing strategies implementing `RoutingStrategyInterface`:
+
+| Strategy | Use case | Deterministic | Requires metrics |
+| --- | --- | ---: | ---: |
+| `priority` | Strict priority order (with optional `qualityPriorities`) | yes | no |
+| `weighted` | Probabilistic weighted distribution (e.g. 70%/20%/10%) | no (injectable seed) | no |
+| `random` | Uniform random distribution across available drivers | no (injectable seed) | no |
+| `least-busy` | Route to driver with lowest active in-flight requests | depends (tie-break) | yes (`ActiveRequestsTrackerInterface`) |
+| `latency` | Route to driver with best rolling latency | depends (tie-break) | yes (`LatencyTrackerInterface`) |
+| `cost` | Route to driver with minimum estimated USD cost | yes | pricing (`estimateCost()`) |
+| `usage` | Route to driver with lowest accumulated token/request usage | depends (tie-break) | yes (`UsageTrackerInterface`) |
+| `context-window` | Filter/route by prompt size vs context capacity | yes | no (`estimateInputTokens()`) |
+| `round-robin` | Rotates evenly across equivalent deployments | yes | no |
+
+#### Strategy Factory
+
+You can instantiate strategies dynamically using `RoutingStrategyFactory`:
+
+```php
+use CleatSquad\LlmRouter\Routing\RoutingStrategyFactory;
+
+$factory = new RoutingStrategyFactory();
+
+$priorityStrategy = $factory->create('priority', [
+    'priorities' => ['openai' => 10, 'claude' => 5],
+]);
+
+$weightedStrategy = $factory->create('weighted', [
+    'weights' => ['openai' => 70, 'anthropic' => 20, 'gemini' => 10],
+]);
+
+$latencyStrategy = $factory->create('latency');
+```
 
 ```php
 use CleatSquad\LlmRouter\Routing\RoundRobinStrategy;
