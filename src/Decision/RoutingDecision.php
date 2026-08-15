@@ -22,6 +22,18 @@ final readonly class RoutingDecision
     ) {}
 
     /**
+     * The execution plan, in order: the selected candidate first, then every
+     * eligible fallback. This is the whole of what an executor is allowed to
+     * work from — it may skip entries, but never add to them or reorder them.
+     *
+     * @return Candidate[]
+     */
+    public function getCandidates(): array
+    {
+        return $this->orderedCandidates;
+    }
+
+    /**
      * @return Candidate[]
      */
     public function getFallbacks(): array

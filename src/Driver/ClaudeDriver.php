@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\NormalizesVisionContent;
 use CleatSquad\LlmRouter\Driver\Concern\ResolvesPricedModel;
 use CleatSquad\LlmRouter\DTO\CostEstimate;
@@ -22,7 +23,7 @@ use RuntimeException;
 /**
  * LLM driver for the Anthropic Claude API (Messages API).
  */
-class ClaudeDriver implements LLMDriverInterface
+class ClaudeDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     use NormalizesVisionContent;
 

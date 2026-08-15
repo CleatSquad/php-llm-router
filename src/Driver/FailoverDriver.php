@@ -33,6 +33,15 @@ use RuntimeException;
  * wrapped in one, its recordFailure() updates the breaker's store before
  * this class asks the strategy for the next candidate, so isAvailable()
  * already reflects the failure on the very next iteration.
+ *
+ * @deprecated 5.2.0 Use CleatSquad\LlmRouter\Execution\PlanExecutor with a
+ *   RoutingDecision from RoutingEngine. Holding bare drivers, this class
+ *   cannot see a candidate's model or the constraints it passed, so every
+ *   candidate is handed the request's model and no fallback is checked against
+ *   the request's requirements. Neither is fixable from inside it.
+ *
+ *   Kept, unchanged, for existing callers: a chain whose candidates all serve
+ *   the same model behaves exactly as documented. See UPGRADE.md (5.1 → 5.2).
  */
 final class FailoverDriver implements LLMDriverInterface
 {

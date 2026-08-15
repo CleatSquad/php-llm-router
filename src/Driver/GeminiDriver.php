@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\NormalizesVisionContent;
 use CleatSquad\LlmRouter\Driver\Concern\ResolvesPricedModel;
 use CleatSquad\LlmRouter\DTO\CostEstimate;
@@ -23,7 +24,7 @@ use RuntimeException;
  * Direct Google Gemini API driver (generateContent / streamGenerateContent).
  * Gemini's wire format differs enough from OpenAI-compatible ones (separate systemInstruction, "model" role, whole-object function calls) that it needs its own mapping instead of the shared ParsesChatCompletionSse trait.
  */
-class GeminiDriver implements LLMDriverInterface
+class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     use NormalizesVisionContent;
 

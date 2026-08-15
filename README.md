@@ -1,14 +1,19 @@
 # cleatsquad/php-llm-router
 
-> **v5.1 introduces Model-Aware Candidate Identity & Deployment Separation.**
+> **v5.2 makes the routing decision the only execution plan.**
 > 
 > ```bash
-> composer require cleatsquad/php-llm-router:^5.1
+> composer require cleatsquad/php-llm-router:^5.2
 > ```
 > 
-> Building on v5.0's **Composable Routing Decision Engine** (`RoutingEngine::decide()`), v5.1 adds model-aware routing (`ModelConstraint`) and distinct deployment identity separation (`Candidate::$id` vs `Candidate::$model`).
+> v5.1 gave a `Candidate` its own model. v5.2 makes that model survive all the
+> way to the call: `Execution\PlanExecutor` runs a `RoutingDecision` and decides
+> nothing, so every fallback is served its own model and no candidate outside the
+> plan is ever reached. `FailoverDriver` and `RoutingStrategyInterface` are
+> deprecated — they decided as well as executed, from a model of the world that
+> could not carry either fact.
 > 
-> Migration is straightforward — see [docs/v5-migration.md](docs/v5-migration.md) and [docs/v5-architecture.md](docs/v5-architecture.md).
+> No breaking changes — see [UPGRADE.md](UPGRADE.md), [docs/v5-migration.md](docs/v5-migration.md) and [docs/v5-architecture.md](docs/v5-architecture.md).
 
 
 [![CI](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml/badge.svg)](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml)
@@ -47,6 +52,7 @@ use CleatSquad\LlmRouter\Driver\ClaudeDriver;
 use CleatSquad\LlmRouter\Driver\OllamaDriver;
 use CleatSquad\LlmRouter\DTO\LLMRequest;
 use CleatSquad\LlmRouter\Engine\RoutingEngine;
+use CleatSquad\LlmRouter\Execution\PlanExecutor;
 use CleatSquad\LlmRouter\Http\HttpClient;
 use CleatSquad\LlmRouter\Policy\RoutingPolicy;
 use CleatSquad\LlmRouter\Ranker\CompositeRanker;
@@ -87,11 +93,20 @@ $request = new LLMRequest(messages: [
 
 // Evaluate decision and get full telemetry
 $decision = $engine->decide($request, $drivers);
-$driver = $decision->selected->driver;
-$response = $driver->chat($request);
+
+// Execute that decision — and only that decision
+$response = (new PlanExecutor())->execute($request, $decision);
 
 echo $response->content; // "Hello"
 ```
+
+`$decision` is not a driver, it is a plan: the selected candidate first, then
+every eligible fallback, each carrying the model it was resolved for and having
+already passed every constraint. `PlanExecutor` walks it in order and stops at
+the first candidate that answers.
+
+Reaching into `$decision->selected->driver` and calling it yourself works, but
+throws the rest of the plan away — see [Executing a decision](#executing-a-decision).
 
 ### Fallback across two priority tiers
 
@@ -175,70 +190,121 @@ never supports tool calls at all (Ollama's `stream()` always returns
 function-calling support across Ollama models is too inconsistent to rely
 on).
 
-### Fail-over across providers
+### Executing a decision
 
-`PriorityStrategy::select()` picks *one* driver. When that driver then fails
-mid-call, the caller is left re-implementing the "exclude it and pick the next
-one" loop by hand. `FailoverDriver` is that loop, and it is itself an
-`LLMDriverInterface`, so everything downstream keeps talking to one driver:
+A `RoutingDecision` is a plan, not a pick. `PlanExecutor` runs it — and does
+nothing else. It never chooses a driver, a model, or a fallback:
 
 ```php
-use CleatSquad\LlmRouter\Driver\FailoverDriver;
-use CleatSquad\LlmRouter\Routing\PriorityStrategy;
+use CleatSquad\LlmRouter\Execution\PlanExecutor;
 
-$router = new FailoverDriver(
-    new PriorityStrategy(priorities: ['ollama' => 25, 'openai' => 10, 'claude' => 1]),
-    [$ollama, $openai, $claude],
-    logger: $logger, // optional PSR-3: one notice per fail-over, one error on exhaustion
-);
+$executor = new PlanExecutor($logger); // optional PSR-3
+$decision = $engine->decide($request, $candidates);
 
-$response = $router->chat($request); // tries ollama, then openai, then claude
+$response = $executor->execute($request, $decision);
 ```
 
-On each failure it records a structured entry, excludes the failed driver, and
-asks the strategy for another candidate from what is left. When every candidate
-has failed it throws `AllDriversFailedException`, which carries the attempts as
-live exception objects rather than a concatenated string:
+Each candidate is served **its own model**, the one it was built with:
 
 ```php
-use CleatSquad\LlmRouter\Exception\AllDriversFailedException;
+$candidates = [
+    new Candidate('groq', 'Groq', $groq, 'llama-3.3-70b-versatile'),
+    new Candidate('mistral', 'Mistral', $mistral, 'mistral-medium-latest'),
+];
+```
+
+Groq rate-limits, Mistral is asked for `mistral-medium-latest`. That is the
+whole point, and the reason this class exists: the executor it replaces held
+bare drivers, so it handed every fallback the *primary* candidate's model.
+Where the model is provider-exclusive nothing else can serve it, and the entire
+chain became a sequence of validation errors — failing precisely when the
+fail-over was needed. A candidate built without a model leaves the request
+alone and lets the driver pick its default.
+
+The executor may **skip** a candidate — `isAvailable()` is re-checked at each
+candidate's turn, so a `CircuitBreakerDriver` that opened partway through the
+run is still respected. It never adds a candidate, reorders them, or swaps a
+model. Everything else was settled by the policy.
+
+When the plan is exhausted it throws `AllCandidatesFailedException`, naming
+each attempt by candidate *and* model:
+
+```php
+use CleatSquad\LlmRouter\Exception\AllCandidatesFailedException;
 use CleatSquad\LlmRouter\Exception\RateLimitException;
 
 try {
-    $response = $router->chat($request);
-} catch (AllDriversFailedException $e) {
+    $response = $executor->execute($request, $decision);
+} catch (AllCandidatesFailedException $e) {
     foreach ($e->getFailures() as $failure) {
-        $failure['driverId'];  // 'ollama'
-        $failure['exception']; // the RuntimeException that driver threw
+        $failure['candidate']->id;    // 'groq'
+        $failure['candidate']->model; // 'llama-3.3-70b-versatile'
+        $failure['exception'];
 
         if ($failure['exception'] instanceof RateLimitException) {
             $failure['exception']->getRetryAfterSeconds(); // typed, never parsed from a message
         }
     }
+
+    $e->getSkipped(); // candidates unavailable at their turn, never attempted
 }
 ```
 
-Only `RuntimeException` triggers a fail-over — every driver here throws that on
-a transport or API failure. Anything else (`TypeError`, `Error`, ...) is a
-programming or environment defect that another provider cannot fix, so it
-propagates untouched. Pass `shouldFailover` to narrow this further:
+#### A broken plan is not a failing provider
+
+A driver asked for a model it has never heard of has not failed — it was handed
+an impossible instruction, and trying the next candidate cannot fix that. It
+only spends the rest of the plan hiding the cause behind whatever the last
+candidate happened to say.
+
+So `UnknownModelException`, `UnsupportedReasoningException` and
+`NoEligibleCandidateException` implement `RoutingFailureInterface` and
+**propagate immediately**. Provider failures — a 429, a timeout, a 5xx, a
+dropped connection — move to the next candidate as you would expect;
+`RateLimitException` marks itself `ExecutionFailureInterface` to say so
+explicitly. Override the split when you need to:
 
 ```php
-$router = new FailoverDriver($strategy, $drivers,
-    shouldFailover: static fn (RuntimeException $e, LLMDriverInterface $d): bool
+$executor = new PlanExecutor($logger,
+    shouldFailover: static fn (Throwable $e, Candidate $c): bool
         => !str_contains($e->getMessage(), 'context length'),
 );
 ```
 
+Better still, make the impossible plan impossible: add
+`CandidateModelConstraint` to the policy and a candidate whose driver cannot
+serve its own model is rejected before the plan exists.
+
 **Streaming stops failing over as soon as the first fragment is emitted.** Up
-to that point a failure switches provider transparently; after it, the failure
+to that point a failure switches candidate transparently; after it, the failure
 propagates as-is, because an emitted fragment cannot be un-emitted and a fresh
 provider would restart the answer on top of what the user already sees. The
 caller decides what to do with a truncated response.
 
-`FailoverDriver` composes with `CircuitBreakerDriver`: wrap each candidate in
-one, and a failure recorded during fail-over is already visible to
-`isAvailable()` on the very next iteration.
+#### Fail-over across providers (deprecated)
+
+`FailoverDriver` was the previous answer: a loop around a routing strategy,
+itself an `LLMDriverInterface` so everything downstream kept talking to one
+driver.
+
+```php
+$router = new FailoverDriver(
+    new PriorityStrategy(priorities: ['ollama' => 25, 'openai' => 10, 'claude' => 1]),
+    [$ollama, $openai, $claude],
+);
+```
+
+It still works and is unchanged; a chain whose candidates all serve the same
+model behaves exactly as it always did. But it decides as well as executes, from
+a poorer model of the world than the engine it duplicates — it holds bare
+drivers, so a candidate's model and the constraints it passed cannot reach it.
+Beyond the model problem above, the strategy it consults is not the policy that
+built the pool, so a fallback reached this way was never checked against the
+request's own requirements: it may lack a capability the request needs, and will
+fail as an opaque provider error rather than as the constraint violation it is.
+
+Neither is fixable from inside that class. Prefer `PlanExecutor`; see
+[UPGRADE.md](UPGRADE.md) for the migration.
 
 ### Circuit breaker
 
@@ -449,18 +515,28 @@ $driver = new OpenAiDriver($http, openAiApiKey: $key, extraModelPricing: [
 Your entries win over the shipped table, so this also corrects a stale price,
 and they show up in `getModels()`.
 
-### In a fail-over chain
+### In a routing plan
 
-`UnknownModelException` is a `RuntimeException`, so `FailoverDriver` fails over
-on it: a chain asking for `gpt-5` skips the drivers that don't know it and
-lands on the one that does — the routing the silent substitution used to hide.
+`UnknownModelException` implements `RoutingFailureInterface`: a driver paired
+with a model it cannot read is a defect in whatever built that pair, so
+`PlanExecutor` surfaces it rather than working down the plan. Add
+`CandidateModelConstraint` to your policy and the pairing is rejected before a
+plan is built at all.
+
+`FailoverDriver` predates that distinction and fails over on it, on the
+reasoning that in a mixed chain the driver that doesn't know a model should step
+aside for the one that does. That holds only while some other candidate knows
+the model.
 
 ### Two drivers resolve differently
 
-- **`KimiDriver`** has no pricing table and forwards whatever name it is given.
 - **`OllamaDriver`** resolves against the models actually installed on your
   local server, fuzzy-matching the closest one and never picking an embedding
-  model as a chat fallback.
+  model as a chat fallback. It accepts any name, so `supportsModel()` always
+  answers `true`.
+- **`KimiDriver`** had no pricing table and forwarded whatever name it was
+  given. It has since joined the priced drivers and refuses an unknown model
+  like the rest of them.
 
 ## Reasoning
 
@@ -805,12 +881,14 @@ schedule and hammer the provider in lockstep.
 | HTTP 4xx other than 429 (401, 400, 404, ...) | Propagates immediately — a bad key or a malformed request fails identically on the second try. |
 | `TypeError`, `Error`, any non-`RuntimeException` | Propagates immediately. A programming or environment defect is not fixed by another provider. |
 | Any failure after the first streamed fragment | Propagates immediately. See below. |
+| Any `RoutingFailureInterface` | Propagates immediately out of `PlanExecutor`. The plan is wrong, not the provider; another candidate cannot fix an impossible instruction. |
 
 ### The streaming rule
 
 Once `stream()` has yielded a single fragment to the caller, **no automatic
 retry or fail-over happens for that call** — not in `RetryingDriver`, not in
-`FailoverDriver`, regardless of attempts or candidates remaining.
+`PlanExecutor` or `FailoverDriver`, regardless of attempts or candidates
+remaining.
 
 An emitted fragment cannot be un-emitted. The user has already seen it, and a
 retry restarts the answer from the top, producing duplicated or contradictory
@@ -835,10 +913,18 @@ of for the configured `$openSeconds`.
 
 ### Exhaustion
 
-When every candidate has failed, `FailoverDriver` throws
-`AllDriversFailedException` carrying each attempt as `['driverId' => string,
-'exception' => RuntimeException]`. Callers are expected to branch on those
-objects; the exception message is a summary for logs, not an API.
+When every candidate in the plan has failed, `PlanExecutor` throws
+`AllCandidatesFailedException`, carrying each attempt as `['candidate' =>
+Candidate, 'exception' => Throwable]` plus `getSkipped()` for the candidates
+that reported themselves unavailable at their turn. A `Candidate` rather than a
+driver ID because "groq failed" and "groq serving llama-3.3-70b-versatile
+failed" answer different questions, and only the second one can be acted on.
+
+The deprecated `FailoverDriver` throws `AllDriversFailedException` instead,
+carrying `['driverId' => string, 'exception' => RuntimeException]`.
+
+In both cases callers are expected to branch on those objects; the exception
+message is a summary for logs, not an API.
 
 ## What this package does *not* do
 
@@ -859,7 +945,7 @@ objects; the exception message is a summary for logs, not an API.
 | Package | Required by | Scope |
 | --- | --- | --- |
 | `guzzlehttp/guzzle` ^7.8 | `Http\HttpClient`, every HTTP driver, and `RetryingDriver` (which reads Guzzle exception types to judge retryability) | All LLM, embedding and audio drivers |
-| `psr/log` ^3.0 | `FailoverDriver` and the shared stores, for optional logging | Interfaces only |
+| `psr/log` ^3.0 | `PlanExecutor`, `FailoverDriver` and the shared stores, for optional logging | Interfaces only |
 | `psr/simple-cache` ^3.0 | `Psr16CacheStore`, `Psr16CircuitBreakerStore` | Interfaces only |
 | `mcp/sdk` ^0.7 | `Driver\McpClientDriver` — **one file** | Pulls the largest share of the transitive tree (opis/*, symfony/uid, psr/http-server-*) |
 

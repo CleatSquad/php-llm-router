@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use CleatSquad\LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
 use CleatSquad\LlmRouter\Driver\Concern\ResolvesPricedModel;
@@ -25,7 +26,7 @@ use RuntimeException;
  * (same wire format LiteLLM/OpenAI/Kimi/Mistral/Groq speak, hence the
  * shared trait).
  */
-class DeepSeekDriver implements LLMDriverInterface
+class DeepSeekDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     use ResolvesPricedModel;
 

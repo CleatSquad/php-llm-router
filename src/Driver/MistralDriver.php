@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use CleatSquad\LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
 use CleatSquad\LlmRouter\Driver\Concern\ResolvesPricedModel;
@@ -24,7 +25,7 @@ use RuntimeException;
  * Direct Mistral AI API driver — OpenAI-compatible chat completions
  * (same wire format LiteLLM/OpenAI/Kimi speak, hence the shared trait).
  */
-class MistralDriver implements LLMDriverInterface
+class MistralDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     use ResolvesPricedModel;
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use CleatSquad\LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
 use CleatSquad\LlmRouter\Driver\Concern\ResolvesPricedModel;
@@ -21,7 +22,7 @@ use Generator;
 use GuzzleHttp\Exception\RequestException;
 use RuntimeException;
 
-class GroqDriver implements LLMDriverInterface
+class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     use ResolvesPricedModel;
 

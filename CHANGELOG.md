@@ -14,7 +14,90 @@ The 4.x entries carry no date. They were tagged within a day of each other, and
 a date on each would say less about this package than the tags do. For the
 release date of any version, ask git: `git log -1 --format=%ad v4.1.3`.
 
-## [5.1.0] - Unreleased
+## [5.2.0] - 2026-08-15
+
+Routing decided a plan; execution ignored it and built its own. This release
+makes the decision the only plan there is.
+
+`RoutingEngine` already produced the full ordered, constraint-checked candidate
+list, each candidate carrying its own driver *and* model. Nothing executed it.
+`FailoverDriver` held bare drivers and a second routing strategy, and re-decided
+on every attempt from a poorer model of the world — so a candidate's model and
+the constraints it had passed were destroyed at that boundary. Two failures
+followed from the one cause:
+
+- Every fallback was handed the *primary* candidate's model. Where a model is
+  provider-exclusive, no other driver can serve it, so the whole chain became a
+  sequence of validation errors — failing precisely when a fail-over was needed.
+- A fallback reached through the second strategy had never been checked against
+  the request's requirements, so it could violate a capability or context-window
+  constraint the policy had already ruled out — silently, as an opaque provider
+  error.
+
+### Added
+
+- **`Execution\PlanExecutor`**: executes a `RoutingDecision` and decides
+  nothing. Each candidate is served its own model; no candidate outside the plan
+  is ever reached. It may skip a candidate (re-checking `isAvailable()` at that
+  candidate's turn, which keeps a circuit breaker that opened mid-run from being
+  ignored) but never add one, reorder them, or substitute a model.
+  Deliberately **not** an `LLMDriverInterface` — that interface carries only an
+  `LLMRequest`, which is why `FailoverDriver` had to re-derive a plan it could
+  not receive. Decorators belong under each candidate's driver, as before.
+- **`Contract\Exception\RoutingFailureInterface` / `ExecutionFailureInterface`**:
+  separate a broken plan from a failing provider. `UnknownModelException`,
+  `UnsupportedReasoningException` and `NoEligibleCandidateException` carry the
+  first; `RateLimitException` the second. `PlanExecutor` surfaces a routing
+  failure instead of failing over on it — trying the next candidate cannot fix
+  an impossible instruction, it only spends the rest of the plan hiding the
+  cause behind whatever the last candidate happened to say. Marker interfaces,
+  so no exception changed its parent class and every existing
+  `catch (RuntimeException)` is unaffected.
+- **`Contract\Driver\ModelCatalogueInterface`** (`supportsModel()`): lets a
+  driver answer whether it would accept a model, using the same code it will use
+  at call time. Implemented once in `ResolvesPricedModel` by calling
+  `resolveModel()` itself, so a check can never drift from the resolution it
+  checks — `groq/llama-3.3-70b-versatile` is accepted, as the driver accepts it,
+  where `in_array(getModels())` would wrongly reject it. `OllamaDriver` answers
+  `true` unconditionally: its resolution never refuses, and reading its
+  catalogue would cost an HTTP call per candidate.
+- **`Constraint\CandidateModelConstraint`**: rejects a candidate whose driver
+  cannot serve the candidate's own model, before a plan is built. Separate from
+  `ModelConstraint`, which asks a different question — "does this candidate
+  satisfy what the *caller* asked for?", and correctly stands down when the
+  caller asked for nothing. That is the gap the production failure went through:
+  the request named no model, so every candidate passed, and the mismatch only
+  surfaced once each driver had been handed an instruction it could not read.
+- **`Exception\AllCandidatesFailedException`**: reports each attempt as
+  candidate *and* model (`groq (llama-3.3-70b-versatile): ...`) plus any
+  candidates skipped as unavailable.
+- **`LLMRequest::withModel()`**: projects a candidate's model onto a request.
+  `$model` on a request remains the caller's requirement; this exists only
+  because `LLMDriverInterface` has a single slot a driver reads a model from.
+  Not a way to substitute a model after a failure — that is how a caller ends up
+  billed for a model it never chose.
+- **`RoutingDecision::getCandidates()`**: the plan, selected candidate first.
+
+### Deprecated
+
+- **`Driver\FailoverDriver`** → `Execution\PlanExecutor`. Unchanged and still
+  supported: a chain whose candidates all serve the same model behaves exactly
+  as documented.
+- **`Contract\RoutingStrategyInterface`** → `Engine\RoutingEngine`. The
+  deprecation is in the return type: `LLMDriverInterface` cannot carry a
+  candidate's model or its evaluation, and no implementation can work around
+  that.
+- **`Exception\AllDriversFailedException`** → `AllCandidatesFailedException`.
+
+### Notes
+
+No breaking changes. Nothing existing changed behaviour: the new classes are
+additions, and the classification of exceptions is by interface only.
+`FailoverDriver` keeps failing over on `UnknownModelException` as it always has.
+
+---
+
+## [5.1.0] - 2026-08-15
 
 ### Added
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CleatSquad\LlmRouter\Exception;
 
+use CleatSquad\LlmRouter\Contract\Exception\RoutingFailureInterface;
 use RuntimeException;
 
 /**
@@ -19,10 +20,15 @@ use RuntimeException;
  * `'reasoning' => false`, and drivers without a pricing table (Kimi, Ollama)
  * don't perform this check at all — there, the provider's own error stands.
  *
- * A RuntimeException, like UnknownModelException, so FailoverDriver can move to
- * a driver whose model does reason rather than aborting the whole request.
+ * A RoutingFailureInterface, like UnknownModelException: whether a model can
+ * reason is knowable before the call, so a candidate that cannot serve a
+ * reasoning request should have been rejected by a constraint. Reaching this
+ * point means the plan was built wrong, and CapabilityConstraint is where to
+ * fix it. PlanExecutor surfaces it rather than working around it silently.
+ *
+ * FailoverDriver keeps failing over on it, as it always has.
  */
-final class UnsupportedReasoningException extends RuntimeException
+final class UnsupportedReasoningException extends RuntimeException implements RoutingFailureInterface
 {
     /**
      * @param string[] $reasoningModels
