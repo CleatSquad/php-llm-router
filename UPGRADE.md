@@ -58,10 +58,14 @@ past it.
 
 ### Gemini keys move to a header
 
-`GeminiDriver` sends `x-goog-api-key` instead of `?key=`. Same constructor
-argument, same credential. Worth knowing only if you match on request URLs —
-a recorded HTTP fixture or a test asserting the query string will need
-updating, and a proxy rule keyed on `?key=` no longer matches.
+`GeminiDriver` and `GeminiEmbeddingDriver` send `x-goog-api-key` instead of
+`?key=`. Same constructor argument, same credential. Worth knowing only if you
+match on request URLs — a recorded HTTP fixture or a test asserting the query
+string will need updating, and a proxy rule keyed on `?key=` no longer matches.
+
+If a Gemini key of yours has been in use for a while, treat it as having been
+written to whatever logs your requests passed through, and rotate it. Upgrading
+stops new exposure; it cannot unwrite what was already logged.
 
 Failure messages logged by `PlanExecutor` also have their URL credentials
 replaced with `***`. If you parse those messages, they are still the provider's

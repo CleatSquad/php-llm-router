@@ -47,12 +47,20 @@ No breaking changes.
 
 ### Security
 
-- **`GeminiDriver` authenticates with the `x-goog-api-key` header** instead of
-  a `key` query parameter, on all three endpoints (`/models`, chat, streaming).
-  A key in a URL travels wherever the URL does — proxy access logs, Guzzle
-  exception messages, anything that quotes the request line. Google documents
-  the header for that reason and accepts it everywhere this driver calls. Same
-  credential, same constructor argument: nothing to change at the call site.
+- **`GeminiDriver` and `GeminiEmbeddingDriver` authenticate with the
+  `x-goog-api-key` header** instead of a `key` query parameter — five endpoints
+  in all (`/models` and `:generateContent` and `:streamGenerateContent` for
+  chat, `/models` and `:batchEmbedContents` for embeddings). A key in a URL
+  travels wherever the URL does: proxy access logs, Guzzle exception messages,
+  anything that quotes the request line. Google documents the header for that
+  reason and accepts it everywhere these drivers call — verified against the
+  live API, not only against mocks. Same credential, same constructor argument:
+  nothing to change at the call site.
+- **`NoCredentialInQueryStringTest`** scans every source file for a credential
+  passed as a query parameter. `GeminiEmbeddingDriver` was found carrying the
+  same flaw only after it had been fixed next door in `GeminiDriver`; the test
+  makes that a class of bug the suite catches rather than an inventory to re-run
+  by hand. The other eleven drivers already authenticated by header.
 - **`PlanExecutor` redacts URL credentials from failure messages.** Guzzle
   quotes the whole URL in its exception messages, and the executor copied those
   into `llm_router.candidate_failed` and into the exhaustion report. Any driver
