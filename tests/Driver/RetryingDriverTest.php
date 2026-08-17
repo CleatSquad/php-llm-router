@@ -220,4 +220,35 @@ final class RetryingDriverTest extends TestCase
         $spread = max($elapsedTimes) - min($elapsedTimes);
         $this->assertGreaterThan(0.05, $spread, 'a fixed delay would not spread this much across runs');
     }
+
+    public function testImplementsModelCatalogueAndDelegatesSupportsModel(): void
+    {
+        $innerWithCatalogue = new class implements \CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface, \CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface {
+            public function getId(): string { return 'mock'; }
+            public function getName(): string { return 'Mock'; }
+            public function getType(): \CleatSquad\LlmRouter\Enum\DriverType { return \CleatSquad\LlmRouter\Enum\DriverType::LLM; }
+            public function isAvailable(): bool { return true; }
+            public function healthCheck(): \CleatSquad\LlmRouter\DTO\HealthStatus { return \CleatSquad\LlmRouter\DTO\HealthStatus::healthy(); }
+            public function getMetadata(): array { return []; }
+            public function chat(\CleatSquad\LlmRouter\DTO\LLMRequest $request): \CleatSquad\LlmRouter\DTO\LLMResponse { throw new \RuntimeException('unused'); }
+            public function stream(\CleatSquad\LlmRouter\DTO\LLMRequest $request): \Generator { yield 'unused'; return null; }
+            public function getModels(): array { return ['model-a']; }
+            public function supportsStreaming(): bool { return true; }
+            public function supportsTools(): bool { return false; }
+            public function supportsVision(): bool { return false; }
+            public function supportsReasoning(): bool { return false; }
+            public function estimateCost(\CleatSquad\LlmRouter\DTO\LLMRequest $request): \CleatSquad\LlmRouter\DTO\CostEstimate { return \CleatSquad\LlmRouter\DTO\CostEstimate::free(); }
+            public function supportsModel(string $model): bool { return $model === 'model-a'; }
+        };
+
+        $driver = new RetryingDriver($innerWithCatalogue);
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface::class, $driver);
+        $this->assertTrue($driver->supportsModel('model-a'));
+        $this->assertFalse($driver->supportsModel('model-b'));
+
+        $innerWithoutCatalogue = new ControllableDriver('bare');
+        $driverBare = new RetryingDriver($innerWithoutCatalogue);
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface::class, $driverBare);
+        $this->assertTrue($driverBare->supportsModel('any-model'), 'Driver without ModelCatalogueInterface is assumed able to serve what it is given');
+    }
 }

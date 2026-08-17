@@ -7,8 +7,15 @@ namespace CleatSquad\LlmRouter\Tests\Cache;
 use CleatSquad\LlmRouter\Cache\RedisCacheStore;
 use CleatSquad\LlmRouter\DTO\LLMResponse;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use Redis;
 
+/**
+ * Exercises the phpredis-backed store, so the extension has to be there for
+ * the test to mean anything. Declared rather than discovered: without it the
+ * suite reported an error that read as a failure of the code under test.
+ */
+#[RequiresPhpExtension('redis')]
 final class RedisCacheStoreTest extends TestCase
 {
     private function response(string $content = 'hi'): LLMResponse

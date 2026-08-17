@@ -7,6 +7,7 @@ namespace CleatSquad\LlmRouter\Driver;
 use CleatSquad\LlmRouter\CircuitBreaker\CircuitBreakerStoreInterface;
 use CleatSquad\LlmRouter\CircuitBreaker\InMemoryCircuitBreakerStore;
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\DTO\CostEstimate;
 use CleatSquad\LlmRouter\DTO\HealthStatus;
 use CleatSquad\LlmRouter\DTO\LLMRequest;
@@ -21,7 +22,7 @@ use Throwable;
 /**
  * Decorates a driver with a circuit breaker: after $failureThreshold consecutive failures it fails fast (no network call) for $openSeconds instead of every caller re-discovering the same outage; a single success resets the count.
  */
-final class CircuitBreakerDriver implements LLMDriverInterface
+final class CircuitBreakerDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     private CircuitBreakerStoreInterface $store;
 
@@ -113,6 +114,18 @@ final class CircuitBreakerDriver implements LLMDriverInterface
     public function getModels(): array
     {
         return $this->inner->getModels();
+    }
+
+    /**
+     * Delegates model catalogue check to the inner driver if it implements ModelCatalogueInterface.
+     */
+    public function supportsModel(string $model): bool
+    {
+        if ($this->inner instanceof ModelCatalogueInterface) {
+            return $this->inner->supportsModel($model);
+        }
+
+        return true;
     }
 
     public function supportsStreaming(): bool

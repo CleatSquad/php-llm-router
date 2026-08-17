@@ -7,6 +7,7 @@ namespace CleatSquad\LlmRouter\Tests\RateLimit;
 use CleatSquad\LlmRouter\RateLimit\AtomicRateLimitStoreInterface;
 use CleatSquad\LlmRouter\RateLimit\RedisRateLimitStore;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Redis;
 use RuntimeException;
@@ -19,6 +20,13 @@ use RuntimeException;
  * Type: regression + concurrency.
  */
 #[Group('security')]
+/**
+ * These doubles extend \Redis, so the class has to exist for the file to even
+ * load. Without the extension the suite reported errors that read as failures
+ * of the code under test; declared as a requirement, it reports a skip, which
+ * is what an absent extension actually is.
+ */
+#[RequiresPhpExtension('redis')]
 final class RedisRateLimitStoreAtomicityTest extends TestCase
 {
     private function store(Redis $redis): RedisRateLimitStore

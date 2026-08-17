@@ -7,6 +7,7 @@ namespace CleatSquad\LlmRouter\Driver;
 use CleatSquad\LlmRouter\Cache\CacheStoreInterface;
 use CleatSquad\LlmRouter\Cache\InMemoryCacheStore;
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\DTO\CostEstimate;
 use CleatSquad\LlmRouter\DTO\HealthStatus;
 use CleatSquad\LlmRouter\DTO\LLMRequest;
@@ -18,7 +19,7 @@ use Generator;
  * Decorates a driver with a response cache for chat(); stream() intentionally bypasses the cache since streaming can't buffer a full response first.
  * State is delegated to a CacheStoreInterface (default: InMemoryCacheStore, process-scoped).
  */
-final class CachingDriver implements LLMDriverInterface
+final class CachingDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     private CacheStoreInterface $store;
 
@@ -92,6 +93,18 @@ final class CachingDriver implements LLMDriverInterface
     public function getModels(): array
     {
         return $this->inner->getModels();
+    }
+
+    /**
+     * Delegates model catalogue check to the inner driver if it implements ModelCatalogueInterface.
+     */
+    public function supportsModel(string $model): bool
+    {
+        if ($this->inner instanceof ModelCatalogueInterface) {
+            return $this->inner->supportsModel($model);
+        }
+
+        return true;
     }
 
     public function supportsStreaming(): bool

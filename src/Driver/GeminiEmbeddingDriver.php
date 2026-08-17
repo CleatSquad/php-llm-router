@@ -65,7 +65,7 @@ class GeminiEmbeddingDriver implements EmbeddingDriverInterface
         $startTime = microtime(true);
         try {
             $response = $this->httpClient->getClient()->get($this->geminiUrl . '/models', [
-                'query' => ['key' => $this->geminiApiKey],
+                'headers' => ['x-goog-api-key' => $this->geminiApiKey],
                 'timeout' => 4.0,
             ]);
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
@@ -108,7 +108,7 @@ class GeminiEmbeddingDriver implements EmbeddingDriverInterface
                 $this->geminiUrl . '/models/' . $model . ':batchEmbedContents',
                 [
                     'json' => $payload,
-                    'query' => ['key' => $this->geminiApiKey],
+                    'headers' => ['x-goog-api-key' => $this->geminiApiKey],
                     'timeout' => $timeout,
                 ]
             );

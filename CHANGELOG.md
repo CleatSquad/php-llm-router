@@ -14,6 +14,68 @@ The 4.x entries carry no date. They were tagged within a day of each other, and
 a date on each would say less about this package than the tags do. For the
 release date of any version, ask git: `git log -1 --format=%ad v4.1.3`.
 
+## [5.3.0] - 2026-08-17
+
+5.2 made the routing decision the only plan there is. This release fixes four
+ways the layers underneath it still contradicted that plan, gave up on it too
+late, or wrote a credential into a log while doing so.
+
+No breaking changes.
+
+### Added
+
+- **`ModelCatalogueInterface` on the four decorators** — `CachingDriver`,
+  `CircuitBreakerDriver`, `RateLimitedDriver` and `RetryingDriver` now
+  implement it and delegate `supportsModel()` to what they wrap. A caller only
+  ever holds the outermost wrapper, so a decorator that dropped the interface
+  made a fully catalogued driver answer as if it had none — and
+  `CandidateModelConstraint`, which exists to reject a candidate paired with a
+  model it cannot serve, silently stopped rejecting anything for every
+  decorated driver. Wrapping a driver that answers no catalogue question keeps
+  the documented default: it is assumed able to serve what it is given.
+
+### Fixed
+
+- **`RetryingDriver` stops retrying when `Retry-After` exceeds
+  `$maxDelaySeconds`.** The header says when the quota frees up, and not
+  before; capping the wait never made it come back sooner. The driver waited
+  the full cap, earned another 429, and repeated that for every remaining
+  attempt — spending the caller's whole budget on a foregone conclusion, at the
+  one moment a router needed time to reach its next candidate. A cooldown this
+  driver cannot wait out now propagates immediately. A `Retry-After` within the
+  budget is honoured exactly as before.
+
+### Security
+
+- **`GeminiDriver` and `GeminiEmbeddingDriver` authenticate with the
+  `x-goog-api-key` header** instead of a `key` query parameter — five endpoints
+  in all (`/models` and `:generateContent` and `:streamGenerateContent` for
+  chat, `/models` and `:batchEmbedContents` for embeddings). A key in a URL
+  travels wherever the URL does: proxy access logs, Guzzle exception messages,
+  anything that quotes the request line. Google documents the header for that
+  reason and accepts it everywhere these drivers call — verified against the
+  live API, not only against mocks. Same credential, same constructor argument:
+  nothing to change at the call site.
+- **`NoCredentialInQueryStringTest`** scans every source file for a credential
+  passed as a query parameter. `GeminiEmbeddingDriver` was found carrying the
+  same flaw only after it had been fixed next door in `GeminiDriver`; the test
+  makes that a class of bug the suite catches rather than an inventory to re-run
+  by hand. The other eleven drivers already authenticated by header.
+- **`PlanExecutor` redacts URL credentials from failure messages.** Guzzle
+  quotes the whole URL in its exception messages, and the executor copied those
+  into `llm_router.candidate_failed` and into the exhaustion report. Any driver
+  still authenticating by query parameter — including one written outside this
+  package — wrote its key there. Values of `key`, `api_key`, `apikey`,
+  `access_token` and `token` are replaced with `***`.
+
+### Testing
+
+- The Redis-backed suites declare `#[RequiresPhpExtension('redis')]` and skip
+  where the extension is absent, instead of erroring in a way that read as a
+  failure of the store under test.
+- `DecoratorPreservesCatalogueTest` asserts the catalogue contract across all
+  four decorators, so a fifth one cannot reintroduce the same gap unnoticed.
+
 ## [5.2.0] - 2026-08-15
 
 Routing decided a plan; execution ignored it and built its own. This release

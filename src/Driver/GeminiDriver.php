@@ -105,7 +105,7 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
         $startTime = microtime(true);
         try {
             $response = $this->httpClient->getClient()->get($this->geminiUrl . '/models', [
-                'query' => ['key' => $this->geminiApiKey],
+                'headers' => ['x-goog-api-key' => $this->geminiApiKey],
                 'timeout' => 4.0,
             ]);
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
@@ -164,9 +164,11 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
 
         try {
             $response = $this->httpClient->getClient()->post($url, [
-                'query' => ['key' => $this->geminiApiKey],
                 'json' => $payload,
-                'headers' => ['Content-Type' => 'application/json'],
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'x-goog-api-key' => $this->geminiApiKey,
+                ],
                 'timeout' => $timeout,
             ]);
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
@@ -236,9 +238,12 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
 
         try {
             $response = $this->httpClient->getClient()->post($url, [
-                'query' => ['alt' => 'sse', 'key' => $this->geminiApiKey],
+                'query' => ['alt' => 'sse'],
                 'json' => $payload,
-                'headers' => ['Content-Type' => 'application/json'],
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'x-goog-api-key' => $this->geminiApiKey,
+                ],
                 'timeout' => $timeout,
                 'read_timeout' => $timeout,
                 'stream' => true,
