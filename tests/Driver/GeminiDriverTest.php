@@ -186,4 +186,30 @@ final class GeminiDriverTest extends TestCase
         $sentBody = json_decode((string) $history[0]['request']->getBody(), true);
         $this->assertSame('Un message texte normal', $sentBody['contents'][0]['parts'][0]['text']);
     }
+    /**
+     * RFC-0070, I-5 / criterion 7 — the key travels in a header, never in the
+     * URL. Guzzle quotes the whole URL in its exception messages, and
+     * PlanExecutor journals that message: a key in the query string ended up
+     * in `docker logs concio-api` in clear, dozens of times on 2026-08-16.
+     */
+    public function testTheApiKeyTravelsInAHeaderAndNeverInTheUrl(): void
+    {
+        $history = [];
+        $driver = $this->driverWithMockedResponses([
+            new Response(200, [], json_encode([
+                'candidates' => [['content' => ['parts' => [['text' => 'ok']]]]],
+                'usageMetadata' => ['promptTokenCount' => 1, 'candidatesTokenCount' => 1, 'totalTokenCount' => 2],
+            ], JSON_THROW_ON_ERROR)),
+        ], $history);
+
+        $driver->chat(new LLMRequest(messages: [
+            ['role' => 'user', 'content' => 'Salut'],
+        ], model: 'gemini-2.5-flash'));
+
+        $request = $history[0]['request'];
+
+        $this->assertSame('test-key', $request->getHeaderLine('x-goog-api-key'));
+        $this->assertStringNotContainsString('key=', (string) $request->getUri());
+        $this->assertStringNotContainsString('test-key', (string) $request->getUri());
+    }
 }
