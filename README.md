@@ -1,19 +1,17 @@
 # cleatsquad/php-llm-router
 
-> **v5.2 makes the routing decision the only execution plan.**
-> 
-> ```bash
-> composer require cleatsquad/php-llm-router:^5.2
-> ```
-> 
-> v5.1 gave a `Candidate` its own model. v5.2 makes that model survive all the
-> way to the call: `Execution\PlanExecutor` runs a `RoutingDecision` and decides
-> nothing, so every fallback is served its own model and no candidate outside the
-> plan is ever reached. `FailoverDriver` and `RoutingStrategyInterface` are
-> deprecated — they decided as well as executed, from a model of the world that
-> could not carry either fact.
-> 
-> No breaking changes — see [UPGRADE.md](UPGRADE.md), [docs/v5-migration.md](docs/v5-migration.md) and [docs/v5-architecture.md](docs/v5-architecture.md).
+> **The routing decision is the only execution plan.**
+>
+> `RoutingEngine` decides; `Execution\PlanExecutor` runs that decision and
+> decides nothing. Every candidate is served its own model, and no candidate
+> outside the plan is ever reached. `FailoverDriver` and
+> `RoutingStrategyInterface` are deprecated — they decided as well as executed,
+> from a model of the world that could carry neither the candidate's model nor
+> the constraints it had passed.
+>
+> Coming from an older version: [UPGRADE.md](UPGRADE.md),
+> [docs/v5-migration.md](docs/v5-migration.md) and
+> [docs/v5-architecture.md](docs/v5-architecture.md).
 
 
 [![CI](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml/badge.svg)](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml)
@@ -43,7 +41,7 @@ automatically when a provider is down, rate-limited, or out of credit.
 composer require cleatsquad/php-llm-router
 ```
 
-## Usage (v5 Composable Decision Engine)
+## Usage — the composable decision engine
 
 ```php
 use CleatSquad\LlmRouter\Constraint\CapabilityConstraint;
