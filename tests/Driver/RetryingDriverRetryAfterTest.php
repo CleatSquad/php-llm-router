@@ -64,15 +64,59 @@ final class RetryingDriverRetryAfterTest extends TestCase
         $this->assertSame([30.0], $slept, 'the 30s the provider asked for, not the ~0.5s backoff');
     }
 
-    public function testTheProviderDelayIsStillCappedByMaxDelaySeconds(): void
+    /**
+     * The invariant this test has always protected — an absurd Retry-After must
+     * not park the caller for an hour — now holds by giving up instead of by
+     * capping. Capping still retried, and those attempts were certainties of
+     * another 429 charged to the caller's time budget: the router that owns the
+     * fallback chain never got its turn while there was still time to answer.
+     */
+    public function testACooldownBeyondTheRetryBudgetIsNotWaitedOutAtAll(): void
     {
         $slept = [];
         $inner = new ControllableDriver('fake', [new RateLimitException('rate limited', 3_600)]);
         $driver = $this->driver($inner, $slept, maxDelaySeconds: 8.0);
 
-        $driver->chat($this->request());
+        try {
+            $driver->chat($this->request());
+            $this->fail('expected the rate limit to propagate without a doomed retry');
+        } catch (RateLimitException $e) {
+            $this->assertSame(3_600, $e->getRetryAfterSeconds(), 'the delay reaches the router intact');
+        }
 
-        $this->assertSame([8.0], $slept, 'an absurd Retry-After must not park the caller for an hour');
+        $this->assertSame([], $slept, 'nobody is parked, not even for the capped 8s');
+        $this->assertSame(1, $inner->callCount, 'one attempt, no retry that could only fail');
+    }
+
+    /** The boundary belongs to the budget: a delay that fits is still waited out. */
+    public function testACooldownExactlyAtTheBudgetIsStillRetried(): void
+    {
+        $slept = [];
+        $inner = new ControllableDriver('fake', [new RateLimitException('rate limited', 8)]);
+        $driver = $this->driver($inner, $slept, maxDelaySeconds: 8.0);
+
+        $response = $driver->chat($this->request());
+
+        $this->assertSame('ok', $response->content);
+        $this->assertSame([8.0], $slept);
+    }
+
+    /** stream() carries the twin logic and must give up on the same terms. */
+    public function testStreamAlsoGivesUpOnACooldownBeyondTheBudget(): void
+    {
+        $slept = [];
+        $inner = new ControllableDriver('fake', [new RateLimitException('rate limited', 3_600)]);
+        $driver = $this->driver($inner, $slept, maxDelaySeconds: 8.0);
+
+        try {
+            iterator_to_array($driver->stream($this->request()));
+            $this->fail('expected the rate limit to propagate without a doomed retry');
+        } catch (RateLimitException) {
+            // expected
+        }
+
+        $this->assertSame([], $slept);
+        $this->assertSame(1, $inner->callCount);
     }
 
     public function testAnAbsentRetryAfterFallsBackToTheJitteredBackoff(): void

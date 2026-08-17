@@ -77,6 +77,9 @@ final class RetryingDriver implements LLMDriverInterface
         return $this->inner->getMetadata();
     }
 
+    /**
+     * @throws Throwable
+     */
     public function chat(LLMRequest $request): LLMResponse
     {
         $attempt = 0;
@@ -85,7 +88,9 @@ final class RetryingDriver implements LLMDriverInterface
             try {
                 return $this->inner->chat($request);
             } catch (Throwable $e) {
-                if ($attempt >= $this->maxAttempts || !$this->isRetryable($e)) {
+                if ($attempt >= $this->maxAttempts
+                    || !$this->isRetryable($e)
+                    || self::exceedsRetryBudget($e, $this->maxDelaySeconds)) {
                     throw $e;
                 }
                 $this->sleep($this->delayFor($e, $attempt));
@@ -97,6 +102,7 @@ final class RetryingDriver implements LLMDriverInterface
      * Only retries before any chunk reached the caller; once streaming has started a failure propagates immediately to avoid duplicating or corrupting already-yielded output.
      *
      * @return Generator<int, string, mixed, ?array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>>
+     * @throws Throwable
      */
     public function stream(LLMRequest $request): Generator
     {
@@ -112,7 +118,10 @@ final class RetryingDriver implements LLMDriverInterface
                 }
                 return $inner->getReturn();
             } catch (Throwable $e) {
-                if ($yieldedAny || $attempt >= $this->maxAttempts || !$this->isRetryable($e)) {
+                if ($yieldedAny
+                    || $attempt >= $this->maxAttempts
+                    || !$this->isRetryable($e)
+                    || self::exceedsRetryBudget($e, $this->maxDelaySeconds)) {
                     throw $e;
                 }
                 $this->sleep($this->delayFor($e, $attempt));
@@ -153,6 +162,27 @@ final class RetryingDriver implements LLMDriverInterface
         return $this->inner->estimateCost($request);
     }
 
+    /**
+     * True when the provider named a cooldown this driver cannot wait out.
+     *
+     * A Retry-After is the provider answering the question: the quota frees up
+     * then, and not before. When that moment falls outside the retry budget,
+     * every remaining attempt is a certainty of another 429 — capping the wait
+     * does not make the quota return sooner, it only spends the caller's time
+     * on a foregone conclusion. Giving up here is what lets a router reach its
+     * next candidate while there is still time to answer.
+     */
+    private static function exceedsRetryBudget(Throwable $e, float $maxDelaySeconds): bool
+    {
+        if (!$e instanceof RateLimitException) {
+            return false;
+        }
+
+        $retryAfter = $e->getRetryAfterSeconds();
+
+        return $retryAfter !== null && (float) $retryAfter > $maxDelaySeconds;
+    }
+
     private function isRetryable(Throwable $e): bool
     {
         if ($e instanceof RateLimitException) {
@@ -184,10 +214,11 @@ final class RetryingDriver implements LLMDriverInterface
      * Retry-After the driver surfaced as a typed RateLimitException — that
      * value replaces the computed backoff outright: it is the only figure
      * that actually reflects when the quota frees up, and retrying earlier
-     * only earns another 429. It is still capped by $maxDelaySeconds so a
-     * hostile or absurd header can't park the caller for an hour, and a
-     * Retry-After of 0 still yields the exponential delay rather than a
-     * busy-loop.
+     * only earns another 429. A delay beyond $maxDelaySeconds never reaches
+     * this method — exceedsRetryBudget() has already given up, so a hostile or
+     * absurd header parks nobody. The min() below is the guard's echo, kept so
+     * this method stays correct on its own. A Retry-After of 0 still yields the
+     * exponential delay rather than a busy-loop.
      */
     private function delayFor(Throwable $e, int $attempt): float
     {
