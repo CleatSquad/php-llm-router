@@ -149,7 +149,7 @@ final class PlanExecutor
                 static fn (array $f): array => [
                     'candidate_id' => $f['candidate']->id,
                     'model' => $f['candidate']->model,
-                    'error' => $f['exception']->getMessage(),
+                    'error' => self::redactSecrets($f['exception']->getMessage()),
                 ],
                 $failures
             ),
@@ -172,7 +172,20 @@ final class PlanExecutor
         $this->logger?->notice('llm_router.candidate_failed', [
             'candidate_id' => $candidate->id,
             'model' => $candidate->model,
-            'error' => $e->getMessage(),
+            'error' => self::redactSecrets($e->getMessage()),
         ]);
+    }
+
+    /**
+     * Guzzle quotes the whole URL in its exception messages. A driver
+     * authenticating by query parameter would leak its key here (RFC-0070, I-5).
+     */
+    private static function redactSecrets(string $message): string
+    {
+        return preg_replace(
+            '/([?&](?:key|api_key|apikey|access_token|token)=)[^&\s\'"]+/i',
+            '$1***',
+            $message
+        ) ?? $message;
     }
 }

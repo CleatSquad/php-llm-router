@@ -318,4 +318,66 @@ final class PlanExecutorTest extends TestCase
             $this->assertSame([], $mistral->receivedModels);
         }
     }
+    /**
+     * RFC-0070, I-5 / criterion 7 — a driver that authenticates by query
+     * parameter hands Guzzle a URL bearing its key, and Guzzle quotes that URL
+     * in the exception message journaled here. GeminiDriver no longer does it;
+     * this is the net under the next driver that would.
+     */
+    public function testASecretCarriedByAnExceptionMessageIsRedactedBeforeBeingJournaled(): void
+    {
+        $logger = new RecordingLogger();
+        $failing = new RecordingDriver('gemini', ['gemini-2.5-flash'], [
+            new RuntimeException('Client error: `POST https://api.example.com/v1/models?key=SUPER_SECRET_KEY` resulted in a 400'),
+        ]);
+        $fallback = new RecordingDriver('mistral', ['mistral-medium-latest']);
+
+        (new PlanExecutor($logger))->execute(new LLMRequest(messages: []), $this->decisionOf(
+            new Candidate('gemini', 'Gemini', $failing, 'gemini-2.5-flash'),
+            new Candidate('mistral', 'Mistral', $fallback, 'mistral-medium-latest'),
+        ));
+
+        $journaled = json_encode($logger->records, JSON_THROW_ON_ERROR);
+
+        $this->assertStringNotContainsString('SUPER_SECRET_KEY', $journaled);
+        $this->assertStringContainsString('key=***', $journaled);
+    }
+
+    /**
+     * And the same on the exhausted-plan record, which repeats every failure.
+     */
+    public function testTheExhaustedPlanRecordIsRedactedToo(): void
+    {
+        $logger = new RecordingLogger();
+        $failing = new RecordingDriver('gemini', ['gemini-2.5-flash'], [
+            new RuntimeException('POST https://api.example.com?key=SUPER_SECRET_KEY failed'),
+        ]);
+
+        try {
+            (new PlanExecutor($logger))->execute(new LLMRequest(messages: []), $this->decisionOf(
+                new Candidate('gemini', 'Gemini', $failing, 'gemini-2.5-flash'),
+            ));
+        } catch (AllCandidatesFailedException) {
+            // The plan is meant to fail here; what matters is what it wrote.
+        }
+
+        $journaled = json_encode($logger->records, JSON_THROW_ON_ERROR);
+
+        $this->assertStringNotContainsString('SUPER_SECRET_KEY', $journaled);
+        $this->assertStringContainsString('key=***', $journaled);
+    }
+}
+
+/**
+ * Keeps every record so a test can assert on what actually reached a journal.
+ */
+final class RecordingLogger extends \Psr\Log\AbstractLogger
+{
+    /** @var list<array{level: mixed, message: string|\Stringable, context: array<mixed>}> */
+    public array $records = [];
+
+    public function log($level, string|\Stringable $message, array $context = []): void
+    {
+        $this->records[] = ['level' => $level, 'message' => $message, 'context' => $context];
+    }
 }
