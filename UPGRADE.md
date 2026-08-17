@@ -1,5 +1,72 @@
 # Upgrade guide
 
+## 5.2.0 → 5.3.0
+
+**Feature release: the layers below the plan stop contradicting it.**
+
+Nothing to change. No signature moved, no exception changed its parent, no
+constructor gained a required argument. Upgrade and read the two behaviour
+changes below, because both are visible from the outside.
+
+### A decorated driver is catalogued again
+
+`CandidateModelConstraint` asks a candidate's driver whether it serves the
+requested model. It asks the *outermost* object, which in most setups is a
+decorator — and `CachingDriver`, `CircuitBreakerDriver`, `RateLimitedDriver`
+and `RetryingDriver` did not implement `ModelCatalogueInterface`. The
+constraint therefore fell back to "assume it serves" for every decorated
+driver, which is the correct default for a third-party driver and the wrong
+answer for a catalogued one behind a wrapper.
+
+```php
+$driver = new RetryingDriver(new OpenAiDriver($http, openAiApiKey: $key));
+
+$driver->supportsModel('claude-sonnet-4-5'); // 5.2: true (nobody asked OpenAI)
+                                             // 5.3: false
+```
+
+**What you may see:** a pairing that used to reach the provider and come back
+as an opaque validation error is now rejected while the plan is being built —
+as a `NoEligibleCandidateException` if no candidate qualifies, or simply as a
+different candidate being chosen. That is the constraint working. If a
+candidate disappears from your plans after upgrading, it was serving a model
+its driver does not have.
+
+A driver that does not implement `ModelCatalogueInterface` is still assumed
+able to serve what it is given, wrapped or not.
+
+### A cooldown longer than the budget ends the chain
+
+`RetryingDriver` honours a provider's `Retry-After`. It used to cap that value
+at `$maxDelaySeconds` — wait the cap, retry, collect another 429, repeat until
+attempts ran out.
+
+```php
+$driver = new RetryingDriver($inner, maxAttempts: 3, maxDelaySeconds: 5.0);
+// provider answers 429, Retry-After: 60
+// 5.2: sleeps 5s, fails, sleeps 5s, fails — ~10s spent, same outcome
+// 5.3: throws the RateLimitException at once
+```
+
+**What you may see:** `RateLimitException` surfacing sooner, and from fewer
+attempts than `maxAttempts` suggests. That is deliberate. The quota does not
+return early because this driver waited, and a `PlanExecutor` above it needs
+that time to reach the next candidate. A `Retry-After` within
+`$maxDelaySeconds` is honoured exactly as before, and a driver used on its own
+that genuinely wants to sit out a long cooldown can raise `maxDelaySeconds`
+past it.
+
+### Gemini keys move to a header
+
+`GeminiDriver` sends `x-goog-api-key` instead of `?key=`. Same constructor
+argument, same credential. Worth knowing only if you match on request URLs —
+a recorded HTTP fixture or a test asserting the query string will need
+updating, and a proxy rule keyed on `?key=` no longer matches.
+
+Failure messages logged by `PlanExecutor` also have their URL credentials
+replaced with `***`. If you parse those messages, they are still the provider's
+text — only the secret is gone.
+
 ## 5.1.0 → 5.2.0
 
 **Feature release: one decision, one plan, one executor.**

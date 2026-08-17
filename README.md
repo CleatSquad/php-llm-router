@@ -145,6 +145,12 @@ capability flags.
 Write your own driver for another provider by implementing the same
 interface — nothing else in this package needs to know about it.
 
+Priced drivers also implement `ModelCatalogueInterface` (`supportsModel()`),
+and so do the four decorators below — each delegating to what it wraps. A
+caller only ever holds the outermost object, so a decorator that stayed silent
+would make a fully catalogued driver look like it serves everything. A driver
+that implements neither is assumed able to serve what it is given.
+
 ### Streaming
 
 ```php
@@ -363,6 +369,15 @@ For `stream()`, only a failure *before any chunk reached the caller* is
 retried — once content has started flowing, a fresh attempt could
 duplicate or corrupt what the caller already received, so it propagates
 immediately instead, regardless of attempts remaining.
+
+**A `Retry-After` the driver cannot wait out ends the chain immediately.**
+When a provider names a cooldown longer than `$maxDelaySeconds`, it has
+answered the question: the quota frees up then, and not before. Waiting the
+cap instead only buys another 429, and repeating that for every remaining
+attempt spends the caller's whole budget on a foregone conclusion — at the one
+moment a `PlanExecutor` above needs time to reach its next candidate. So the
+`RateLimitException` propagates at once. A `Retry-After` *within* the budget is
+honoured to the second, since it beats any backoff this driver could compute.
 
 ### Response caching
 
