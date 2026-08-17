@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\DTO\CostEstimate;
 use CleatSquad\LlmRouter\DTO\HealthStatus;
 use CleatSquad\LlmRouter\DTO\LLMRequest;
@@ -20,7 +21,7 @@ use Throwable;
  * Retries transient failures (connection errors, timeouts, HTTP 429/5xx) with exponential backoff; other 4xx propagate immediately since retrying would just fail the same way.
  * Retryability is judged from the wrapped Guzzle exception on RuntimeException::getPrevious(), which every driver in this package sets.
  */
-final class RetryingDriver implements LLMDriverInterface
+final class RetryingDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     /** @var callable(float): void */
     private $sleeper;
@@ -135,6 +136,18 @@ final class RetryingDriver implements LLMDriverInterface
     public function getModels(): array
     {
         return $this->inner->getModels();
+    }
+
+    /**
+     * Delegates model catalogue check to the inner driver if it implements ModelCatalogueInterface.
+     */
+    public function supportsModel(string $model): bool
+    {
+        if ($this->inner instanceof ModelCatalogueInterface) {
+            return $this->inner->supportsModel($model);
+        }
+
+        return true;
     }
 
     public function supportsStreaming(): bool

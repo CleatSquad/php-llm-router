@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\DTO\CostEstimate;
 use CleatSquad\LlmRouter\DTO\HealthStatus;
 use CleatSquad\LlmRouter\DTO\LLMRequest;
@@ -23,7 +24,7 @@ use RuntimeException;
  * Streamed token usage is only an estimate (input tokens only), since providers don't send a usage block over SSE.
  * State lives in a RateLimitStoreInterface (defaults to in-process memory); swap in a Redis/DB implementation to share quota across processes.
  */
-final class RateLimitedDriver implements LLMDriverInterface
+final class RateLimitedDriver implements LLMDriverInterface, ModelCatalogueInterface
 {
     private RateLimitStoreInterface $store;
 
@@ -97,6 +98,18 @@ final class RateLimitedDriver implements LLMDriverInterface
     public function getModels(): array
     {
         return $this->inner->getModels();
+    }
+
+    /**
+     * Delegates model catalogue check to the inner driver if it implements ModelCatalogueInterface.
+     */
+    public function supportsModel(string $model): bool
+    {
+        if ($this->inner instanceof ModelCatalogueInterface) {
+            return $this->inner->supportsModel($model);
+        }
+
+        return true;
     }
 
     public function supportsStreaming(): bool

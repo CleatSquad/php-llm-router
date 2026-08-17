@@ -158,4 +158,35 @@ final class CircuitBreakerDriverTest extends TestCase
         $this->assertGreaterThanOrEqual(3440, $diff);
         $this->assertLessThanOrEqual(3445, $diff);
     }
+
+    public function testImplementsModelCatalogueAndDelegatesSupportsModel(): void
+    {
+        $innerWithCatalogue = new class implements \CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface, \CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface {
+            public function getId(): string { return 'mock'; }
+            public function getName(): string { return 'Mock'; }
+            public function getType(): \CleatSquad\LlmRouter\Enum\DriverType { return \CleatSquad\LlmRouter\Enum\DriverType::LLM; }
+            public function isAvailable(): bool { return true; }
+            public function healthCheck(): \CleatSquad\LlmRouter\DTO\HealthStatus { return \CleatSquad\LlmRouter\DTO\HealthStatus::healthy(); }
+            public function getMetadata(): array { return []; }
+            public function chat(\CleatSquad\LlmRouter\DTO\LLMRequest $request): \CleatSquad\LlmRouter\DTO\LLMResponse { throw new \RuntimeException('unused'); }
+            public function stream(\CleatSquad\LlmRouter\DTO\LLMRequest $request): \Generator { yield 'unused'; return null; }
+            public function getModels(): array { return ['model-a']; }
+            public function supportsStreaming(): bool { return true; }
+            public function supportsTools(): bool { return false; }
+            public function supportsVision(): bool { return false; }
+            public function supportsReasoning(): bool { return false; }
+            public function estimateCost(\CleatSquad\LlmRouter\DTO\LLMRequest $request): \CleatSquad\LlmRouter\DTO\CostEstimate { return \CleatSquad\LlmRouter\DTO\CostEstimate::free(); }
+            public function supportsModel(string $model): bool { return $model === 'model-a'; }
+        };
+
+        $breaker = new CircuitBreakerDriver($innerWithCatalogue);
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface::class, $breaker);
+        $this->assertTrue($breaker->supportsModel('model-a'));
+        $this->assertFalse($breaker->supportsModel('model-b'));
+
+        $innerWithoutCatalogue = new ControllableDriver('bare');
+        $breakerBare = new CircuitBreakerDriver($innerWithoutCatalogue);
+        $this->assertInstanceOf(\CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface::class, $breakerBare);
+        $this->assertTrue($breakerBare->supportsModel('any-model'), 'Driver without ModelCatalogueInterface is assumed able to serve what it is given');
+    }
 }
