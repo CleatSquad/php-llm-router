@@ -31,7 +31,7 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
     use ResolvesPricedModel;
 
     /** Used when a request names no model at all — a caller declining to choose. */
-    private const DEFAULT_MODEL = 'gemini-2.5-flash-lite';
+    private const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 
     private const PRICING = [
         // USD per 1k tokens = Google's published per-million rate / 1000.

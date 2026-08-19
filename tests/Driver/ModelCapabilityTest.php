@@ -248,11 +248,11 @@ final class ModelCapabilityTest extends TestCase
         ], JSON_THROW_ON_ERROR));
 
         // Groq documents no reasoning parameters for the instruction-tuned
-        // Llama models, and llama-3.1-8b-instant is the driver's default —
-        // so a reasoning request used to go out on every unqualified call.
+        // Llama models.
         $this->expectException(UnsupportedReasoningException::class);
         (new \CleatSquad\LlmRouter\Driver\GroqDriver($this->http($answer)))->chat(new LLMRequest(
             messages: [['role' => 'user', 'content' => 'hi']],
+            model: 'llama-3.3-70b-versatile',
             reasoningEffort: ReasoningEffort::High,
         ));
     }
