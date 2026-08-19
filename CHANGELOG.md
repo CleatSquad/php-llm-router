@@ -14,6 +14,32 @@ The 4.x entries carry no date. They were tagged within a day of each other, and
 a date on each would say less about this package than the tags do. For the
 release date of any version, ask git: `git log -1 --format=%ad v4.1.3`.
 
+## [5.3.1] - 2026-08-19
+
+No breaking changes.
+
+### Fixed
+
+- **`GroqDriver`/`GeminiDriver` default models pointed at retired catalogue
+  entries.** `GroqDriver::DEFAULT_MODEL` was `llama-3.1-8b-instant`, no longer
+  served by Groq's API (`model_not_found`); `GeminiDriver::DEFAULT_MODEL` was
+  `gemini-2.5-flash-lite`, which Google now answers with a 404 pointing
+  callers at `gemini-3.5-flash-lite`. Both are updated to a model each
+  provider actually serves today. A caller naming its own model was never
+  affected — only requests that let the driver choose.
+
+### Added
+
+- **`PlanExecutor::execute()`/`stream()` accept `onServed`/`onFailure`
+  callbacks.** `stream()` already had `onServed`; `execute()` had neither.
+  Without a way to observe a candidate's outcome, a caller wanting to record
+  per-provider health (a last-error field, a metrics counter) had no hook
+  short of duplicating the failover loop itself. `onServed` fires once, for
+  the candidate that answered; `onFailure` fires for every candidate that
+  failed along the way, including one a later candidate then served for — a
+  mid-plan failure is still a real failure, not erased by the fallback
+  succeeding.
+
 ## [5.3.0] - 2026-08-17
 
 5.2 made the routing decision the only plan there is. This release fixes four

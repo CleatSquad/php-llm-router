@@ -27,7 +27,7 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
     use ResolvesPricedModel;
 
     /** Used when a request names no model at all — a caller declining to choose. */
-    private const DEFAULT_MODEL = 'llama-3.1-8b-instant';
+    private const DEFAULT_MODEL = 'openai/gpt-oss-20b';
 
     private const PRICING = [
         // USD per 1k tokens = Groq's published per-million rate / 1000.

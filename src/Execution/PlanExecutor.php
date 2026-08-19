@@ -50,10 +50,20 @@ final class PlanExecutor
     }
 
     /**
+     * @param callable(Candidate): void|null $onServed Handed the candidate
+     *   that actually answered, mirroring stream()'s callback of the same name.
+     * @param callable(Candidate, Throwable): void|null $onFailure Handed every
+     *   candidate that failed along the way, including one a later candidate
+     *   then served for — a mid-plan failure is still a real failure, not
+     *   erased by the fallback succeeding.
      * @throws AllCandidatesFailedException when no candidate answered.
      */
-    public function execute(LLMRequest $request, RoutingDecision $decision): LLMResponse
-    {
+    public function execute(
+        LLMRequest $request,
+        RoutingDecision $decision,
+        ?callable $onServed = null,
+        ?callable $onFailure = null,
+    ): LLMResponse {
         $failures = [];
         $skipped = [];
 
@@ -65,7 +75,13 @@ final class PlanExecutor
             }
 
             try {
-                return $candidate->driver->chat($this->requestFor($request, $candidate));
+                $response = $candidate->driver->chat($this->requestFor($request, $candidate));
+
+                if ($onServed !== null) {
+                    $onServed($candidate);
+                }
+
+                return $response;
             } catch (RuntimeException $e) {
                 if (!($this->shouldFailover)($e, $candidate)) {
                     throw $e;
@@ -73,6 +89,10 @@ final class PlanExecutor
 
                 $failures[] = ['candidate' => $candidate, 'exception' => $e];
                 $this->logFailure($candidate, $e);
+
+                if ($onFailure !== null) {
+                    $onFailure($candidate, $e);
+                }
             }
         }
 
@@ -84,11 +104,23 @@ final class PlanExecutor
      * already yielded cannot be un-yielded, so switching candidates after that
      * point would splice two providers' output into one reply.
      *
+     * @param callable(Candidate): void|null $onServed Handed the candidate that
+     *   actually answered. The generator's return value is already taken by the
+     *   driver's tool calls, and a caller that must name the model it received
+     *   cannot re-derive it from the plan: after a failover, the candidate that
+     *   answered is not the one the plan selected.
+     * @param callable(Candidate, Throwable): void|null $onFailure Handed every
+     *   candidate that failed before any chunk of its own was yielded — the
+     *   only case that fails over rather than propagating.
      * @return Generator<int, string, mixed, ?array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>>
      * @throws AllCandidatesFailedException when no candidate answered.
      */
-    public function stream(LLMRequest $request, RoutingDecision $decision): Generator
-    {
+    public function stream(
+        LLMRequest $request,
+        RoutingDecision $decision,
+        ?callable $onServed = null,
+        ?callable $onFailure = null,
+    ): Generator {
         $failures = [];
         $skipped = [];
 
@@ -108,6 +140,10 @@ final class PlanExecutor
                     yield $chunk;
                 }
 
+                if ($onServed !== null) {
+                    $onServed($candidate);
+                }
+
                 return $inner->getReturn();
             } catch (RuntimeException $e) {
                 if ($yieldedAny || !($this->shouldFailover)($e, $candidate)) {
@@ -116,6 +152,10 @@ final class PlanExecutor
 
                 $failures[] = ['candidate' => $candidate, 'exception' => $e];
                 $this->logFailure($candidate, $e);
+
+                if ($onFailure !== null) {
+                    $onFailure($candidate, $e);
+                }
             }
         }
 
