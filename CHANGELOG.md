@@ -14,6 +14,29 @@ The 4.x entries carry no date. They were tagged within a day of each other, and
 a date on each would say less about this package than the tags do. For the
 release date of any version, ask git: `git log -1 --format=%ad v4.1.3`.
 
+## [5.4.0] - 2026-08-24
+
+No breaking changes.
+
+### Added
+
+- **`stream()` now returns real terminal usage (tokens + cost) on every LLM
+  driver, not just `OpenAiDriver`.** `ClaudeDriver`, `GeminiDriver`,
+  `MistralDriver`, `GroqDriver`, `KimiDriver`, `DeepSeekDriver` and
+  `OllamaDriver` extracted usage from `chat()`'s response body already, but
+  their `stream()` discarded it — a caller reading a streamed answer never
+  learned its token count or cost, only a non-streamed one did. Each driver
+  now reads its provider's native streaming usage signal (OpenAI-compatible
+  drivers request `stream_options.include_usage`; Claude reads
+  `message_start`/`message_delta`; Gemini reads the terminal chunk's
+  `usageMetadata`; Ollama reads `prompt_eval_count`/`eval_count` off the
+  `done:true` line) and returns the same
+  `{tool_calls, prompt_tokens, completion_tokens, total_tokens, cost_usd}`
+  shape `OpenAiDriver::stream()` already returned. A driver whose stream
+  never carries a usage signal still returns bare tool calls, exactly as
+  before — this is not a new failure mode, it restores the value for drivers
+  that were silently dropping it.
+
 ## [5.3.1] - 2026-08-19
 
 No breaking changes.

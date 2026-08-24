@@ -21,7 +21,7 @@ use RuntimeException;
 
 /**
  * Decorates a driver with a requests/tokens-per-minute budget; chat()/stream() block (polling) until capacity frees up or $maxWaitSeconds elapses, instead of hitting the provider's own 429.
- * Streamed token usage is only an estimate (input tokens only), since providers don't send a usage block over SSE.
+ * Streamed token usage is only an estimate (input tokens only): it is recorded before the call from the request text, not from the driver's own terminal usage (every LLM driver's stream() now returns one), since that value isn't known until the generator is fully consumed.
  * State lives in a RateLimitStoreInterface (defaults to in-process memory); swap in a Redis/DB implementation to share quota across processes.
  */
 final class RateLimitedDriver implements LLMDriverInterface, ModelCatalogueInterface

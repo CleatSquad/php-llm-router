@@ -260,7 +260,7 @@ class ClaudeDriver implements LLMDriverInterface, ModelCatalogueInterface
     }
 
     /**
-     * @return Generator<int, string, mixed, ?array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>>
+     * @return Generator<int, string, mixed, (array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|array{tool_calls: array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|null, prompt_tokens: int, completion_tokens: int, total_tokens: int, cost_usd: float}|null)>
      */
     public function stream(LLMRequest $request): Generator
     {
@@ -312,6 +312,8 @@ class ClaudeDriver implements LLMDriverInterface, ModelCatalogueInterface
         $body = $response->getBody();
         $buffer = '';
         $toolCalls = [];
+        $promptTokens = 0;
+        $completionTokens = 0;
 
         while (!$body->eof()) {
             $buffer .= $body->read(8192);
@@ -330,6 +332,15 @@ class ClaudeDriver implements LLMDriverInterface, ModelCatalogueInterface
 
                 $eventType = $data['type'] ?? '';
                 $index = $data['index'] ?? 0;
+
+                if ($eventType === 'message_start') {
+                    $promptTokens = (int) ($data['message']['usage']['input_tokens'] ?? 0);
+                    $completionTokens = (int) ($data['message']['usage']['output_tokens'] ?? 0);
+                }
+
+                if ($eventType === 'message_delta') {
+                    $completionTokens = (int) ($data['usage']['output_tokens'] ?? $completionTokens);
+                }
 
                 if ($eventType === 'content_block_start') {
                     $block = $data['content_block'] ?? [];
@@ -361,12 +372,36 @@ class ClaudeDriver implements LLMDriverInterface, ModelCatalogueInterface
                 }
 
                 if ($eventType === 'message_stop') {
-                    return self::orderedToolCalls($toolCalls);
+                    return $this->finishStreamUsage($toolCalls, $model, $promptTokens, $completionTokens);
                 }
             }
         }
 
-        return self::orderedToolCalls($toolCalls);
+        return $this->finishStreamUsage($toolCalls, $model, $promptTokens, $completionTokens);
+    }
+
+    /**
+     * @param array<int, array{id: string, type: string, function: array{name: string, arguments: string}}> $toolCalls
+     * @return array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|array{tool_calls: array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|null, prompt_tokens: int, completion_tokens: int, total_tokens: int, cost_usd: float}|null
+     */
+    private function finishStreamUsage(array $toolCalls, string $model, int $promptTokens, int $completionTokens): ?array
+    {
+        $finishedToolCalls = self::orderedToolCalls($toolCalls);
+
+        if ($promptTokens === 0 && $completionTokens === 0) {
+            return $finishedToolCalls;
+        }
+
+        $pricing = $this->pricingFor($model);
+        $costUsd = (($promptTokens * $pricing['input']) + ($completionTokens * $pricing['output'])) / 1000;
+
+        return [
+            'tool_calls' => $finishedToolCalls,
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $promptTokens + $completionTokens,
+            'cost_usd' => $costUsd,
+        ];
     }
 
     /**

@@ -259,7 +259,7 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
     }
 
     /**
-     * @return Generator<int, string, mixed, ?array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>>
+     * @return Generator<int, string, mixed, (array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|array{tool_calls: array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|null, prompt_tokens: int, completion_tokens: int, total_tokens: int, cost_usd: float}|null)>
      */
     public function stream(LLMRequest $request): Generator
     {
@@ -269,6 +269,9 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
             'model' => $model,
             'messages' => self::withReplayedReasoning($request->messages, 'reasoning'),
             'stream' => true,
+            'stream_options' => [
+                'include_usage' => true,
+            ],
         ];
 
         if ($request->temperature !== null) {
@@ -303,7 +306,31 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
             throw new RuntimeException('Groq stream request failed: ' . $e->getMessage(), 0, $e);
         }
 
-        return yield from self::readChatCompletionSse($response->getBody(), $request);
+        $result = yield from self::readChatCompletionSse($response->getBody(), $request);
+        if ($result === null) {
+            return null;
+        }
+
+        $toolCalls = $result['tool_calls'] ?? null;
+        $usage = $result['usage'] ?? null;
+
+        if ($usage === null) {
+            return $toolCalls;
+        }
+
+        $pricing = $this->pricingFor($model);
+        $promptTokens = (int) ($usage['prompt_tokens'] ?? 0);
+        $completionTokens = (int) ($usage['completion_tokens'] ?? 0);
+        $totalTokens = (int) ($usage['total_tokens'] ?? ($promptTokens + $completionTokens));
+        $costUsd = (($promptTokens * $pricing['input']) + ($completionTokens * $pricing['output'])) / 1000;
+
+        return [
+            'tool_calls' => $toolCalls,
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $totalTokens,
+            'cost_usd' => $costUsd,
+        ];
     }
 
     /**

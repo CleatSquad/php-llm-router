@@ -81,4 +81,40 @@ final class KimiDriverTest extends TestCase
         $sentPayload = json_decode((string) $history[0]['request']->getBody(), true);
         $this->assertEquals(1.0, $sentPayload['temperature']);
     }
+
+    public function testStreamSendsIncludeUsageOptionAndCapturesTerminalUsageAndEstimatedCost(): void
+    {
+        $sse = "data: " . json_encode(['choices' => [['delta' => ['content' => 'Bonjour']]]]) . "\n\n"
+            . "data: " . json_encode([
+                'choices' => [['delta' => []]],
+                'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 5, 'total_tokens' => 15],
+            ]) . "\n\n"
+            . "data: [DONE]\n\n";
+
+        $history = [];
+        $driver = $this->driverWithMockedResponses([
+            new Response(200, ['Content-Type' => 'text/event-stream'], $sse),
+        ], $history, moonshotModel: 'kimi-k2.6');
+
+        $gen = $driver->stream(new LLMRequest(
+            messages: [['role' => 'user', 'content' => 'Salut']],
+        ));
+
+        $chunks = iterator_to_array($gen);
+        $return = $gen->getReturn();
+
+        $this->assertSame(['Bonjour'], $chunks);
+        $this->assertIsArray($return);
+        $this->assertNull($return['tool_calls']);
+        $this->assertSame(10, $return['prompt_tokens']);
+        $this->assertSame(5, $return['completion_tokens']);
+        $this->assertSame(15, $return['total_tokens']);
+        // Moonshot has no cost in its usage payload — estimated from "Salut"
+        // (5 chars => 2 input tokens) and the real completion token count.
+        // (2 * 0.00095 + 5 * 0.004) / 1000
+        $this->assertEqualsWithDelta(0.0000219, $return['cost_usd'], 1e-9);
+
+        $requestPayload = json_decode((string) $history[0]['request']->getBody(), true);
+        $this->assertTrue($requestPayload['stream_options']['include_usage'] ?? false);
+    }
 }
