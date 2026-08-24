@@ -293,9 +293,9 @@ class OllamaDriver implements LLMDriverInterface, ModelCatalogueInterface
     }
 
     /**
-     * Always returns null — Ollama's function-calling support is too inconsistent to parse tool_calls reliably, matching chat()'s behavior.
+     * Tool calls are always null — Ollama's function-calling support is too inconsistent to parse reliably, matching chat()'s behavior.
      *
-     * @return Generator<int, string, mixed, null>
+     * @return Generator<int, string, mixed, ?array{tool_calls: null, prompt_tokens: int, completion_tokens: int, total_tokens: int, cost_usd: float}>
      */
     public function stream(LLMRequest $request): Generator
     {
@@ -373,10 +373,25 @@ class OllamaDriver implements LLMDriverInterface, ModelCatalogueInterface
                 }
 
                 if (($data['done'] ?? false) === true) {
-                    return;
+                    $promptTokens = (int) ($data['prompt_eval_count'] ?? 0);
+                    $completionTokens = (int) ($data['eval_count'] ?? 0);
+
+                    if ($promptTokens === 0 && $completionTokens === 0) {
+                        return null;
+                    }
+
+                    return [
+                        'tool_calls' => null,
+                        'prompt_tokens' => $promptTokens,
+                        'completion_tokens' => $completionTokens,
+                        'total_tokens' => $promptTokens + $completionTokens,
+                        'cost_usd' => 0.0,
+                    ];
                 }
             }
         }
+
+        return null;
     }
 
     /**

@@ -1,37 +1,61 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Method CleatSquad\\LlmRouter\\Driver\\KimiDriver\:\:stream\(\) with return type void returns array\<int, array\<string, array\<string, string\>\|string\>\>\|null but should not return anything\.$#'
-			identifier: return.void
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\DeepSeekDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/DeepSeekDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\DeepSeekDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\{tool_calls\: array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null, prompt_tokens\: int, completion_tokens\: int, total_tokens\: int, cost_usd\: float\}\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/DeepSeekDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\GroqDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/GroqDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\GroqDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\{tool_calls\: array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null, prompt_tokens\: int, completion_tokens\: int, total_tokens\: int, cost_usd\: float\}\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/GroqDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\KimiDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null\.$#'
+			identifier: return.type
 			count: 1
 			path: src/Driver/KimiDriver.php
 
 		-
-			message: '#^Return type \(Generator\<int, string, mixed, void\>\) of method CleatSquad\\LlmRouter\\Driver\\KimiDriver\:\:stream\(\) should be compatible with return type \(Generator\<int, string, mixed, array\<int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\>\|null\>\) of method CleatSquad\\LlmRouter\\Contract\\Driver\\LLMDriverInterface\:\:stream\(\)$#'
-			identifier: method.childReturnType
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\KimiDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\{tool_calls\: array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null, prompt_tokens\: int, completion_tokens\: int, total_tokens\: int, cost_usd\: float\}\.$#'
+			identifier: return.type
 			count: 1
 			path: src/Driver/KimiDriver.php
 
 		-
-			message: '#^Method CleatSquad\\LlmRouter\\Driver\\OllamaDriver\:\:stream\(\) should return null but empty return statement found\.$#'
-			identifier: return.empty
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\MistralDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null\.$#'
+			identifier: return.type
 			count: 1
-			path: src/Driver/OllamaDriver.php
+			path: src/Driver/MistralDriver.php
 
 		-
-			message: '#^Method CleatSquad\\LlmRouter\\Driver\\OllamaDriver\:\:stream\(\) should return null but return statement is missing\.$#'
-			identifier: return.missing
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\MistralDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\{tool_calls\: array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null, prompt_tokens\: int, completion_tokens\: int, total_tokens\: int, cost_usd\: float\}\.$#'
+			identifier: return.type
 			count: 1
-			path: src/Driver/OllamaDriver.php
+			path: src/Driver/MistralDriver.php
 
 		-
-			message: '#^Method CleatSquad\\LlmRouter\\Driver\\OpenAiDriver\:\:stream\(\) with return type void returns array\<int, array\<string, array\<string, string\>\|string\>\>\|null but should not return anything\.$#'
-			identifier: return.void
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\OpenAiDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null\.$#'
+			identifier: return.type
 			count: 1
 			path: src/Driver/OpenAiDriver.php
 
 		-
-			message: '#^Return type \(Generator\<int, string, mixed, void\>\) of method CleatSquad\\LlmRouter\\Driver\\OpenAiDriver\:\:stream\(\) should be compatible with return type \(Generator\<int, string, mixed, array\<int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\>\|null\>\) of method CleatSquad\\LlmRouter\\Contract\\Driver\\LLMDriverInterface\:\:stream\(\)$#'
-			identifier: method.childReturnType
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\OpenAiDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\{tool_calls\: array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null, prompt_tokens\: int, completion_tokens\: int, total_tokens\: int, cost_usd\: float\}\.$#'
+			identifier: return.type
 			count: 1
 			path: src/Driver/OpenAiDriver.php

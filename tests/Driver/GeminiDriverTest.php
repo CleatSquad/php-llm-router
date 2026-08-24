@@ -136,6 +136,33 @@ final class GeminiDriverTest extends TestCase
         $this->assertSame('{"city":"Paris"}', $toolCalls[0]['function']['arguments']);
     }
 
+    public function testStreamCapturesTerminalUsageMetadataAndCost(): void
+    {
+        $sse = 'data: ' . json_encode(['candidates' => [['content' => ['parts' => [['text' => 'Bonjour']]]]]], JSON_THROW_ON_ERROR) . "\n\n"
+            . 'data: ' . json_encode([
+                'candidates' => [['content' => ['parts' => []], 'finishReason' => 'STOP']],
+                'usageMetadata' => ['promptTokenCount' => 10, 'candidatesTokenCount' => 5, 'totalTokenCount' => 15],
+            ], JSON_THROW_ON_ERROR) . "\n\n";
+
+        $driver = $this->driverWithMockedResponses([new Response(200, [], $sse)]);
+
+        $gen = $driver->stream(new LLMRequest(
+            messages: [['role' => 'user', 'content' => 'hi']],
+            model: 'gemini-2.5-flash'
+        ));
+        $chunks = iterator_to_array($gen);
+        $return = $gen->getReturn();
+
+        $this->assertSame(['Bonjour'], $chunks);
+        $this->assertIsArray($return);
+        $this->assertNull($return['tool_calls']);
+        $this->assertSame(10, $return['prompt_tokens']);
+        $this->assertSame(5, $return['completion_tokens']);
+        $this->assertSame(15, $return['total_tokens']);
+        // (10 * 0.0003 + 5 * 0.0025) / 1000
+        $this->assertEqualsWithDelta(0.0000155, $return['cost_usd'], 1e-9);
+    }
+
     /**
      * Real bug fixed 2026-08-01: splitSystemAndConvert() used to do
      * `(string) ($message['content'] ?? '')`, which silently casts a

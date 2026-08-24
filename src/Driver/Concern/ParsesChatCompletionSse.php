@@ -20,12 +20,13 @@ use Psr\Http\Message\StreamInterface;
 trait ParsesChatCompletionSse
 {
     /**
-     * @return Generator<int, string, mixed, ?array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>>
+     * @return Generator<int, string, mixed, (array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|array{tool_calls: array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|null, usage: array{prompt_tokens: int, completion_tokens: int, total_tokens: int}}|null)>
      */
     private static function readChatCompletionSse(StreamInterface $body, ?LLMRequest $request = null): Generator
     {
         $buffer = '';
         $toolCalls = [];
+        $usage = null;
 
         while (!$body->eof()) {
             $buffer .= $body->read(8192);
@@ -39,12 +40,20 @@ trait ParsesChatCompletionSse
 
                 $jsonStr = trim(substr($line, 5));
                 if ($jsonStr === '[DONE]') {
-                    return self::finishToolCalls($toolCalls);
+                    return self::finishStreamResult($toolCalls, $usage);
                 }
 
                 $data = json_decode($jsonStr, true);
                 if (!is_array($data)) {
                     continue;
+                }
+
+                if (isset($data['usage']) && is_array($data['usage'])) {
+                    $usage = [
+                        'prompt_tokens' => (int) ($data['usage']['prompt_tokens'] ?? 0),
+                        'completion_tokens' => (int) ($data['usage']['completion_tokens'] ?? 0),
+                        'total_tokens' => (int) ($data['usage']['total_tokens'] ?? 0),
+                    ];
                 }
 
                 $delta = $data['choices'][0]['delta'] ?? [];
@@ -81,7 +90,25 @@ trait ParsesChatCompletionSse
             }
         }
 
-        return self::finishToolCalls($toolCalls);
+        return self::finishStreamResult($toolCalls, $usage);
+    }
+
+    /**
+     * @param array<int, array{id: string, type: string, function: array{name: string, arguments: string}}> $toolCalls
+     * @param array{prompt_tokens: int, completion_tokens: int, total_tokens: int}|null $usage
+     * @return array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|array{tool_calls: array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|null, usage: array{prompt_tokens: int, completion_tokens: int, total_tokens: int}}|null
+     */
+    private static function finishStreamResult(array $toolCalls, ?array $usage): ?array
+    {
+        $finishedToolCalls = self::finishToolCalls($toolCalls);
+        if ($usage === null) {
+            return $finishedToolCalls;
+        }
+
+        return [
+            'tool_calls' => $finishedToolCalls,
+            'usage' => $usage,
+        ];
     }
 
     /**

@@ -226,7 +226,7 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
     }
 
     /**
-     * @return Generator<int, string, mixed, ?array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>>
+     * @return Generator<int, string, mixed, (array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|array{tool_calls: array<int, array{id: string, type: string, function: array{name: string, arguments: string}}>|null, prompt_tokens: int, completion_tokens: int, total_tokens: int, cost_usd: float}|null)>
      */
     public function stream(LLMRequest $request): Generator
     {
@@ -265,6 +265,7 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
         $body = $response->getBody();
         $buffer = '';
         $toolCalls = [];
+        $usageMetadata = null;
 
         while (!$body->eof()) {
             $buffer .= $body->read(8192);
@@ -281,6 +282,10 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
                     continue;
                 }
 
+                if (isset($data['usageMetadata']) && is_array($data['usageMetadata'])) {
+                    $usageMetadata = $data['usageMetadata'];
+                }
+
                 $parts = $data['candidates'][0]['content']['parts'] ?? [];
                 [$text, $chunkToolCalls] = $this->extractParts($parts, count($toolCalls));
 
@@ -293,7 +298,25 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
             }
         }
 
-        return $toolCalls === [] ? null : $toolCalls;
+        $finishedToolCalls = $toolCalls === [] ? null : $toolCalls;
+
+        if ($usageMetadata === null) {
+            return $finishedToolCalls;
+        }
+
+        $pricing = $this->pricingFor($model);
+        $promptTokens = (int) ($usageMetadata['promptTokenCount'] ?? 0);
+        $completionTokens = (int) ($usageMetadata['candidatesTokenCount'] ?? 0);
+        $totalTokens = (int) ($usageMetadata['totalTokenCount'] ?? ($promptTokens + $completionTokens));
+        $costUsd = (($promptTokens * $pricing['input']) + ($completionTokens * $pricing['output'])) / 1000;
+
+        return [
+            'tool_calls' => $finishedToolCalls,
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $totalTokens,
+            'cost_usd' => $costUsd,
+        ];
     }
 
     /**

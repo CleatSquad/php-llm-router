@@ -188,4 +188,28 @@ final class OllamaDriverTest extends TestCase
 
         $this->assertSame([], $driver->getModels());
     }
+
+    public function testStreamCapturesTokenCountsFromTheFinalDoneLineAndIsAlwaysFree(): void
+    {
+        $ndjson = json_encode(['message' => ['content' => 'Bon'], 'done' => false], JSON_THROW_ON_ERROR) . "\n"
+            . json_encode(['message' => ['content' => 'jour'], 'done' => false], JSON_THROW_ON_ERROR) . "\n"
+            . json_encode(['done' => true, 'prompt_eval_count' => 10, 'eval_count' => 5], JSON_THROW_ON_ERROR) . "\n";
+
+        $driver = $this->driverWithMockedResponses([
+            $this->tagsResponse(['llama3']),
+            new Response(200, [], $ndjson),
+        ]);
+
+        $gen = $driver->stream(new LLMRequest(messages: [['role' => 'user', 'content' => 'Salut']]));
+        $chunks = iterator_to_array($gen);
+        $return = $gen->getReturn();
+
+        $this->assertSame(['Bon', 'jour'], $chunks);
+        $this->assertIsArray($return);
+        $this->assertNull($return['tool_calls']);
+        $this->assertSame(10, $return['prompt_tokens']);
+        $this->assertSame(5, $return['completion_tokens']);
+        $this->assertSame(15, $return['total_tokens']);
+        $this->assertSame(0.0, $return['cost_usd']);
+    }
 }

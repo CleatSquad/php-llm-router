@@ -414,9 +414,10 @@ $driver = new RateLimitedDriver(
 );
 ```
 
-Token usage for `stream()` is only an estimate (input tokens only — these
-drivers' `stream()` has no usage block to read from, since providers don't
-send one over SSE). State is delegated to a `RateLimitStoreInterface`
+Token usage for `stream()` is only an estimate (input tokens only — recorded
+before the call from the request text, not from the driver's own terminal
+usage, since that value isn't known until the generator is fully consumed).
+State is delegated to a `RateLimitStoreInterface`
 (defaults to `InMemoryRateLimitStore`). Use the included
 `RedisRateLimitStore` (needs `ext-redis`), or implement the interface
 against your own DB, to share a quota across requests or processes — or
@@ -975,8 +976,10 @@ Optional extensions:
   becomes a problem for your dependency tree, `Driver/McpClientDriver.php` is
   the only file to remove, and splitting it into a companion package is
   tracked as the next candidate change.
-- **Streamed token usage is an estimate.** Providers send no usage block over
-  SSE, so `RateLimitedDriver` counts input tokens only for `stream()`.
+- **`RateLimitedDriver`'s streamed token usage is an estimate.** It counts
+  input tokens only for `stream()`, recorded before the call — not the
+  driver's own terminal usage, which every LLM driver's `stream()` now
+  returns but isn't known until the generator is fully consumed.
 - **`ApcuRateLimitStore` enforces a per-machine quota**, not a fleet-wide one.
 - **`RoundRobinStrategy` is stateful per instance.** Its cursor lives in the
   object, so rotation is per-process unless you keep one instance around.

@@ -97,4 +97,36 @@ final class ClaudeDriverTest extends TestCase
         $sentBody = json_decode((string) $history[0]['request']->getBody(), true);
         $this->assertSame('Un message texte normal', $sentBody['messages'][0]['content']);
     }
+
+    public function testStreamCapturesUsageFromMessageStartAndMessageDeltaEvents(): void
+    {
+        $sse = implode('', array_map(
+            static fn (array $event): string => 'data: ' . json_encode($event, JSON_THROW_ON_ERROR) . "\n\n",
+            [
+                ['type' => 'message_start', 'message' => ['usage' => ['input_tokens' => 10, 'output_tokens' => 1]]],
+                ['type' => 'content_block_start', 'index' => 0, 'content_block' => ['type' => 'text']],
+                ['type' => 'content_block_delta', 'index' => 0, 'delta' => ['type' => 'text_delta', 'text' => 'Bonjour']],
+                ['type' => 'message_delta', 'delta' => ['stop_reason' => 'end_turn'], 'usage' => ['output_tokens' => 5]],
+                ['type' => 'message_stop'],
+            ]
+        ));
+
+        $driver = $this->driverWithMockedResponses([new Response(200, [], $sse)]);
+
+        $gen = $driver->stream(new LLMRequest(
+            messages: [['role' => 'user', 'content' => 'hi']],
+            model: 'claude-sonnet-5'
+        ));
+        $chunks = iterator_to_array($gen);
+        $return = $gen->getReturn();
+
+        $this->assertSame(['Bonjour'], $chunks);
+        $this->assertIsArray($return);
+        $this->assertNull($return['tool_calls']);
+        $this->assertSame(10, $return['prompt_tokens']);
+        $this->assertSame(5, $return['completion_tokens']);
+        $this->assertSame(15, $return['total_tokens']);
+        // (10 * 0.003 + 5 * 0.015) / 1000
+        $this->assertEqualsWithDelta(0.000105, $return['cost_usd'], 1e-9);
+    }
 }

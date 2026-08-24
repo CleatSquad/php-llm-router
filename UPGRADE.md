@@ -1,5 +1,29 @@
 # Upgrade guide
 
+## 5.3.0 → 5.4.0
+
+**Feature release: `stream()` stops throwing away usage on six drivers.**
+
+Nothing to change — no signature moved. What's visible: `ClaudeDriver`,
+`GeminiDriver`, `MistralDriver`, `GroqDriver`, `KimiDriver`, `DeepSeekDriver`
+and `OllamaDriver` now return real token counts and cost from `stream()`,
+where they previously returned bare tool calls (or `null`) and silently
+dropped usage. Only `OpenAiDriver::stream()` did this before.
+
+```php
+$gen = $driver->stream($request);
+$chunks = iterator_to_array($gen);
+$result = $gen->getReturn();
+// 5.3.0: array{tool_calls: ...}                      (no usage — six drivers)
+// 5.4.0: array{tool_calls: ..., prompt_tokens: int, completion_tokens: int, total_tokens: int, cost_usd: float}
+```
+
+**What you may see:** any code that read `$gen->getReturn()['prompt_tokens']`
+and tolerated it being absent now gets a real value instead. A caller that
+persists per-turn usage (cost dashboards, per-session token totals) will
+start seeing non-null numbers for turns served by these drivers instead of
+`null`.
+
 ## 5.2.0 → 5.3.0
 
 **Feature release: the layers below the plan stop contradicting it.**
