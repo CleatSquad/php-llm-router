@@ -239,18 +239,23 @@ final class ModelCapabilityTest extends TestCase
         $this->assertArrayNotHasKey('reasoning_format', $oss);
     }
 
-    public function testGroqLlamaModelsAreMarkedAsNonReasoning(): void
+    public function testAModelExplicitlyMarkedNonReasoningRefusesAReasoningRequest(): void
     {
+        // Groq's own catalogue is all-reasoning as of this writing (gpt-oss,
+        // qwen); a model registered with reasoning => false through
+        // $extraModelPricing exercises the same refusal path a future
+        // non-reasoning entry would hit.
         $answer = new Response(200, [], json_encode([
             'model' => 'm',
             'choices' => [['message' => ['content' => 'ok'], 'finish_reason' => 'stop']],
             'usage' => [],
         ], JSON_THROW_ON_ERROR));
 
-        // Groq documents no reasoning parameters for the instruction-tuned
-        // Llama models.
         $this->expectException(UnsupportedReasoningException::class);
-        (new \CleatSquad\LlmRouter\Driver\GroqDriver($this->http($answer)))->chat(new LLMRequest(
+        (new \CleatSquad\LlmRouter\Driver\GroqDriver(
+            $this->http($answer),
+            extraModelPricing: ['llama-3.3-70b-versatile' => ['input' => 0.00059, 'output' => 0.00079, 'reasoning' => false]],
+        ))->chat(new LLMRequest(
             messages: [['role' => 'user', 'content' => 'hi']],
             model: 'llama-3.3-70b-versatile',
             reasoningEffort: ReasoningEffort::High,

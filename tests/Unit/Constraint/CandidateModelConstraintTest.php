@@ -98,11 +98,11 @@ final class CandidateModelConstraintTest extends TestCase
     {
         $groq = new GroqDriver(new HttpClient(), groqApiKey: 'test-key');
 
-        $this->assertTrue($groq->supportsModel('llama-3.3-70b-versatile'));
-        $this->assertTrue($groq->supportsModel('groq/llama-3.3-70b-versatile'));
+        $this->assertTrue($groq->supportsModel('openai/gpt-oss-120b'));
+        $this->assertTrue($groq->supportsModel('groq/openai/gpt-oss-120b'));
         $this->assertFalse($groq->supportsModel('gpt-5'));
 
-        $prefixed = new Candidate('groq', 'Groq', $groq, 'groq/llama-3.3-70b-versatile');
+        $prefixed = new Candidate('groq', 'Groq', $groq, 'groq/openai/gpt-oss-120b');
         $this->assertTrue($this->evaluate($prefixed)->isEligible);
     }
 

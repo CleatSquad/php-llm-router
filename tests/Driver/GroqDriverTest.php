@@ -30,7 +30,7 @@ final class GroqDriverTest extends TestCase
         return new GroqDriver(new HttpClient($client), groqApiKey: $groqApiKey);
     }
 
-    private function chatResponse(string $content = 'Bonjour !', string $model = 'llama-3.1-8b-instant'): Response
+    private function chatResponse(string $content = 'Bonjour !', string $model = 'openai/gpt-oss-20b'): Response
     {
         return new Response(200, [], json_encode([
             'choices' => [['message' => ['content' => $content], 'finish_reason' => 'stop']],
@@ -41,11 +41,11 @@ final class GroqDriverTest extends TestCase
 
     public function testChatMapsResponseAndComputesCostFromPricingTable(): void
     {
-        $driver = $this->driverWithMockedResponses([$this->chatResponse('Bonjour !', 'llama-3.3-70b-versatile')]);
+        $driver = $this->driverWithMockedResponses([$this->chatResponse('Bonjour !', 'openai/gpt-oss-120b')]);
 
         $response = $driver->chat(new LLMRequest(
             messages: [['role' => 'user', 'content' => 'Salut']],
-            model: 'llama-3.3-70b-versatile'
+            model: 'openai/gpt-oss-120b'
         ));
 
         $this->assertSame('Bonjour !', $response->content);
@@ -53,8 +53,8 @@ final class GroqDriverTest extends TestCase
         $this->assertSame(5, $response->completionTokens);
         $this->assertSame(15, $response->totalTokens);
         $this->assertSame('stop', $response->finishReason);
-        // (10 * 0.00059 + 5 * 0.00079) / 1000
-        $this->assertEqualsWithDelta(0.00000985, $response->costUsd, 1e-9);
+        // (10 * 0.00015 + 5 * 0.0006) / 1000
+        $this->assertEqualsWithDelta(0.0000045, $response->costUsd, 1e-9);
     }
 
     public function testChatSendsBearerAuthorizationHeader(): void
@@ -130,15 +130,15 @@ final class GroqDriverTest extends TestCase
         // 16 chars => ceil(16/4) = 4 input tokens.
         $request = new LLMRequest(
             messages: [['role' => 'user', 'content' => 'a message of 16c']],
-            model: 'llama-3.3-70b-versatile'
+            model: 'openai/gpt-oss-120b'
         );
 
         $estimate = $driver->estimateCost($request);
 
-        $this->assertSame(0.00059, $estimate->inputCostPer1k);
-        $this->assertSame(0.00079, $estimate->outputCostPer1k);
+        $this->assertSame(0.00015, $estimate->inputCostPer1k);
+        $this->assertSame(0.0006, $estimate->outputCostPer1k);
         $this->assertSame(4 + 200, $estimate->estimatedTokens);
-        $expectedCost = ((4 * 0.00059) + (200 * 0.00079)) / 1000;
+        $expectedCost = ((4 * 0.00015) + (200 * 0.0006)) / 1000;
         $this->assertEqualsWithDelta($expectedCost, $estimate->estimatedCostUsd, 1e-9);
     }
 
@@ -158,7 +158,7 @@ final class GroqDriverTest extends TestCase
 
         $gen = $driver->stream(new LLMRequest(
             messages: [['role' => 'user', 'content' => 'Salut']],
-            model: 'llama-3.1-8b-instant'
+            model: 'openai/gpt-oss-20b'
         ));
 
         $chunks = iterator_to_array($gen);
@@ -170,8 +170,8 @@ final class GroqDriverTest extends TestCase
         $this->assertSame(10, $return['prompt_tokens']);
         $this->assertSame(5, $return['completion_tokens']);
         $this->assertSame(15, $return['total_tokens']);
-        // (10 * 0.00005 + 5 * 0.00008) / 1000
-        $this->assertEqualsWithDelta(0.0000009, $return['cost_usd'], 1e-9);
+        // (10 * 0.000075 + 5 * 0.0003) / 1000
+        $this->assertEqualsWithDelta(0.00000225, $return['cost_usd'], 1e-9);
 
         $requestPayload = json_decode((string) $history[0]['request']->getBody(), true);
         $this->assertTrue($requestPayload['stream_options']['include_usage'] ?? false);
@@ -186,8 +186,6 @@ final class GroqDriverTest extends TestCase
                 'qwen/qwen3.6-27b',
                 'openai/gpt-oss-120b',
                 'openai/gpt-oss-20b',
-                'llama-3.3-70b-versatile',
-                'llama-3.1-8b-instant',
             ],
             $driver->getModels()
         );
