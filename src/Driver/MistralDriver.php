@@ -40,9 +40,21 @@ class MistralDriver implements LLMDriverInterface, ModelCatalogueInterface
         // the family `prompt_mode: "reasoning"` was built for, so a reasoning
         // request here needs one registered through $extraModelPricing with a
         // rate you have confirmed.
+        //
+        // glm-5-2/zai-glm-5-2 (Z.ai's GLM 5.2, hosted on La Plateforme,
+        // confirmed live in GET /v1/models) is deliberately absent too: it's
+        // not a Mistral-family model, its own rate isn't published anywhere
+        // this session could retrieve — register it the same way once one is
+        // confirmed.
         'mistral-medium-latest' => ['input' => 0.0015, 'output' => 0.0075],
         'mistral-large-latest' => ['input' => 0.0005, 'output' => 0.0015],
         'mistral-small-latest' => ['input' => 0.00015, 'output' => 0.0006],
+        // mistral-vibe-cli-fast/with-tools are the Vibe CLI product's own
+        // names for mistral-small-latest/mistral-medium-latest — confirmed
+        // aliases of each other in GET /v1/models (same underlying model,
+        // no separate rate published), not guessed prices.
+        'mistral-vibe-cli-fast' => ['input' => 0.00015, 'output' => 0.0006],
+        'mistral-vibe-cli-with-tools' => ['input' => 0.0015, 'output' => 0.0075],
         'codestral-latest' => ['input' => 0.0003, 'output' => 0.0009],
         'ministral-14b-latest' => ['input' => 0.0002, 'output' => 0.0002],
         'ministral-8b-latest' => ['input' => 0.00015, 'output' => 0.00015],
