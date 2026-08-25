@@ -38,6 +38,8 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
         // Long-prompt (>200k) tiers are not modelled; estimates use the base
         // rate, so a very large prompt is under-estimated rather than wrong in
         // the other direction.
+        // ai.google.dev/gemini-api/docs/pricing (2026-08-25); rate through 2026-12-31.
+        'gemini-3.7-flash' => ['input' => 0.00075, 'output' => 0.00375],
         'gemini-3.6-flash' => ['input' => 0.0015, 'output' => 0.0075],
         'gemini-3.5-flash' => ['input' => 0.0015, 'output' => 0.009],
         'gemini-3.5-flash-lite' => ['input' => 0.0003, 'output' => 0.0025],
