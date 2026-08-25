@@ -55,10 +55,11 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
             'reasoningEffort' => 'graded',
             'reasoningFormat' => false,
         ],
-        // Instruction-tuned Llama models; Groq documents no reasoning
-        // parameters for them.
-        'llama-3.3-70b-versatile' => ['input' => 0.00059, 'output' => 0.00079, 'reasoning' => false],
-        'llama-3.1-8b-instant' => ['input' => 0.00005, 'output' => 0.00008, 'reasoning' => false],
+        // llama-3.3-70b-versatile and llama-3.1-8b-instant (Groq's shutdown
+        // notice, 08/16/26) are deliberately absent: resolveModel() uses this
+        // table as its whitelist too, so keeping a retired model listed here
+        // would let an explicit (stale) request for it reach Groq's API and
+        // 404 there, instead of failing fast locally with UnknownModelException.
     ];
 
     use Concern\HandlesHttpRateLimit;

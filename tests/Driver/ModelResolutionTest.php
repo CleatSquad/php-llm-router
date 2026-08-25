@@ -57,7 +57,7 @@ final class ModelResolutionTest extends TestCase
             'OpenAI' => [OpenAiDriver::class, 'gpt-4o-mini', 'gpt-99-imaginary'],
             'Gemini' => [GeminiDriver::class, 'gemini-2.5-flash-lite', 'gemini-9-ultra'],
             'DeepSeek' => [DeepSeekDriver::class, 'deepseek-v4-flash', 'deepseek-reasoner-v9'],
-            'Groq' => [GroqDriver::class, 'llama-3.1-8b-instant', 'llama-99b'],
+            'Groq' => [GroqDriver::class, 'openai/gpt-oss-20b', 'llama-99b'],
             'Mistral' => [MistralDriver::class, 'mistral-small-latest', 'mistral-enormous'],
         ];
     }
@@ -164,11 +164,11 @@ final class ModelResolutionTest extends TestCase
     {
         $driver = new \CleatSquad\LlmRouter\Driver\GroqDriver($this->http());
 
-        // "groq/llama-3.1-8b-instant" isn't a catalogue entry, but the part
-        // after the prefix is — proxied setups depend on this.
+        // "groq/openai/gpt-oss-20b" isn't a catalogue entry, but the part
+        // after the first "/" is — proxied setups depend on this.
         $this->assertGreaterThan(
             0.0,
-            $driver->estimateCost($this->request('groq/llama-3.1-8b-instant'))->estimatedCostUsd
+            $driver->estimateCost($this->request('groq/openai/gpt-oss-20b'))->estimatedCostUsd
         );
     }
 
