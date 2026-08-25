@@ -48,7 +48,9 @@ class KimiDriver implements LLMDriverInterface, ModelCatalogueInterface
         'kimi-k3' => ['input' => 0.003, 'output' => 0.015],
         'kimi-k2.7-code' => ['input' => 0.00095, 'output' => 0.004],
         'kimi-k2.6' => ['input' => 0.00095, 'output' => 0.004],
-        'kimi-k2.5' => ['input' => 0.0006, 'output' => 0.003],
+        // kimi-k2.5 retired (console-reported model-drift, 2026-08-25):
+        // absent from /v1/models. See the note on claude-mythos-5 in
+        // ClaudeDriver for why a retired entry must not linger here.
     ];
     use ReplaysChatCompletionReasoning;
 

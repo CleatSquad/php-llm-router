@@ -41,13 +41,20 @@ class ClaudeDriver implements LLMDriverInterface, ModelCatalogueInterface
         // current line is thinking-capable throughout — so none carries an
         // explicit 'reasoning' => false.
         'claude-fable-5' => ['input' => 0.010, 'output' => 0.050, 'thinkingAlwaysOn' => true],
-        'claude-mythos-5' => ['input' => 0.010, 'output' => 0.050, 'thinkingAlwaysOn' => true],
+        // claude-mythos-5 retired (console-reported model-drift, 2026-08-25):
+        // absent from /v1/models. resolveModel() uses this table as its
+        // whitelist too, so keeping it would let a stale request reach the
+        // API and 404 there instead of failing fast locally.
         'claude-opus-5' => ['input' => 0.005, 'output' => 0.025],
         'claude-opus-4-8' => ['input' => 0.005, 'output' => 0.025],
         'claude-opus-4-7' => ['input' => 0.005, 'output' => 0.025],
         'claude-opus-4-6' => ['input' => 0.005, 'output' => 0.025],
+        // platform.claude.com/docs/en/models/opus-4-5/overview (2026-08-25)
+        'claude-opus-4-5-20251101' => ['input' => 0.005, 'output' => 0.025],
         'claude-sonnet-5' => ['input' => 0.003, 'output' => 0.015],
         'claude-sonnet-4-6' => ['input' => 0.003, 'output' => 0.015],
+        // platform.claude.com/docs/en/models/sonnet-4-5/overview (2026-08-25)
+        'claude-sonnet-4-5-20250929' => ['input' => 0.003, 'output' => 0.015],
         'claude-haiku-4-5' => ['input' => 0.001, 'output' => 0.005],
     ];
 

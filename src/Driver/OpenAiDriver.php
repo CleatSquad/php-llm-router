@@ -39,10 +39,17 @@ class OpenAiDriver implements LLMDriverInterface, ModelCatalogueInterface
         'gpt-5.6-luna' => ['input' => 0.0002, 'output' => 0.0012],
         'gpt-5.5' => ['input' => 0.005, 'output' => 0.030],
         'gpt-5.4' => ['input' => 0.0025, 'output' => 0.015],
+        // developers.openai.com/api/docs/pricing (2026-08-25)
+        'gpt-5.2-pro' => ['input' => 0.021, 'output' => 0.168],
+        'gpt-5.2' => ['input' => 0.00175, 'output' => 0.014],
+        'gpt-5.1' => ['input' => 0.00125, 'output' => 0.010],
         'gpt-5' => ['input' => 0.00125, 'output' => 0.010],
         'gpt-5-mini' => ['input' => 0.00025, 'output' => 0.002],
         'gpt-5-nano' => ['input' => 0.00005, 'output' => 0.0004],
-        'o3-pro' => ['input' => 0.020, 'output' => 0.080],
+        // o3-pro retired (console-reported model-drift, 2026-08-25): absent
+        // from /v1/models. See the note on claude-mythos-5 in ClaudeDriver
+        // for why a retired entry must not linger here.
+        'o4-mini' => ['input' => 0.0011, 'output' => 0.0044],
         'o3' => ['input' => 0.002, 'output' => 0.008],
         'o3-mini' => ['input' => 0.0011, 'output' => 0.0044],
         'o1-pro' => ['input' => 0.150, 'output' => 0.600],
@@ -50,6 +57,11 @@ class OpenAiDriver implements LLMDriverInterface, ModelCatalogueInterface
         // Neither accepts `reasoning_effort` — sending it is a 400.
         'gpt-4o' => ['input' => 0.0025, 'output' => 0.010, 'reasoning' => false],
         'gpt-4o-mini' => ['input' => 0.00015, 'output' => 0.0006, 'reasoning' => false],
+        // gpt-4.1 family: same generation as gpt-4o, same reasoning_effort
+        // rejection (developers.openai.com/api/docs/pricing, 2026-08-25).
+        'gpt-4.1' => ['input' => 0.002, 'output' => 0.008, 'reasoning' => false],
+        'gpt-4.1-mini' => ['input' => 0.0004, 'output' => 0.0016, 'reasoning' => false],
+        'gpt-4.1-nano' => ['input' => 0.0001, 'output' => 0.0004, 'reasoning' => false],
     ];
 
     use ParsesChatCompletionSse;
