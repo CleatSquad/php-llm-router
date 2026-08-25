@@ -191,6 +191,8 @@ final class MistralDriverTest extends TestCase
                 'mistral-medium-latest',
                 'mistral-large-latest',
                 'mistral-small-latest',
+                'mistral-vibe-cli-fast',
+                'mistral-vibe-cli-with-tools',
                 'codestral-latest',
                 'ministral-14b-latest',
                 'ministral-8b-latest',
