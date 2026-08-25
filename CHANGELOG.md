@@ -14,6 +14,41 @@ The 4.x entries carry no date. They were tagged within a day of each other, and
 a date on each would say less about this package than the tags do. For the
 release date of any version, ask git: `git log -1 --format=%ad v4.1.3`.
 
+## [5.4.1] - 2026-08-25
+
+No breaking changes.
+
+### Fixed
+
+- **Retired provider models still accepted, reaching the provider's API and
+  404ing there.** `resolveModel()` uses each driver's `PRICING` table as its
+  whitelist too, so a model a provider had already retired — but this
+  package's table still listed — was accepted locally and only failed at the
+  provider, instead of raising `UnknownModelException` immediately. Removed:
+  `llama-3.3-70b-versatile`/`llama-3.1-8b-instant` (`GroqDriver`),
+  `claude-mythos-5` (`ClaudeDriver`), `o3-pro` (`OpenAiDriver`), `kimi-k2.5`
+  (`KimiDriver`) — all confirmed retired against each provider's live
+  `/models` endpoint.
+
+### Added
+
+- **Newly-served models registered with pricing sourced from each provider's
+  official docs** (cited inline in each `PRICING` table — no guessed rates):
+  `claude-opus-4-5-20251101`, `claude-sonnet-4-5-20250929` (`ClaudeDriver`);
+  `gemini-3.7-flash` (`GeminiDriver`); `o4-mini`, `gpt-5.1`, `gpt-5.2`,
+  `gpt-5.2-pro`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano` (`OpenAiDriver`);
+  `mistral-vibe-cli-fast`, `mistral-vibe-cli-with-tools` (`MistralDriver`,
+  confirmed exact aliases of `mistral-small-latest`/`mistral-medium-latest`
+  in `GET /v1/models`, priced identically to their target).
+
+Deliberately not added — documented as open gaps in each driver's `PRICING`
+comment rather than filled with a guess: OpenAI's `sora-2`/`sora-2-pro`
+(billed per second of video, not per token — outside this driver's chat
+pricing shape), Mistral's `devstral-2512` (no published rate; also
+deprecates 2026-08-31), `glm-5-2`/`zai-glm-5-2` (Z.ai's own model, hosted on
+La Plateforme — no rate found anywhere retrievable), `mistral-embed`
+(embeddings, not a chat completion model).
+
 ## [5.4.0] - 2026-08-24
 
 No breaking changes.
