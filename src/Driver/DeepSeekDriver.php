@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCapabilitiesInterface;
 use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use CleatSquad\LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
@@ -26,9 +27,12 @@ use RuntimeException;
  * (same wire format LiteLLM/OpenAI/Kimi/Mistral/Groq speak, hence the
  * shared trait).
  */
-class DeepSeekDriver implements LLMDriverInterface, ModelCatalogueInterface
+class DeepSeekDriver implements LLMDriverInterface, ModelCatalogueInterface, ModelCapabilitiesInterface
 {
     use ResolvesPricedModel;
+
+    use ParsesChatCompletionSse;
+    use ReplaysChatCompletionReasoning;
 
     /** Used when a request names no model at all — a caller declining to choose. */
     private const DEFAULT_MODEL = 'deepseek-v4-flash';
@@ -40,9 +44,6 @@ class DeepSeekDriver implements LLMDriverInterface, ModelCatalogueInterface
         'deepseek-v4-flash' => ['input' => 0.00014, 'output' => 0.00028],
         'deepseek-v4-pro' => ['input' => 0.000435, 'output' => 0.00087],
     ];
-
-    use ParsesChatCompletionSse;
-    use ReplaysChatCompletionReasoning;
 
     private string $deepSeekUrl;
     private string $deepSeekApiKey;
@@ -143,7 +144,7 @@ class DeepSeekDriver implements LLMDriverInterface, ModelCatalogueInterface
                 'streaming' => true,
                 'tools' => true,
                 'vision' => false,
-            ]
+            ],
         ];
     }
 

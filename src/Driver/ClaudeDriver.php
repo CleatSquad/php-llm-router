@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCapabilitiesInterface;
 use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\NormalizesVisionContent;
 use CleatSquad\LlmRouter\Driver\Concern\ResolvesPricedModel;
@@ -23,13 +24,15 @@ use RuntimeException;
 /**
  * LLM driver for the Anthropic Claude API (Messages API).
  */
-class ClaudeDriver implements LLMDriverInterface, ModelCatalogueInterface
+class ClaudeDriver implements LLMDriverInterface, ModelCatalogueInterface, ModelCapabilitiesInterface
 {
     use NormalizesVisionContent;
 
-    private const ANTHROPIC_VERSION = '2023-06-01';
-
     use ResolvesPricedModel;
+
+    use Concern\HandlesHttpRateLimit;
+
+    private const ANTHROPIC_VERSION = '2023-06-01';
 
     /** Used when a request names no model at all — a caller declining to choose. */
     private const DEFAULT_MODEL = 'claude-sonnet-5';
@@ -57,8 +60,6 @@ class ClaudeDriver implements LLMDriverInterface, ModelCatalogueInterface
         'claude-sonnet-4-5-20250929' => ['input' => 0.003, 'output' => 0.015],
         'claude-haiku-4-5' => ['input' => 0.001, 'output' => 0.005],
     ];
-
-    use Concern\HandlesHttpRateLimit;
 
     private string $anthropicUrl;
     private string $anthropicApiKey;
@@ -159,7 +160,7 @@ class ClaudeDriver implements LLMDriverInterface, ModelCatalogueInterface
                 'streaming' => true,
                 'tools' => true,
                 'vision' => true,
-            ]
+            ],
         ];
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCapabilitiesInterface;
 use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\DTO\CostEstimate;
 use CleatSquad\LlmRouter\DTO\HealthStatus;
@@ -21,7 +22,7 @@ use Throwable;
  * Retries transient failures (connection errors, timeouts, HTTP 429/5xx) with exponential backoff; other 4xx propagate immediately since retrying would just fail the same way.
  * Retryability is judged from the wrapped Guzzle exception on RuntimeException::getPrevious(), which every driver in this package sets.
  */
-final class RetryingDriver implements LLMDriverInterface, ModelCatalogueInterface
+final class RetryingDriver implements LLMDriverInterface, ModelCatalogueInterface, ModelCapabilitiesInterface
 {
     /** @var callable(float): void */
     private $sleeper;
@@ -148,6 +149,26 @@ final class RetryingDriver implements LLMDriverInterface, ModelCatalogueInterfac
         }
 
         return true;
+    }
+
+    /**
+     * Delegates per-model capability/context flags to the inner driver if it
+     * implements ModelCapabilitiesInterface — same pattern as
+     * supportsModel() above for ModelCatalogueInterface.
+     */
+    public function supportsVisionFor(string $model): ?bool
+    {
+        return $this->inner instanceof ModelCapabilitiesInterface ? $this->inner->supportsVisionFor($model) : null;
+    }
+
+    public function supportsToolsFor(string $model): ?bool
+    {
+        return $this->inner instanceof ModelCapabilitiesInterface ? $this->inner->supportsToolsFor($model) : null;
+    }
+
+    public function contextWindowFor(string $model): ?int
+    {
+        return $this->inner instanceof ModelCapabilitiesInterface ? $this->inner->contextWindowFor($model) : null;
     }
 
     public function supportsStreaming(): bool

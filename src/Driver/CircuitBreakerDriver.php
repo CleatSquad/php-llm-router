@@ -7,6 +7,7 @@ namespace CleatSquad\LlmRouter\Driver;
 use CleatSquad\LlmRouter\CircuitBreaker\CircuitBreakerStoreInterface;
 use CleatSquad\LlmRouter\CircuitBreaker\InMemoryCircuitBreakerStore;
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCapabilitiesInterface;
 use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\DTO\CostEstimate;
 use CleatSquad\LlmRouter\DTO\HealthStatus;
@@ -22,7 +23,7 @@ use Throwable;
 /**
  * Decorates a driver with a circuit breaker: after $failureThreshold consecutive failures it fails fast (no network call) for $openSeconds instead of every caller re-discovering the same outage; a single success resets the count.
  */
-final class CircuitBreakerDriver implements LLMDriverInterface, ModelCatalogueInterface
+final class CircuitBreakerDriver implements LLMDriverInterface, ModelCatalogueInterface, ModelCapabilitiesInterface
 {
     private CircuitBreakerStoreInterface $store;
 
@@ -126,6 +127,26 @@ final class CircuitBreakerDriver implements LLMDriverInterface, ModelCatalogueIn
         }
 
         return true;
+    }
+
+    /**
+     * Delegates per-model capability/context flags to the inner driver if it
+     * implements ModelCapabilitiesInterface — same pattern as
+     * supportsModel() above for ModelCatalogueInterface.
+     */
+    public function supportsVisionFor(string $model): ?bool
+    {
+        return $this->inner instanceof ModelCapabilitiesInterface ? $this->inner->supportsVisionFor($model) : null;
+    }
+
+    public function supportsToolsFor(string $model): ?bool
+    {
+        return $this->inner instanceof ModelCapabilitiesInterface ? $this->inner->supportsToolsFor($model) : null;
+    }
+
+    public function contextWindowFor(string $model): ?int
+    {
+        return $this->inner instanceof ModelCapabilitiesInterface ? $this->inner->contextWindowFor($model) : null;
     }
 
     public function supportsStreaming(): bool

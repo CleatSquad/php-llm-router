@@ -1,5 +1,14 @@
 # Upgrade guide
 
+## 5.4.1 → 5.5.0
+
+**Feature release: four new chat drivers, image/speech drivers, `ApiKeyPool`,
+`ModelCapabilitiesInterface`, and two `QuotaTrackerInterface` backends.**
+
+Nothing to change — no signature moved, no existing behavior changed. All of
+it is additive: new classes to opt into, and a widened (not narrowed)
+parameter type on `GroqDriver`'s constructor (still accepts a bare string).
+
 ## 5.3.0 → 5.4.0
 
 **Feature release: `stream()` stops throwing away usage on six drivers.**
@@ -348,7 +357,7 @@ $driver = $decision->selected->driver;
 - **v5 Policy to v4 interface**: Use `RoutingPolicyAdapter($v5Policy)` to wrap a v5 policy into a `RoutingStrategyInterface`.
 - **`RoutingStrategyFactory`**: Retained and updated to instantiate `RoutingPolicyAdapter` instances wrapping v5 policies under the hood.
 
-For detailed architecture explanations, see [docs/v5-architecture.md](docs/v5-architecture.md) and [docs/v5-migration.md](docs/v5-migration.md).
+For detailed architecture explanations, see [docs/architecture.md](docs/architecture.md) and [docs/v5-migration.md](docs/v5-migration.md).
 
 ---
 

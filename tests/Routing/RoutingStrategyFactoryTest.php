@@ -4,14 +4,7 @@ declare(strict_types=1);
 
 namespace CleatSquad\LlmRouter\Tests\Routing;
 
-use CleatSquad\LlmRouter\Routing\CostStrategy;
-use CleatSquad\LlmRouter\Routing\LatencyStrategy;
-use CleatSquad\LlmRouter\Routing\LeastBusyStrategy;
-use CleatSquad\LlmRouter\Routing\PriorityStrategy;
-use CleatSquad\LlmRouter\Routing\RandomStrategy;
-use CleatSquad\LlmRouter\Routing\RoundRobinStrategy;
 use CleatSquad\LlmRouter\Routing\RoutingStrategyFactory;
-use CleatSquad\LlmRouter\Routing\WeightedStrategy;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 

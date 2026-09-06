@@ -16,4 +16,10 @@ interface QuotaTrackerInterface
      * Check whether driver has exceeded hard quota limit.
      */
     public function isQuotaExceeded(string $driverId): bool;
+
+    /**
+     * Marks a driver's quota exhausted for $ttlSeconds (implementation's own
+     * default when null) — a real 429 known now, not derived from a ratio.
+     */
+    public function setQuotaExceeded(string $driverId, ?int $ttlSeconds = null): void;
 }

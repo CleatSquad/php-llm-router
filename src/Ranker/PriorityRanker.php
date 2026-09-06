@@ -12,13 +12,14 @@ use CleatSquad\LlmRouter\Engine\RankScore;
 final readonly class PriorityRanker implements RankerInterface
 {
     /**
-     * @param array<string, int> $priorities
-     * @param array<string, int> $qualityPriorities
+     * @param array<string, int|float> $priorities
+     * @param array<string, int|float> $qualityPriorities
      */
     public function __construct(
         private array $priorities = [],
         private array $qualityPriorities = [],
-    ) {}
+    ) {
+    }
 
     public function score(CandidateEvaluation $evaluation, LLMRequest $request): RankScore
     {

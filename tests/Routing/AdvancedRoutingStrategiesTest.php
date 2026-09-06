@@ -6,9 +6,6 @@ namespace CleatSquad\LlmRouter\Tests\Routing;
 
 use CleatSquad\LlmRouter\DTO\LLMRequest;
 use CleatSquad\LlmRouter\Routing\CapabilityStrategy;
-use CleatSquad\LlmRouter\Routing\CompositeStrategy;
-use CleatSquad\LlmRouter\Routing\ContextWindowStrategy;
-use CleatSquad\LlmRouter\Routing\CostStrategy;
 use CleatSquad\LlmRouter\Routing\InMemoryQuotaTracker;
 use CleatSquad\LlmRouter\Routing\InMemoryReliabilityTracker;
 use CleatSquad\LlmRouter\Routing\PriorityStrategy;

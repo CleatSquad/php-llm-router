@@ -7,7 +7,6 @@ namespace CleatSquad\LlmRouter\Adapter;
 use CleatSquad\LlmRouter\Contract\RoutingStrategyInterface;
 use CleatSquad\LlmRouter\Contract\Selector\SelectorInterface;
 use CleatSquad\LlmRouter\DTO\LLMRequest;
-use CleatSquad\LlmRouter\Engine\Candidate;
 use CleatSquad\LlmRouter\Engine\CandidateEvaluation;
 use CleatSquad\LlmRouter\Policy\RoutingPolicy;
 

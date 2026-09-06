@@ -9,9 +9,8 @@
 > from a model of the world that could carry neither the candidate's model nor
 > the constraints it had passed.
 >
-> Coming from an older version: [UPGRADE.md](UPGRADE.md),
-> [docs/v5-migration.md](docs/v5-migration.md) and
-> [docs/v5-architecture.md](docs/v5-architecture.md).
+> Coming from an older version: [UPGRADE.md](UPGRADE.md) and
+> [docs/v5-migration.md](docs/v5-migration.md).
 
 
 [![CI](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml/badge.svg)](https://github.com/CleatSquad/php-llm-router/actions/workflows/ci.yml)
@@ -134,6 +133,21 @@ $replyDriver = $strategy->select(new LLMRequest(messages: $msgs, preferQuality: 
 | `DeepSeekDriver` | DeepSeek | tools, reasoning (`deepseek-reasoner`) |
 | `OllamaDriver` | Local Ollama | free, fuzzy-matches the closest locally-pulled model |
 | `KimiDriver` | Moonshot AI | tools |
+| `GlmDriver` | Zhipu AI (GLM) | tools, OpenAI-compatible |
+| `GrokDriver` | xAI (Grok) | tools, OpenAI-compatible |
+| `MiniMaxDriver` | MiniMax | tools, OpenAI-compatible |
+| `QwenDriver` | Alibaba (Qwen) | tools, OpenAI-compatible |
+
+Three drivers cover non-chat modalities behind their own contract instead of
+`LLMDriverInterface`: `OpenAiImageDriver`/`GlmImageDriver` implement
+`ImageGenerationDriverInterface` (text-to-image), and `OpenAiTtsDriver`
+implements `SpeechSynthesisDriverInterface` (text-to-speech).
+
+`GlmDriver`, `GrokDriver`, `MiniMaxDriver`, `QwenDriver`, `OpenAiImageDriver`
+and `GlmImageDriver` ship with an empty `PRICING` table — no rate has been
+verified against the vendor's published pricing yet, so every model is
+refused with `UnknownModelException` until a caller registers one through
+the driver's `$extraModelPricing` constructor argument.
 
 Every driver implements `CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface`:
 `chat()`, `stream()`, `getModels()`, `isAvailable()`, `healthCheck()`,
@@ -142,6 +156,11 @@ capability flags.
 
 Write your own driver for another provider by implementing the same
 interface — nothing else in this package needs to know about it.
+
+`GroqDriver` accepts its API key as a bare string (unchanged), an array of
+strings, or an `Auth\ApiKeyPool` directly — `new ApiKeyPool(['key-1', 'key-2'])`
+round-robins across keys, useful for spreading calls across several accounts
+sharing one rate limit. A single key still works exactly as before.
 
 Priced drivers also implement `ModelCatalogueInterface` (`supportsModel()`),
 and so do the four decorators below — each delegating to what it wraps. A
@@ -413,6 +432,12 @@ $driver = new RateLimitedDriver(
     maxTokensPerMinute: 6000,
 );
 ```
+
+`Http\RateLimitHeaderParser` reads the standard rate-limit headers sent back
+by OpenAI, Anthropic, Groq, Mistral, DeepSeek and compatible providers
+(`x-ratelimit-*` and friends) into a plain value object — useful for logging
+or feeding a driver's own budget from what the provider actually reports,
+independently of `RateLimitedDriver`'s own local accounting.
 
 Token usage for `stream()` is only an estimate (input tokens only — recorded
 before the call from the request text, not from the driver's own terminal
@@ -986,11 +1011,13 @@ Optional extensions:
 
 ## Documentation
 
-- [docs/architecture.md](docs/architecture.md) — the request lifecycle, from
-  availability filtering through hard constraints and ranking to the resilience
-  decorators.
-- [docs/routing-strategies.md](docs/routing-strategies.md) — every strategy,
-  what it needs to work, and where this package parts ways with LiteLLM.
+- [docs/architecture.md](docs/architecture.md) — the whole design in one page:
+  the request lifecycle from availability filtering to the resilience
+  decorators, the constraint/ranker/selector policy, every strategy and what it
+  needs to work, and where this package parts ways with a router that runs as a
+  service.
+- [docs/v5-migration.md](docs/v5-migration.md) — each v4 strategy mapped to its
+  v5 equivalent.
 - [CHANGELOG.md](CHANGELOG.md) · [UPGRADE.md](UPGRADE.md)
 
 ## Contributing

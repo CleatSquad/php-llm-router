@@ -223,6 +223,11 @@ class OllamaDriver implements LLMDriverInterface, ModelCatalogueInterface
             'model' => $model,
             'messages' => $request->messages,
             'stream' => $request->stream,
+            // Ollama unloads a model from memory when idle (default 5m), so
+            // every call after a gap pays a multi-second cold-load penalty.
+            // Router calls this driver constantly across many small tasks —
+            // keep it resident.
+            'keep_alive' => '30m',
         ];
 
         if ($request->temperature !== null) {
@@ -305,6 +310,7 @@ class OllamaDriver implements LLMDriverInterface, ModelCatalogueInterface
             'model' => $model,
             'messages' => $request->messages,
             'stream' => true,
+            'keep_alive' => '30m',
         ];
 
         if ($request->temperature !== null) {

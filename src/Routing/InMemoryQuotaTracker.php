@@ -35,4 +35,9 @@ final class InMemoryQuotaTracker implements QuotaTrackerInterface
     {
         return isset($this->ratios[$driverId]) && $this->ratios[$driverId] <= 0.0;
     }
+
+    public function setQuotaExceeded(string $driverId, ?int $ttlSeconds = null): void
+    {
+        $this->ratios[$driverId] = 0.0;
+    }
 }

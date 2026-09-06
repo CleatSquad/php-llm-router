@@ -1,6 +1,6 @@
 {
     "name": "cleatsquad/php-llm-router",
-    "description": "Provider-agnostic LLM client for PHP — a uniform interface over Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama and Kimi, with pluggable routing, retries, caching, circuit breaking, rate limiting, MCP and A2A client drivers, embeddings, and audio transcription.",
+    "description": "Provider-agnostic LLM client for PHP — a uniform interface over Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, Ollama, Kimi, GLM, Grok, MiniMax and Qwen, with pluggable routing, retries, caching, circuit breaking, rate limiting, MCP and A2A client drivers, embeddings, audio transcription/synthesis, and image generation.",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -36,7 +36,13 @@
         "embeddings",
         "audio",
         "transcription",
-        "whisper"
+        "whisper",
+        "text-to-speech",
+        "image-generation",
+        "glm",
+        "grok",
+        "minimax",
+        "qwen"
     ],
     "require": {
         "php": ">=8.2",

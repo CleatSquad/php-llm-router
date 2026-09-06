@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCapabilitiesInterface;
 use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use CleatSquad\LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
@@ -15,6 +16,7 @@ use CleatSquad\LlmRouter\DTO\HealthStatus;
 use CleatSquad\LlmRouter\DTO\LLMRequest;
 use CleatSquad\LlmRouter\DTO\LLMResponse;
 use CleatSquad\LlmRouter\Enum\DriverType;
+use CleatSquad\LlmRouter\Enum\ReasoningEffort;
 use CleatSquad\LlmRouter\Http\HttpClient;
 use DateTimeImmutable;
 use Generator;
@@ -23,9 +25,12 @@ use RuntimeException;
 /**
  * Direct OpenAI Chat Completions API driver.
  */
-class OpenAiDriver implements LLMDriverInterface, ModelCatalogueInterface
+class OpenAiDriver implements LLMDriverInterface, ModelCatalogueInterface, ModelCapabilitiesInterface
 {
     use ResolvesPricedModel;
+
+    use ParsesChatCompletionSse;
+    use ReplaysChatCompletionReasoning;
 
     /** Used when a request names no model at all — a caller declining to choose. */
     private const DEFAULT_MODEL = 'gpt-4o-mini';
@@ -63,9 +68,6 @@ class OpenAiDriver implements LLMDriverInterface, ModelCatalogueInterface
         'gpt-4.1-mini' => ['input' => 0.0004, 'output' => 0.0016, 'reasoning' => false],
         'gpt-4.1-nano' => ['input' => 0.0001, 'output' => 0.0004, 'reasoning' => false],
     ];
-
-    use ParsesChatCompletionSse;
-    use ReplaysChatCompletionReasoning;
 
     private string $openAiUrl;
     private string $openAiApiKey;
@@ -166,7 +168,7 @@ class OpenAiDriver implements LLMDriverInterface, ModelCatalogueInterface
                 'streaming' => true,
                 'tools' => true,
                 'vision' => true,
-            ]
+            ],
         ];
     }
 
@@ -196,7 +198,20 @@ class OpenAiDriver implements LLMDriverInterface, ModelCatalogueInterface
         // $includeReasoning has nothing to act on here — only the effort does.
         if ($request->reasoningEffort !== null) {
             $this->assertModelCanReason($model, $request);
-            $payload['reasoning_effort'] = $request->reasoningEffort->value;
+            // o-series/GPT-5 reject 'none' outright (400 "does not support
+            // 'none' with this model") — 'low' is their actual floor. Only
+            // clamp on a model that actually reasons: assertModelCanReason()
+            // above doesn't fire for None (wantsReasoning() is false for it),
+            // so gpt-4o/gpt-4.1 would otherwise reach this unclamped — moot
+            // there since those never accept the key at all regardless of value.
+            $canReason = ($this->modelPricing()[$model]['reasoning'] ?? true) !== false;
+            $payload['reasoning_effort'] = $canReason
+                ? $request->reasoningEffort->clampTo([
+                    ReasoningEffort::Low,
+                    ReasoningEffort::Medium,
+                    ReasoningEffort::High,
+                ])->value
+                : $request->reasoningEffort->value;
         }
 
         $startTime = microtime(true);
@@ -291,7 +306,20 @@ class OpenAiDriver implements LLMDriverInterface, ModelCatalogueInterface
         // $includeReasoning has nothing to act on here — only the effort does.
         if ($request->reasoningEffort !== null) {
             $this->assertModelCanReason($model, $request);
-            $payload['reasoning_effort'] = $request->reasoningEffort->value;
+            // o-series/GPT-5 reject 'none' outright (400 "does not support
+            // 'none' with this model") — 'low' is their actual floor. Only
+            // clamp on a model that actually reasons: assertModelCanReason()
+            // above doesn't fire for None (wantsReasoning() is false for it),
+            // so gpt-4o/gpt-4.1 would otherwise reach this unclamped — moot
+            // there since those never accept the key at all regardless of value.
+            $canReason = ($this->modelPricing()[$model]['reasoning'] ?? true) !== false;
+            $payload['reasoning_effort'] = $canReason
+                ? $request->reasoningEffort->clampTo([
+                    ReasoningEffort::Low,
+                    ReasoningEffort::Medium,
+                    ReasoningEffort::High,
+                ])->value
+                : $request->reasoningEffort->value;
         }
 
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;

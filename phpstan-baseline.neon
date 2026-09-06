@@ -13,6 +13,54 @@ parameters:
 			path: src/Driver/DeepSeekDriver.php
 
 		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\GlmDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/GlmDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\GlmDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\{tool_calls\: array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null, prompt_tokens\: int, completion_tokens\: int, total_tokens\: int, cost_usd\: float\}\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/GlmDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\GrokDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/GrokDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\GrokDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\{tool_calls\: array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null, prompt_tokens\: int, completion_tokens\: int, total_tokens\: int, cost_usd\: float\}\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/GrokDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\MiniMaxDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/MiniMaxDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\MiniMaxDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\{tool_calls\: array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null, prompt_tokens\: int, completion_tokens\: int, total_tokens\: int, cost_usd\: float\}\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/MiniMaxDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\QwenDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/QwenDriver.php
+
+		-
+			message: '#^Method CleatSquad\\LlmRouter\\Driver\\QwenDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\{tool_calls\: array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null, prompt_tokens\: int, completion_tokens\: int, total_tokens\: int, cost_usd\: float\}\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Driver/QwenDriver.php
+
+		-
 			message: '#^Method CleatSquad\\LlmRouter\\Driver\\GroqDriver\:\:stream\(\) should return array\<''completion_tokens''\|''cost_usd''\|''prompt_tokens''\|''tool_calls''\|''total_tokens''\|int, array\<''function''\|''id''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|string\>\|float\|int\|null\>\|null but returns array\<''completion_tokens''\|''function''\|''id''\|''prompt_tokens''\|''total_tokens''\|''type''\|int, array\{id\: string, type\: string, function\: array\{name\: string, arguments\: string\}\}\|array\{name\: string, arguments\: string\}\|int\|string\>\|null\.$#'
 			identifier: return.type
 			count: 1
