@@ -282,13 +282,68 @@ final class PlanExecutorTest extends TestCase
     }
 
     /**
+     * A caller that must name the model it received cannot re-derive it from
+     * the plan: after a failover the answer comes from a candidate the plan
+     * did not select. The generator's return value is already taken by the
+     * driver's tool calls, so the served candidate is handed over separately.
+     */
+    public function testStreamingReportsTheCandidateThatAnsweredNotTheFirstOfThePlan(): void
+    {
+        $groq = new RecordingDriver('groq', ['llama-3.3-70b-versatile'], [
+            new RateLimitException('Groq rate limit exceeded', 180),
+        ]);
+        $mistral = new RecordingDriver('mistral', ['mistral-medium-latest']);
+
+        $served = null;
+
+        iterator_to_array((new PlanExecutor())->stream(
+            new LLMRequest(messages: []),
+            $this->decisionOf(
+                new Candidate('groq', 'Groq', $groq, 'llama-3.3-70b-versatile'),
+                new Candidate('mistral', 'Mistral', $mistral, 'mistral-medium-latest'),
+            ),
+            static function (Candidate $candidate) use (&$served): void {
+                $served = $candidate;
+            }
+        ));
+
+        $this->assertNotNull($served);
+        $this->assertSame('mistral', $served->id);
+        $this->assertSame('mistral-medium-latest', $served->model);
+    }
+
+    /** No candidate answered: nothing is reported as having served. */
+    public function testStreamingReportsNoServedCandidateWhenThePlanIsExhausted(): void
+    {
+        $groq = new RecordingDriver('groq', ['llama-3.3-70b-versatile'], [
+            new RateLimitException('Groq rate limit exceeded', 180),
+        ]);
+
+        $served = null;
+
+        $this->expectException(AllCandidatesFailedException::class);
+
+        try {
+            iterator_to_array((new PlanExecutor())->stream(
+                new LLMRequest(messages: []),
+                $this->decisionOf(new Candidate('groq', 'Groq', $groq, 'llama-3.3-70b-versatile')),
+                static function (Candidate $candidate) use (&$served): void {
+                    $served = $candidate;
+                }
+            ));
+        } finally {
+            $this->assertNull($served);
+        }
+    }
+
+    /**
      * Once a fragment has reached the caller it cannot be withdrawn, so a
      * later failure propagates rather than splicing a second provider's output
      * onto the first one's.
      */
     public function testStreamingDoesNotFailOverAfterTheFirstChunk(): void
     {
-        $failsMidStream = new class extends RecordingDriver {
+        $failsMidStream = new class () extends RecordingDriver {
             public function __construct()
             {
                 parent::__construct('groq', ['llama-3.3-70b-versatile'], []);
@@ -319,7 +374,7 @@ final class PlanExecutorTest extends TestCase
         }
     }
     /**
-     * RFC-0070, I-5 / criterion 7 — a driver that authenticates by query
+     * A driver that authenticates by query
      * parameter hands Guzzle a URL bearing its key, and Guzzle quotes that URL
      * in the exception message journaled here. GeminiDriver no longer does it;
      * this is the net under the next driver that would.

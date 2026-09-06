@@ -6,8 +6,8 @@ namespace CleatSquad\LlmRouter\Tests\Cache;
 
 use CleatSquad\LlmRouter\Cache\RedisCacheStore;
 use CleatSquad\LlmRouter\DTO\LLMResponse;
-use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
+use PHPUnit\Framework\TestCase;
 use Redis;
 
 /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCapabilitiesInterface;
 use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\NormalizesVisionContent;
 use CleatSquad\LlmRouter\Driver\Concern\ResolvesPricedModel;
@@ -24,11 +25,13 @@ use RuntimeException;
  * Direct Google Gemini API driver (generateContent / streamGenerateContent).
  * Gemini's wire format differs enough from OpenAI-compatible ones (separate systemInstruction, "model" role, whole-object function calls) that it needs its own mapping instead of the shared ParsesChatCompletionSse trait.
  */
-class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
+class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface, ModelCapabilitiesInterface
 {
     use NormalizesVisionContent;
 
     use ResolvesPricedModel;
+
+    use Concern\HandlesHttpRateLimit;
 
     /** Used when a request names no model at all — a caller declining to choose. */
     private const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
@@ -49,8 +52,6 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
         'gemini-2.5-flash' => ['input' => 0.0003, 'output' => 0.0025],
         'gemini-2.5-flash-lite' => ['input' => 0.0001, 'output' => 0.0004],
     ];
-
-    use Concern\HandlesHttpRateLimit;
 
     private string $geminiUrl;
     private string $geminiApiKey;
@@ -151,7 +152,7 @@ class GeminiDriver implements LLMDriverInterface, ModelCatalogueInterface
                 'streaming' => true,
                 'tools' => true,
                 'vision' => true,
-            ]
+            ],
         ];
     }
 

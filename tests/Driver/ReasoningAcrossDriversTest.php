@@ -199,6 +199,22 @@ final class ReasoningAcrossDriversTest extends TestCase
         $this->assertArrayNotHasKey('reasoning', $payload['messages'][1]);
     }
 
+    public function testOpenAiClampsNoneToItsActualFloor(): void
+    {
+        // Real failure this covers: o3 rejected reasoning_effort:'none' with
+        // a 400 ("does not support 'none' with this model") — unlike Qwen on
+        // Groq, OpenAI's reasoning models have no off switch, 'low' is the floor.
+        $driver = new OpenAiDriver($this->http($this->chatCompletion('unused')));
+
+        $driver->chat(new LLMRequest(
+            model: 'gpt-5',
+            messages: [['role' => 'user', 'content' => 'hi']],
+            reasoningEffort: ReasoningEffort::None,
+        ));
+
+        $this->assertSame('low', $this->lastPayload()['reasoning_effort']);
+    }
+
     public function testOpenAiNeverReportsATraceEvenWhenAsked(): void
     {
         $driver = new OpenAiDriver($this->http($this->chatCompletion('reasoning_content')));

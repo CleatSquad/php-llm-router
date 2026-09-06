@@ -7,8 +7,8 @@ namespace CleatSquad\LlmRouter\Tests\CircuitBreaker;
 use CleatSquad\LlmRouter\CircuitBreaker\CircuitBreakerState;
 use CleatSquad\LlmRouter\CircuitBreaker\RedisCircuitBreakerStore;
 use DateTimeImmutable;
-use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
+use PHPUnit\Framework\TestCase;
 use Redis;
 
 /**

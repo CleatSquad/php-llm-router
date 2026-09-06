@@ -7,8 +7,8 @@ namespace CleatSquad\LlmRouter\Tests\RateLimit;
 use CleatSquad\LlmRouter\RateLimit\RateLimitWindow;
 use CleatSquad\LlmRouter\RateLimit\RedisRateLimitStore;
 use DateTimeImmutable;
-use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
+use PHPUnit\Framework\TestCase;
 use Redis;
 
 /**

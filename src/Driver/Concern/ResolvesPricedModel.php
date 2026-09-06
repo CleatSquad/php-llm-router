@@ -38,20 +38,44 @@ use CleatSquad\LlmRouter\Exception\UnsupportedReasoningException;
  */
 trait ResolvesPricedModel
 {
-    /** @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}> */
+    /** @var array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool, vision?: bool, tools?: bool, context?: int}> */
     private array $extraModelPricing = [];
 
     /**
      * Every model this driver can serve and price: the shipped table, plus
      * whatever the caller registered.
      *
-     * @return array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}>
+     * @return array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool, vision?: bool, tools?: bool, context?: int}>
      */
     private function modelPricing(): array
     {
         // Caller-supplied entries win, so a stale shipped price can be
         // corrected without editing the package.
         return $this->extraModelPricing + self::PRICING;
+    }
+
+    /**
+     * per-model capability flags, read from the same table as the
+     * price. Null means the model carries no explicit entry for this flag —
+     * the caller (CapabilityConstraint) falls back to the driver-wide method.
+     */
+    public function supportsVisionFor(string $model): ?bool
+    {
+        return $this->modelPricing()[$model]['vision'] ?? null;
+    }
+
+    public function supportsToolsFor(string $model): ?bool
+    {
+        return $this->modelPricing()[$model]['tools'] ?? null;
+    }
+
+    /**
+     * Maximum input context window in tokens for $model, or null when not
+     * declared — ContextWindowConstraint applies no limit in that case.
+     */
+    public function contextWindowFor(string $model): ?int
+    {
+        return $this->modelPricing()[$model]['context'] ?? null;
     }
 
     /**
@@ -65,7 +89,9 @@ trait ResolvesPricedModel
      */
     private function pricingFor(string $model): array
     {
-        return $this->modelPricing()[$model] ?? self::PRICING[self::DEFAULT_MODEL];
+        $pricing = $this->modelPricing();
+
+        return $pricing[$model] ?? throw new UnknownModelException(static::class, $model, array_keys($pricing));
     }
 
     /**
@@ -127,9 +153,7 @@ trait ResolvesPricedModel
      */
     private function resolveModel(?string $model): string
     {
-        if ($model === null) {
-            return self::DEFAULT_MODEL;
-        }
+        $model ??= self::DEFAULT_MODEL;
 
         $pricing = $this->modelPricing();
 

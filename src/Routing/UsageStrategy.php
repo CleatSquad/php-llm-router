@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Routing;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
-use CleatSquad\LlmRouter\Contract\RoutingStrategyInterface;
 use CleatSquad\LlmRouter\Contract\Routing\UsageTrackerInterface;
+use CleatSquad\LlmRouter\Contract\RoutingStrategyInterface;
 use CleatSquad\LlmRouter\DTO\LLMRequest;
 use RuntimeException;
 

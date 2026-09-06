@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Concio\CleatSquad\LlmRouter\Tests\Driver\Concern;
+namespace CleatSquad\LlmRouter\Tests\Driver\Concern;
 
 use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use GuzzleHttp\Psr7\Utils;
@@ -12,7 +12,7 @@ final class ParsesChatCompletionSseTest extends TestCase
 {
     private function reader(): object
     {
-        return new class {
+        return new class () {
             use ParsesChatCompletionSse;
 
             public function read(string $sse): \Generator
@@ -102,5 +102,26 @@ final class ParsesChatCompletionSseTest extends TestCase
         iterator_to_array($gen);
 
         $this->assertNull($gen->getReturn());
+    }
+
+    public function testCapturesUsageWhenPresentInStream(): void
+    {
+        $sse = self::sseLine(['content' => 'hello '])
+            . self::sseLine(['content' => 'world'])
+            . 'data: ' . json_encode(['choices' => [], 'usage' => ['prompt_tokens' => 8, 'completion_tokens' => 2, 'total_tokens' => 10]]) . "\n\n"
+            . "data: [DONE]\n\n";
+
+        $gen = $this->reader()->read($sse);
+        $chunks = iterator_to_array($gen);
+        $result = $gen->getReturn();
+
+        $this->assertSame(['hello ', 'world'], $chunks);
+        $this->assertIsArray($result);
+        $this->assertNull($result['tool_calls']);
+        $this->assertSame([
+            'prompt_tokens' => 8,
+            'completion_tokens' => 2,
+            'total_tokens' => 10,
+        ], $result['usage']);
     }
 }

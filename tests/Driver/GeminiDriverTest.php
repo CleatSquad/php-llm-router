@@ -214,10 +214,10 @@ final class GeminiDriverTest extends TestCase
         $this->assertSame('Un message texte normal', $sentBody['contents'][0]['parts'][0]['text']);
     }
     /**
-     * RFC-0070, I-5 / criterion 7 — the key travels in a header, never in the
+     * The key travels in a header, never in the
      * URL. Guzzle quotes the whole URL in its exception messages, and
      * PlanExecutor journals that message: a key in the query string ended up
-     * in `docker logs concio-api` in clear, dozens of times on 2026-08-16.
+     * in the application logs in clear, dozens of times.
      */
     public function testTheApiKeyTravelsInAHeaderAndNeverInTheUrl(): void
     {

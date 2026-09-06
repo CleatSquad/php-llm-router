@@ -36,6 +36,20 @@ final class KimiDriverTest extends TestCase
         ], JSON_THROW_ON_ERROR));
     }
 
+    public function testChatThrowsOnApiErrorEnvelope(): void
+    {
+        $driver = $this->driverWithMockedResponses([
+            new Response(200, [], json_encode([
+                'error' => ['message' => 'insufficient_quota'],
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Kimi API error: insufficient_quota');
+
+        $driver->chat(new LLMRequest(messages: [['role' => 'user', 'content' => 'hi']]));
+    }
+
     public function testChatForcesTemperatureToOneForK2ReasoningModels(): void
     {
         $history = [];

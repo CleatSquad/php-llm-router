@@ -20,8 +20,9 @@ final class GroqDriverTest extends TestCase
     /**
      * @param Response[] $responses
      * @param array<int, array<string, mixed>> $history
+     * @param string|array<string> $groqApiKey
      */
-    private function driverWithMockedResponses(array $responses, array &$history = [], string $groqApiKey = 'test-key'): GroqDriver
+    private function driverWithMockedResponses(array $responses, array &$history = [], string|array $groqApiKey = 'test-key'): GroqDriver
     {
         $handlerStack = HandlerStack::create(new MockHandler($responses));
         $handlerStack->push(Middleware::history($history));
@@ -37,6 +38,26 @@ final class GroqDriverTest extends TestCase
             'model' => $model,
             'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 5, 'total_tokens' => 15],
         ], JSON_THROW_ON_ERROR));
+    }
+
+    public function testChatRotatesApiKeyPoolRoundRobin(): void
+    {
+        $history = [];
+        $driver = $this->driverWithMockedResponses(
+            [$this->chatResponse(), $this->chatResponse(), $this->chatResponse(), $this->chatResponse()],
+            $history,
+            groqApiKey: ['k1', 'k2', 'k3']
+        );
+
+        $driver->chat(new LLMRequest(messages: [['role' => 'user', 'content' => '1']]));
+        $driver->chat(new LLMRequest(messages: [['role' => 'user', 'content' => '2']]));
+        $driver->chat(new LLMRequest(messages: [['role' => 'user', 'content' => '3']]));
+        $driver->chat(new LLMRequest(messages: [['role' => 'user', 'content' => '4']]));
+
+        $this->assertSame('Bearer k1', $history[0]['request']->getHeaderLine('Authorization'));
+        $this->assertSame('Bearer k2', $history[1]['request']->getHeaderLine('Authorization'));
+        $this->assertSame('Bearer k3', $history[2]['request']->getHeaderLine('Authorization'));
+        $this->assertSame('Bearer k1', $history[3]['request']->getHeaderLine('Authorization'));
     }
 
     public function testChatMapsResponseAndComputesCostFromPricingTable(): void
@@ -104,9 +125,13 @@ final class GroqDriverTest extends TestCase
     {
         $withKey = $this->driverWithMockedResponses([], groqApiKey: 'test-key');
         $withoutKey = $this->driverWithMockedResponses([], groqApiKey: '');
+        $withEmptyArray = $this->driverWithMockedResponses([], groqApiKey: []);
+        $withEmptyStrings = $this->driverWithMockedResponses([], groqApiKey: ['', '  ']);
 
         $this->assertTrue($withKey->isAvailable());
         $this->assertFalse($withoutKey->isAvailable());
+        $this->assertFalse($withEmptyArray->isAvailable());
+        $this->assertFalse($withEmptyStrings->isAvailable());
     }
 
     public function testCapabilityFlags(): void
@@ -121,6 +146,17 @@ final class GroqDriverTest extends TestCase
         // picked will accept — see "Reasoning" in the README for which models
         // actually honour it.
         $this->assertTrue($driver->supportsReasoning());
+    }
+
+    public function testGptOss120bDeclaresItsContextWindow(): void
+    {
+        // Real 400 "Request too large" observed in production (2026-09-02):
+        // ContextWindowConstraint had nothing to enforce because no
+        // driver declared a 'context' entry, so it silently let any prompt
+        // size through. console.groq.com/docs/model/openai/gpt-oss-120b.
+        $driver = $this->driverWithMockedResponses([]);
+
+        $this->assertSame(131_072, $driver->contextWindowFor('openai/gpt-oss-120b'));
     }
 
     public function testEstimateCostUsesPricingForResolvedModelAndDefaultOutputBudget(): void
@@ -144,8 +180,8 @@ final class GroqDriverTest extends TestCase
 
     public function testStreamSendsIncludeUsageOptionAndCapturesTerminalUsageAndCost(): void
     {
-        $sse = "data: " . json_encode(['choices' => [['delta' => ['content' => 'Bonjour']]]]) . "\n\n"
-            . "data: " . json_encode([
+        $sse = 'data: ' . json_encode(['choices' => [['delta' => ['content' => 'Bonjour']]]]) . "\n\n"
+            . 'data: ' . json_encode([
                 'choices' => [['delta' => []]],
                 'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 5, 'total_tokens' => 15],
             ]) . "\n\n"
@@ -175,6 +211,64 @@ final class GroqDriverTest extends TestCase
 
         $requestPayload = json_decode((string) $history[0]['request']->getBody(), true);
         $this->assertTrue($requestPayload['stream_options']['include_usage'] ?? false);
+    }
+
+    /**
+     * Regression: ConcreteLlmProvider::stream() used to build its
+     * LibLLMRequest without `tools`, so this driver never even saw a
+     * schema on the streaming path the real chat actually uses — the
+     * request payload's `tools` key was simply absent, not empty.
+     */
+    public function testStreamSerializesToolSchemasIntoTheHttpPayload(): void
+    {
+        $sse = 'data: '
+            . json_encode(['choices' => [['delta' => ['tool_calls' => [[
+                'index' => 0,
+                'id' => 'call_1',
+                'function' => ['name' => 'write_codebase_file', 'arguments' => '{"path":"ghost-success.md"'],
+            ]]]]]])
+            . "\n\n"
+            . 'data: ' . json_encode(['choices' => [['delta' => ['tool_calls' => [[
+                'index' => 0,
+                'function' => ['arguments' => ',"content":"TEST GHOST SUCCESS"}'],
+            ]]]]]]) . "\n\n"
+            . 'data: ' . json_encode([
+                'choices' => [['delta' => []]],
+                'usage' => ['prompt_tokens' => 20, 'completion_tokens' => 10, 'total_tokens' => 30],
+            ]) . "\n\n"
+            . "data: [DONE]\n\n";
+
+        $history = [];
+        $driver = $this->driverWithMockedResponses([
+            new Response(200, ['Content-Type' => 'text/event-stream'], $sse),
+        ], $history);
+
+        $tools = [[
+            'type' => 'function',
+            'function' => [
+                'name' => 'write_codebase_file',
+                'description' => 'Creates or overwrites a file safely within the workspace boundaries.',
+                'parameters' => ['type' => 'object', 'required' => ['path', 'content']],
+            ],
+        ]];
+
+        $gen = $driver->stream(new LLMRequest(
+            messages: [['role' => 'user', 'content' => 'crée ghost-success.md']],
+            model: 'openai/gpt-oss-20b',
+            tools: $tools,
+        ));
+
+        iterator_to_array($gen);
+        $result = $gen->getReturn();
+
+        $requestPayload = json_decode((string) $history[0]['request']->getBody(), true);
+        $this->assertSame($tools, $requestPayload['tools'] ?? null, 'the HTTP payload must actually carry the tool schema');
+
+        $this->assertSame('write_codebase_file', $result['tool_calls'][0]['function']['name']);
+        $this->assertSame(
+            '{"path":"ghost-success.md","content":"TEST GHOST SUCCESS"}',
+            $result['tool_calls'][0]['function']['arguments']
+        );
     }
 
     public function testGetModelsReturnsPricingTableKeys(): void

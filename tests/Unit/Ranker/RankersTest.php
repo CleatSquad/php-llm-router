@@ -107,6 +107,25 @@ final class RankersTest extends TestCase
         $this->assertSame('ReliabilityRanker', $score->ranker);
     }
 
+    public function testReliabilityRankerDefaultScore(): void
+    {
+        $driver = $this->createMock(LLMDriverInterface::class);
+        $candidate = new Candidate('d1', 'D1', $driver);
+        $eval = new CandidateEvaluation($candidate);
+        $request = new LLMRequest(messages: []);
+
+        $rankerDefault = new \CleatSquad\LlmRouter\Ranker\ReliabilityRanker();
+        $this->assertSame(1.0, $rankerDefault->score($eval, $request)->value);
+
+        $rankerCustom = new \CleatSquad\LlmRouter\Ranker\ReliabilityRanker(defaultScore: 0.5);
+        $this->assertSame(0.5, $rankerCustom->score($eval, $request)->value);
+
+        $tracker = new \CleatSquad\LlmRouter\Routing\InMemoryReliabilityTracker(minSamples: 5);
+        $tracker->recordSuccess('d1');
+        $rankerWithTrackerUnderMin = new \CleatSquad\LlmRouter\Ranker\ReliabilityRanker($tracker, defaultScore: 0.5);
+        $this->assertSame(0.5, $rankerWithTrackerUnderMin->score($eval, $request)->value);
+    }
+
     public function testLeastBusyRankerScoresUsingTracker(): void
     {
         $tracker = new \CleatSquad\LlmRouter\Routing\InMemoryActiveRequestsTracker();

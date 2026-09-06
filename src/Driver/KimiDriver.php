@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCapabilitiesInterface;
 use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use CleatSquad\LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
@@ -23,10 +24,11 @@ use RuntimeException;
 /**
  * LLM driver for Moonshot AI's Kimi models.
  */
-class KimiDriver implements LLMDriverInterface, ModelCatalogueInterface
+class KimiDriver implements LLMDriverInterface, ModelCatalogueInterface, ModelCapabilitiesInterface
 {
     use ParsesChatCompletionSse;
     use ResolvesPricedModel;
+    use ReplaysChatCompletionReasoning;
 
     /** Used when a request names no model at all — a caller declining to choose. */
     private const DEFAULT_MODEL = 'kimi-k2.6';
@@ -52,7 +54,6 @@ class KimiDriver implements LLMDriverInterface, ModelCatalogueInterface
         // absent from /v1/models. See the note on claude-mythos-5 in
         // ClaudeDriver for why a retired entry must not linger here.
     ];
-    use ReplaysChatCompletionReasoning;
 
     private string $moonshotUrl;
     private string $moonshotApiKey;
@@ -154,7 +155,7 @@ class KimiDriver implements LLMDriverInterface, ModelCatalogueInterface
                 'streaming' => true,
                 'tools' => true,
                 'vision' => false,
-            ]
+            ],
         ];
     }
 
@@ -217,6 +218,11 @@ class KimiDriver implements LLMDriverInterface, ModelCatalogueInterface
 
         if (!is_array($data)) {
             throw new RuntimeException('Kimi returned invalid JSON payload: ' . $contents);
+        }
+
+        if (isset($data['error'])) {
+            $message = is_array($data['error']) ? ($data['error']['message'] ?? 'Unknown Kimi API error') : (string) $data['error'];
+            throw new RuntimeException('Kimi API error: ' . $message);
         }
 
         $content = $data['choices'][0]['message']['content'] ?? '';

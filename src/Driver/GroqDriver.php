@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace CleatSquad\LlmRouter\Driver;
 
+use CleatSquad\LlmRouter\Auth\ApiKeyPool;
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCapabilitiesInterface;
 use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use CleatSquad\LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
@@ -22,9 +24,13 @@ use Generator;
 use GuzzleHttp\Exception\RequestException;
 use RuntimeException;
 
-class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
+class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface, ModelCapabilitiesInterface
 {
     use ResolvesPricedModel;
+
+    use Concern\HandlesHttpRateLimit;
+    use ParsesChatCompletionSse;
+    use ReplaysChatCompletionReasoning;
 
     /** Used when a request names no model at all — a caller declining to choose. */
     private const DEFAULT_MODEL = 'openai/gpt-oss-20b';
@@ -48,6 +54,12 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
             'output' => 0.0006,
             'reasoningEffort' => 'graded',
             'reasoningFormat' => false,
+            // console.groq.com/docs/model/openai/gpt-oss-120b — real 400
+            // "Request too large" observed in production (2026-09-02) on a
+            // synthesis task, because no driver declared a context window at
+            // all: ContextWindowConstraint has been wired since,
+            // but silently no-ops without this key (falls back to PHP_INT_MAX).
+            'context' => 131_072,
         ],
         'openai/gpt-oss-20b' => [
             'input' => 0.000075,
@@ -62,14 +74,11 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
         // 404 there, instead of failing fast locally with UnknownModelException.
     ];
 
-    use Concern\HandlesHttpRateLimit;
-    use ParsesChatCompletionSse;
-    use ReplaysChatCompletionReasoning;
-
     private string $groqUrl;
-    private string $groqApiKey;
+    private ApiKeyPool $groqApiKeys;
 
     /**
+     * @param string|array<string>|ApiKeyPool $groqApiKey
      * @param array<string, array{input: float, output: float, reasoning?: bool, thinkingAlwaysOn?: bool, reasoningEffort?: string, reasoningFormat?: bool}> $extraModelPricing
      *   Pricing per 1k tokens for models this release predates, merged over the
      *   shipped table. Without an entry here, an unknown model is rejected
@@ -78,13 +87,13 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
     public function __construct(
         private readonly HttpClient $httpClient,
         string $groqUrl = 'https://api.groq.com/openai/v1',
-        string $groqApiKey = '',
+        string|array|ApiKeyPool $groqApiKey = '',
         private readonly float $localLlmTimeout = 30.0,
         array $extraModelPricing = [],
     ) {
         $this->extraModelPricing = $extraModelPricing;
         $this->groqUrl = rtrim($groqUrl, '/');
-        $this->groqApiKey = $groqApiKey;
+        $this->groqApiKeys = $groqApiKey instanceof ApiKeyPool ? $groqApiKey : new ApiKeyPool($groqApiKey);
     }
 
     public function getId(): string
@@ -104,12 +113,12 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
 
     public function isAvailable(): bool
     {
-        return !empty($this->groqApiKey);
+        return !$this->groqApiKeys->isEmpty();
     }
 
     public function healthCheck(): HealthStatus
     {
-        if (empty($this->groqApiKey)) {
+        if ($this->groqApiKeys->isEmpty()) {
             return new HealthStatus(
                 HealthState::UNHEALTHY,
                 0,
@@ -120,8 +129,9 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
 
         $startTime = microtime(true);
         try {
+            $apiKey = $this->groqApiKeys->next();
             $response = $this->httpClient->getClient()->get($this->groqUrl . '/models', [
-                'headers' => $this->getHeaders(),
+                'headers' => $this->getHeaders($apiKey),
                 'timeout' => 4.0,
             ]);
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
@@ -165,7 +175,7 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
                 'streaming' => true,
                 'tools' => true,
                 'vision' => false,
-            ]
+            ],
         ];
     }
 
@@ -197,10 +207,11 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
 
         $startTime = microtime(true);
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
+        $apiKey = $this->groqApiKeys->next();
         try {
             $response = $this->httpClient->getClient()->post($this->groqUrl . '/chat/completions', [
                 'json' => $payload,
-                'headers' => $this->getHeaders(),
+                'headers' => $this->getHeaders($apiKey),
                 'timeout' => $timeout,
             ]);
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
@@ -292,11 +303,12 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
         $payload = $this->applyReasoning($payload, $request, $model);
 
         $timeout = $request->timeoutSeconds ?? $this->localLlmTimeout;
+        $apiKey = $this->groqApiKeys->next();
 
         try {
             $response = $this->httpClient->getClient()->post($this->groqUrl . '/chat/completions', [
                 'json' => $payload,
-                'headers' => $this->getHeaders(),
+                'headers' => $this->getHeaders($apiKey),
                 'timeout' => $timeout,
                 'read_timeout' => $timeout,
                 'stream' => true,
@@ -419,11 +431,11 @@ class GroqDriver implements LLMDriverInterface, ModelCatalogueInterface
     /**
      * @return array<string, string>
      */
-    private function getHeaders(): array
+    private function getHeaders(?string $apiKey = null): array
     {
         return [
             'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->groqApiKey,
+            'Authorization' => 'Bearer ' . ($apiKey ?? $this->groqApiKeys->next()),
         ];
     }
 

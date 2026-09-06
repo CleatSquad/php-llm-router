@@ -218,7 +218,7 @@ final class PlanExecutor
 
     /**
      * Guzzle quotes the whole URL in its exception messages. A driver
-     * authenticating by query parameter would leak its key here (RFC-0070, I-5).
+     * authenticating by query parameter would leak its key here.
      */
     private static function redactSecrets(string $message): string
     {

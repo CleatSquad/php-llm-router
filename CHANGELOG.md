@@ -14,6 +14,42 @@ The 4.x entries carry no date. They were tagged within a day of each other, and
 a date on each would say less about this package than the tags do. For the
 release date of any version, ask git: `git log -1 --format=%ad v4.1.3`.
 
+## [5.5.0] - 2026-09-06
+
+No breaking changes.
+
+### Added
+
+- **Four new OpenAI-compatible chat drivers**: `GlmDriver` (Zhipu AI),
+  `GrokDriver` (xAI), `MiniMaxDriver` and `QwenDriver` (Alibaba). Each ships
+  with an empty `PRICING` table — no rate has been verified against the
+  vendor's published pricing yet — so every model is refused with
+  `UnknownModelException` until a caller registers one through
+  `$extraModelPricing`, the same rule `GlmDriver` already applied to itself.
+- **Two new non-chat modalities**, each behind its own contract rather than a
+  method bolted onto `LLMDriverInterface`: `ImageGenerationDriverInterface`
+  (`OpenAiImageDriver` for DALL-E/gpt-image-1, `GlmImageDriver` for Zhipu's
+  CogView) and `SpeechSynthesisDriverInterface` (`OpenAiTtsDriver`, the
+  synthesis counterpart of the existing transcription driver).
+- **`ModelCapabilitiesInterface`**, an optional per-driver contract answering
+  whether a specific model supports vision, tools, and how large a context
+  window it accepts — `CapabilityConstraint` and the new
+  `ContextWindowConstraint` fall back to the driver-wide flags for a driver
+  that does not implement it.
+- **`Auth\ApiKeyPool`**, a round-robin pool over several API keys for spreading
+  calls across accounts sharing one provider-side rate limit. `GroqDriver`
+  accepts it (or a plain string, or an array of strings) as its API key
+  argument; a single string still works exactly as before.
+- **`Http\RateLimitHeaderParser`**, parsing the standard rate-limit response
+  headers sent back by OpenAI, Anthropic, Groq, Mistral, DeepSeek and
+  compatible providers into a plain value object.
+- **`Routing\Psr16QuotaTracker` and `Routing\RedisQuotaTracker`**, two more
+  `QuotaTrackerInterface` implementations alongside the existing
+  `InMemoryQuotaTracker`, for sharing routing quota state across processes.
+- **`Tooling\ModelDriftChecker`**, extracted from `bin/check-model-drift.php`
+  so the drift-detection logic is unit-testable independently of the CLI
+  script that wraps it.
+
 ## [5.4.1] - 2026-08-25
 
 No breaking changes.

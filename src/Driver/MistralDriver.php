@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CleatSquad\LlmRouter\Driver;
 
 use CleatSquad\LlmRouter\Contract\Driver\LLMDriverInterface;
+use CleatSquad\LlmRouter\Contract\Driver\ModelCapabilitiesInterface;
 use CleatSquad\LlmRouter\Contract\Driver\ModelCatalogueInterface;
 use CleatSquad\LlmRouter\Driver\Concern\ParsesChatCompletionSse;
 use CleatSquad\LlmRouter\Driver\Concern\ReplaysChatCompletionReasoning;
@@ -24,9 +25,13 @@ use RuntimeException;
  * Direct Mistral AI API driver — OpenAI-compatible chat completions
  * (same wire format LiteLLM/OpenAI/Kimi speak, hence the shared trait).
  */
-class MistralDriver implements LLMDriverInterface, ModelCatalogueInterface
+class MistralDriver implements LLMDriverInterface, ModelCatalogueInterface, ModelCapabilitiesInterface
 {
     use ResolvesPricedModel;
+
+    use Concern\HandlesHttpRateLimit;
+    use ParsesChatCompletionSse;
+    use ReplaysChatCompletionReasoning;
 
     /** Used when a request names no model at all — a caller declining to choose. */
     private const DEFAULT_MODEL = 'mistral-small-latest';
@@ -60,10 +65,6 @@ class MistralDriver implements LLMDriverInterface, ModelCatalogueInterface
         'ministral-8b-latest' => ['input' => 0.00015, 'output' => 0.00015],
         'ministral-3b-latest' => ['input' => 0.0001, 'output' => 0.0001],
     ];
-
-    use Concern\HandlesHttpRateLimit;
-    use ParsesChatCompletionSse;
-    use ReplaysChatCompletionReasoning;
 
     private string $mistralUrl;
     private string $mistralApiKey;
@@ -164,7 +165,7 @@ class MistralDriver implements LLMDriverInterface, ModelCatalogueInterface
                 'streaming' => true,
                 'tools' => true,
                 'vision' => false,
-            ]
+            ],
         ];
     }
 
