@@ -941,7 +941,7 @@ Grouped by theme; each bullet corresponds to one or more commits.
 
 ### Changed
 
-- Namespace renamed `Concio\LlmRouter` → `LlmRouter` (`b0f520b`) and package
+- Namespace renamed from the donor application's namespace to `LlmRouter` (`b0f520b`) and package
   renamed to `mohaelmrabet/php-llm-router` (`0f1d1a5`), for community
   neutrality.
 - `ParsesOpenAiCompatibleSse` renamed to `ParsesChatCompletionSse` (`bea6925`)
@@ -968,5 +968,5 @@ Grouped by theme; each bullet corresponds to one or more commits.
   application it was extracted from. A LiteLLM proxy is OpenAI-compatible, so
   `OpenAiDriver` pointed at the proxy URL replaces it. The README continued to
   document the removed driver until [1.14.0](#1140--2026-08-11).
-- **Namespace rename** `Concio\LlmRouter` → `LlmRouter` (`b0f520b`), before the
+- **Namespace rename** from the donor application's namespace to `LlmRouter` (`b0f520b`), before the
   package had external consumers.
